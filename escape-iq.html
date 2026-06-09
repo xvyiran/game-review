@@ -51,7 +51,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
 
 /* ── GAME SCREEN ── */
 #screen-game{
-  background: url('assets/bg_main.png') center top / cover no-repeat;
+  background: url('escape-iq-assets/bg_main.png') center top / cover no-repeat;
   justify-content:flex-start;padding:0}
 /* 半透明遮罩让题目卡片更突出 */
 #screen-game::before{
@@ -96,7 +96,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
   content:'';
   position:absolute;
   top:-55px;left:0;right:0;height:115px;
-  background:url('assets/water_normal.png') repeat-x 0 60%;
+  background:url('escape-iq-assets/water_normal.png') repeat-x 0 60%;
   background-size:auto 115px;
   animation:wave-scroll 4s linear infinite;
   pointer-events:none;
@@ -107,7 +107,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
 #water-body.danger{
   background:linear-gradient(180deg,#1565c0 0%,#0d47a1 100%)}
 #water-body.danger::before{
-  background-image:url('assets/water_danger.png')}
+  background-image:url('escape-iq-assets/water_danger.png')}
 #water-body.surge{animation:surge-flash .3s ease-out}
 
 /* 水涨溅射特效图（答错时出现）*/
@@ -199,7 +199,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
 /* 游戏故事告知页 */
 #screen-intro{background:#000}
 .intro-bg{position:absolute;inset:0;
-  background:url('assets/bg_main.png') center/cover no-repeat;
+  background:url('escape-iq-assets/bg_main.png') center/cover no-repeat;
   filter:brightness(.5)}
 .intro-content{
   position:relative;z-index:2;
@@ -218,8 +218,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
 .intro-body strong{color:#ffe57f;font-size:18px}
 
 /* Result screen */
-#screen-result{background:url('assets/bg_result_win.png') center/cover no-repeat}
-#screen-result.fail{background-image:url('assets/bg_result_fail.png')}
+#screen-result{background:url('escape-iq-assets/bg_result_win.png') center/cover no-repeat}
+#screen-result.fail{background-image:url('escape-iq-assets/bg_result_fail.png')}
 /* 结算页内容区加白色磨砂卡片，确保文字可读 */
 .result-icon{font-size:72px;margin-bottom:12px}
 .result-title{font-size:28px;font-weight:900;color:#263238;margin-bottom:6px}
@@ -313,15 +313,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
 
     <div id="water-container">
       <div id="water-body" style="height:0%">
-        <span class="fish" style="left:12%;bottom:18%"><img src="assets/char_fish_01.png" width="52" alt=""></span>
-        <span class="fish" style="left:62%;bottom:30%;animation-delay:.9s;transform:scaleX(-1)"><img src="assets/char_fish_02.png" width="46" alt=""></span>
+        <span class="fish" style="left:12%;bottom:18%"><img src="escape-iq-assets/char_fish_01.png" width="52" alt=""></span>
+        <span class="fish" style="left:62%;bottom:30%;animation-delay:.9s;transform:scaleX(-1)"><img src="escape-iq-assets/char_fish_02.png" width="46" alt=""></span>
         <span class="bubble" style="left:28%;bottom:8%;animation-delay:.4s"></span>
         <span class="bubble" style="left:52%;bottom:4%;animation-delay:1.2s"></span>
         <span class="bubble" style="left:78%;bottom:12%;animation-delay:.7s"></span>
       </div>
     </div>
     <!-- 水涨溅射特效 -->
-    <div id="surge-overlay"><img src="assets/effect_water_surge.png" alt=""></div>
+    <div id="surge-overlay"><img src="escape-iq-assets/effect_water_surge.png" alt=""></div>
     <!-- 右侧水位刻度条 -->
     <div id="water-gauge"><div id="water-gauge-fill"></div></div>
     <!-- 危险红色边缘晕染 -->
@@ -335,11 +335,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
     </div>
 
     <!-- 常态锁门小图标 -->
-    <img id="door-icon" src="assets/door_locked.png" alt="密室门">
+    <img id="door-icon" src="escape-iq-assets/door_locked.png" alt="密室门">
     <!-- 答对时：门在背景原位展开 + 光晕全屏 -->
     <div id="door-overlay">
       <div id="door-light"></div>
-      <img id="door-overlay-img" src="assets/door_open.png" alt="门开了！">
+      <img id="door-overlay-img" src="escape-iq-assets/door_open.png" alt="门开了！">
     </div>
     <!-- 白光闪烁层 -->
     <div id="flash-white"></div>
