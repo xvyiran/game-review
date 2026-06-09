@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>节拍口诀 · RhythmTable</title>
+<style>
+/* ── Reset & Base ── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'PingFang SC','Helvetica Neue',sans-serif}
+button{border:none;outline:none;cursor:pointer;background:none}
+
+/* ── Game Container ── */
+#game-container{
+  position:relative;
+  width:100vw;height:100dvh;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  max-width:480px;margin:0 auto;
+}
+
+/* ── Screens ── */
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.active{display:flex}
+
+/* ════════════════════════════════
+   INTRO SCREEN
+════════════════════════════════ */
+#screen-intro{
+  background:linear-gradient(180deg,#ff8c00 0%,#e06000 50%,#1a1e2e 100%);
+  justify-content:space-evenly;align-items:center;padding:6vw;
+}
+.intro-bg{
+  position:absolute;inset:0;
+  background:url('assets/bg_main.png') center bottom/cover no-repeat;
+  opacity:.15;pointer-events:none;
+}
+.intro-body{position:relative;z-index:1;width:100%;text-align:center}
+.intro-title{
+  font-size:min(13vw,52px);font-weight:900;color:#fff;
+  text-shadow:0 2px 14px rgba(0,0,0,.55);letter-spacing:.12em;
+  white-space:nowrap;
+}
+.intro-subtitle{
+  font-size:min(3.8vw,15px);color:rgba(255,255,255,.7);
+  margin-top:1.5vw;white-space:nowrap;
+}
+.intro-rules{
+  margin:7vw 0;display:flex;flex-direction:column;gap:3vw;text-align:left;
+}
+.rule{
+  font-size:min(4.5vw,18px);color:rgba(255,255,255,.92);
+  background:rgba(0,0,0,.28);border-radius:12px;padding:3vw 4vw;
+  border-left:3px solid rgba(255,180,0,.6);
+}
+.btn-go{
+  background:#fff;color:#d05500;border-radius:16px;
+  padding:4.5vw 0;font-size:min(5.5vw,22px);font-weight:800;width:100%;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);transition:transform .1s;
+}
+.btn-go:active{transform:scale(.96)}
+
+/* ════════════════════════════════
+   SELECT SCREEN
+════════════════════════════════ */
+#screen-select{
+  background:linear-gradient(180deg,#ff8c00 0%,#e06000 55%,#1a1e2e 100%);
+  justify-content:space-evenly;align-items:center;
+  padding:3vh 6vw;
+}
+.select-header{text-align:center}
+.select-title{
+  font-size:min(10vw,40px);font-weight:900;color:#fff;
+  text-shadow:0 2px 10px rgba(0,0,0,.45);
+  letter-spacing:.15em;
+  white-space:nowrap;
+}
+.select-subtitle{
+  font-size:min(3.8vw,15px);color:rgba(255,255,255,.75);
+  margin-top:1.2vw;white-space:nowrap;letter-spacing:.05em;
+}
+
+/* 角色预览区 */
+.select-chars{
+  width:92%;height:20vh;
+  background:url('assets/bg_main.png') center/cover no-repeat;
+  border-radius:14px;overflow:hidden;
+  border:2px solid rgba(255,255,255,.25);
+  box-shadow:0 4px 20px rgba(0,0,0,.35);
+}
+
+/* 难度按钮 */
+.difficulty-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:3vw;width:92%;
+}
+.btn-difficulty{
+  background:#1a1e2e;border:2px solid #333;
+  border-radius:14px;padding:3.5vw 3vw;
+  color:#fff;text-align:left;
+  transition:transform .12s,border-color .12s;
+  position:relative;overflow:hidden;
+}
+.btn-difficulty:active{transform:scale(.95)}
+.btn-difficulty.locked{opacity:.4}
+.btn-difficulty .d-label{
+  font-size:min(5vw,20px);font-weight:800;color:#ff9900;
+  display:block;margin-bottom:.8vw;
+}
+.btn-difficulty .d-bpm{font-size:min(3vw,12px);color:rgba(255,255,255,.55)}
+.btn-difficulty .d-desc{font-size:min(2.8vw,11px);color:rgba(255,255,255,.45);margin-top:.6vw;display:block;line-height:1.5}
+.btn-difficulty[data-level="beginner"]{border-color:#ff9900;background:#221800}
+.btn-difficulty[data-level="beginner"] .d-label{color:#ffcc44}
+.select-footer{font-size:min(2.8vw,11px);color:rgba(255,255,255,.35);text-align:center}
+
+/* ════════════════════════════════
+   GAME SCREEN — 50/50 split
+════════════════════════════════ */
+#screen-game{background:#1a1e2e;flex-direction:column}
+
+/* ── Top half: performance area ── */
+#top-half{
+  height:50dvh;
+  position:relative;
+  overflow:hidden;
+  flex-shrink:0;
+}
+
+/* HUD — pinned to top */
+#hud{
+  position:absolute;top:0;left:0;right:0;
+  z-index:10;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:2vw 4vw;
+  background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);
+  pointer-events:none;
+}
+.hud-score{color:#fff;font-size:min(4vw,16px);font-weight:700}
+.hud-score span{color:#ffbb33;font-size:min(5vw,20px)}
+.hud-combo{font-size:min(3.5vw,14px);color:#ff9900;font-weight:700;transition:transform .15s}
+.hud-combo.pop{transform:scale(1.4)}
+.hud-fever{
+  display:none;font-size:min(3.2vw,13px);font-weight:900;
+  color:#ff4400;letter-spacing:.1em;
+  animation:feverPulse .5s infinite alternate;
+}
+.hud-fever.active{display:block}
+@keyframes feverPulse{from{opacity:.7}to{opacity:1;text-shadow:0 0 8px #ff4400}}
+
+/* BG layer — fills top-half */
+#bg-layer{
+  position:absolute;inset:0;
+  z-index:1;
+}
+#bg-layer img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#bg-layer .bg-fever-img{opacity:0;transition:opacity .4s}
+#bg-layer.fever-on .bg-fever-img{opacity:1}
+#bg-layer.fever-on .bg-normal{opacity:0;transition:opacity .4s}
+
+/* Character — absolute inside top-half */
+#char-layer{
+  position:absolute;
+  bottom:22vw; /* sits above lyric bar */
+  left:50%;transform:translateX(-50%);
+  width:clamp(56px,15vw,80px);
+  z-index:4;
+}
+#char-img{width:100%;height:auto}
+@keyframes charDance{
+  0%{transform:translateY(0) rotate(0deg)}
+  25%{transform:translateY(-8px) rotate(-6deg)}
+  50%{transform:translateY(0) rotate(0deg)}
+  75%{transform:translateY(-5px) rotate(5deg)}
+  100%{transform:translateY(0) rotate(0deg)}
+}
+@keyframes charFall{
+  0%{transform:rotate(0deg) translateY(0)}
+  25%{transform:rotate(-30deg) translateY(4px)}
+  55%{transform:rotate(18deg) translateY(2px)}
+  80%{transform:rotate(-8deg)}
+  100%{transform:rotate(0deg)}
+}
+#char-img.dance{animation:charDance .55s ease-in-out 3}
+#char-img.fall{animation:charFall .65s ease-in-out 2}
+
+/* Demo Banner */
+#demo-banner{
+  position:absolute;top:10vw;left:0;right:0;
+  background:rgba(0,0,0,.65);
+  color:#ffbb33;font-size:min(3.8vw,15px);font-weight:700;
+  text-align:center;padding:2vw;z-index:15;
+  display:none;
+}
+#demo-banner.show{display:block}
+
+/* ── Lyric section — pinned to bottom of top-half ── */
+#lyric-section{
+  position:absolute;bottom:0;left:0;right:0;
+  z-index:6;
+  background:rgba(10,14,28,0.88);
+  padding:2.5vw 3vw 2vw;
+  display:flex;flex-direction:column;gap:2vw;
+}
+#beat-bar{
+  display:flex;justify-content:center;gap:4vw;
+}
+.beat-dot{
+  width:clamp(8px,2.5vw,12px);height:clamp(8px,2.5vw,12px);
+  border-radius:50%;background:rgba(255,255,255,.18);
+  transition:none;
+}
+.beat-dot.active{background:#ff9900;transform:scale(1.5);box-shadow:0 0 6px #ff9900}
+
+#lyric-bar{
+  display:flex;align-items:center;justify-content:center;
+  min-height:clamp(36px,10vw,48px);
+  gap:2vw;flex-wrap:wrap;
+}
+.lyric-token{
+  font-size:clamp(20px,6vw,30px);font-weight:700;color:rgba(255,255,255,.45);
+  transition:color .12s,text-shadow .12s;
+  line-height:1.2;
+}
+.lyric-token.active{color:#fff;text-shadow:0 0 12px rgba(255,220,80,.9)}
+.lyric-token.passed{color:rgba(255,255,255,.25)}
+.lyric-token.answer-slot{
+  min-width:clamp(28px,8vw,38px);height:clamp(28px,8vw,38px);
+  border-radius:8px;
+  border:2px solid rgba(255,150,0,.4);
+  background:rgba(255,100,0,.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(18px,5.5vw,28px);color:#ffaa00;
+}
+.lyric-token.answer-slot.open{
+  border-color:#ff9900;
+  background:rgba(255,120,0,.28);
+  animation:slotPulse .45s infinite alternate;
+}
+.lyric-token.answer-slot.correct{border-color:#44ff88;background:rgba(0,180,70,.2);animation:none;color:#55ff99}
+.lyric-token.answer-slot.wrong{border-color:#ff4444;background:rgba(180,0,0,.2);animation:none;color:#ff5555}
+.lyric-token.answer-slot.revealed{border-color:rgba(255,200,80,.35);background:rgba(255,150,0,.12);color:rgba(255,200,80,.7);animation:none}
+@keyframes slotPulse{
+  from{box-shadow:0 0 4px rgba(255,150,0,.4)}
+  to{box-shadow:0 0 14px rgba(255,150,0,.95),inset 0 0 8px rgba(255,100,0,.3)}
+}
+
+#progress-bar{
+  display:flex;justify-content:center;gap:2.5vw;
+}
+.progress-dot{
+  width:clamp(6px,2vw,9px);height:clamp(6px,2vw,9px);
+  border-radius:50%;background:rgba(255,255,255,.18);
+}
+.progress-dot.done{background:#ffbb33}
+.progress-dot.current{background:#ff9900;box-shadow:0 0 5px #ff9900}
+
+/* ── Bottom half: numpad area ── */
+#bottom-half{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:3vw;
+  background:#1a1e2e;
+  position:relative;
+}
+#numpad{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:clamp(6px,2.5vw,12px);
+  width:min(88vw,calc(48dvh - 6vw));
+  aspect-ratio:1;
+}
+.num-key{
+  aspect-ratio:1;border-radius:14px;
+  background:#252a3a;border:2px solid #2e3347;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(22px,7vw,38px);font-weight:800;color:#fff;
+  transition:transform .08s,background .1s,border-color .1s,box-shadow .15s;
+  user-select:none;
+}
+.num-key:active,.num-key.pressed{transform:scale(.91);background:#1a1e2e}
+.num-key.flash{
+  border-color:#ff9900;background:#2a1a00;
+  box-shadow:0 0 14px rgba(255,150,0,.75),inset 0 0 8px rgba(255,100,0,.3);
+  animation:keyFlash .5s infinite alternate;
+}
+.num-key.flash-dim{
+  border-color:rgba(255,150,0,.4);background:#1f1a0a;
+  box-shadow:0 0 6px rgba(255,150,0,.3);
+}
+.num-key.correct-flash{background:#0a2518;border-color:#44ff88;box-shadow:0 0 16px rgba(0,240,100,.55)}
+.num-key.wrong-flash{background:#2a0a0a;border-color:#ff4444;box-shadow:0 0 16px rgba(255,50,50,.55)}
+@keyframes keyFlash{
+  from{box-shadow:0 0 8px rgba(255,150,0,.5),inset 0 0 4px rgba(255,80,0,.2)}
+  to{box-shadow:0 0 20px rgba(255,150,0,1),inset 0 0 12px rgba(255,100,0,.45)}
+}
+
+/* Combo burst */
+#combo-burst{
+  position:absolute;inset:0;
+  background:radial-gradient(circle,rgba(255,150,0,.4) 0%,transparent 70%);
+  opacity:0;pointer-events:none;z-index:50;
+}
+@keyframes burstAnim{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
+#combo-burst.burst{animation:burstAnim .4s ease-out forwards}
+
+/* Status message */
+#status-msg{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(0,0,0,.78);border-radius:14px;
+  padding:3vw 7vw;font-size:clamp(16px,5vw,22px);font-weight:700;color:#fff;
+  pointer-events:none;z-index:60;opacity:0;transition:opacity .2s;
+  white-space:nowrap;
+}
+#status-msg.show{opacity:1}
+
+/* ════════════════════════════════
+   RESULT SCREEN
+════════════════════════════════ */
+#screen-result{
+  background:linear-gradient(180deg,#1a1e2e 0%,#0e1120 100%);
+  justify-content:center;align-items:center;gap:4vh;padding:6vw;
+}
+.result-card{
+  background:#252a3a;border-radius:22px;
+  padding:6vw 8vw;width:100%;max-width:340px;
+  border:2px solid #333;text-align:center;
+  animation:cardIn .4s ease-out;
+}
+@keyframes cardIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.result-title{font-size:min(6vw,24px);font-weight:900;color:#ffbb33;margin-bottom:3vw}
+.result-score{font-size:min(16vw,64px);font-weight:900;color:#fff;line-height:1}
+.result-score-label{font-size:min(3.5vw,14px);color:rgba(255,255,255,.45);margin-top:1vw}
+.result-best{font-size:min(4vw,16px);color:#ff9900;margin-top:2vw}
+.result-stats{
+  display:flex;justify-content:space-around;margin-top:4vw;
+  padding-top:3vw;border-top:1px solid rgba(255,255,255,.1);
+}
+.result-stat{text-align:center}
+.result-stat .val{font-size:min(6vw,24px);font-weight:700;color:#fff}
+.result-stat .lbl{font-size:min(2.8vw,11px);color:rgba(255,255,255,.4)}
+.btn-replay{
+  background:#ff8c00;border-radius:14px;
+  padding:4vw 0;font-size:min(5vw,20px);font-weight:800;color:#fff;
+  box-shadow:0 4px 20px rgba(255,100,0,.45);
+  transition:transform .1s;width:100%;max-width:340px;
+}
+.btn-replay:active{transform:scale(.96)}
+.btn-back{color:rgba(255,255,255,.38);font-size:min(3.5vw,14px);padding:2vw}
+</style>
+</head>
+<body>
+<div id="game-container">
+
+  <!-- ══ INTRO ══ -->
+  <div id="screen-intro" class="screen active">
+    <div class="intro-bg"></div>
+    <div class="intro-body">
+      <div class="intro-title">节拍口诀</div>
+      <div class="intro-subtitle">RhythmTable · 跟着节拍背乘法</div>
+      <div class="intro-rules">
+        <div class="rule">🎵 系统先念口诀给你听</div>
+        <div class="rule">✍️ 跟着鼓点，在空格里填数字</div>
+        <div class="rule">📈 听几句填几句取决于难度</div>
+        <div class="rule">🔥 连击越长，得分越高！</div>
+      </div>
+      <button class="btn-go"
+        ontouchstart="showScreen('screen-select')"
+        onclick="showScreen('screen-select')">
+        选择难度 →
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ SELECT ══ -->
+  <div id="screen-select" class="screen">
+    <div class="select-header">
+      <div class="select-title">节拍口诀</div>
+      <div class="select-subtitle">RhythmTable · 跟着节拍背乘法</div>
+    </div>
+
+    <div class="select-chars"></div>
+
+    <div class="difficulty-grid">
+      <button class="btn-difficulty" data-level="beginner"
+        ontouchstart="startGame('beginner')" onclick="startGame('beginner')">
+        <span class="d-label">初级</span>
+        <span class="d-bpm">80 BPM</span>
+        <span class="d-desc">念一句<br>填一句</span>
+      </button>
+      <button class="btn-difficulty" data-level="intermediate"
+        ontouchstart="startGame('intermediate')" onclick="startGame('intermediate')">
+        <span class="d-label">中级</span>
+        <span class="d-bpm">100 BPM</span>
+        <span class="d-desc">念两句<br>填两句</span>
+      </button>
+      <button class="btn-difficulty" data-level="advanced"
+        ontouchstart="startGame('advanced')" onclick="startGame('advanced')">
+        <span class="d-label">高级</span>
+        <span class="d-bpm">120 BPM</span>
+        <span class="d-desc">念三句<br>填三句</span>
+      </button>
+      <button class="btn-difficulty" data-level="expert"
+        ontouchstart="startGame('expert')" onclick="startGame('expert')">
+        <span class="d-label">专家</span>
+        <span class="d-bpm">140 BPM</span>
+        <span class="d-desc">全表连念<br>全表连填</span>
+      </button>
+    </div>
+    <div class="select-footer">原型版 · ×3 乘法表</div>
+  </div>
+
+  <!-- ══ GAME ══ -->
+  <div id="screen-game" class="screen">
+
+    <!-- ─ TOP HALF: 表现区 ─ -->
+    <div id="top-half">
+
+      <!-- HUD -->
+      <div id="hud">
+        <div class="hud-score">分数 <span id="hud-score-val">0</span></div>
+        <div class="hud-fever" id="hud-fever">🔥 狂热</div>
+        <div class="hud-combo" id="hud-combo">连击 <span id="hud-combo-val">0</span></div>
+      </div>
+
+      <!-- Background -->
+      <div id="bg-layer">
+        <img class="bg-normal" src="assets/bg_main.png" alt=""
+          onerror="this.style.cssText='position:absolute;inset:0;width:100%;height:100%;background:linear-gradient(180deg,#ff8c00,#cc5500)';this.removeAttribute('src')">
+        <img class="bg-fever-img" src="assets/bg_fever.png" alt=""
+          onerror="this.style.display='none'">
+      </div>
+
+      <!-- Character -->
+      <div id="char-layer">
+        <img id="char-img" src="assets/char_dance.png" alt=""
+          onerror="this.outerHTML='<div id=\'char-img\' style=\'font-size:12vw;text-align:center;line-height:1\'>🥁</div>'">
+      </div>
+
+      <!-- Demo banner -->
+      <div id="demo-banner">▶ 演示中，请观察节奏……</div>
+
+      <!-- Lyric section (beat dots + lyric bar + progress) -->
+      <div id="lyric-section">
+        <div id="beat-bar">
+          <div class="beat-dot" id="bd0"></div>
+          <div class="beat-dot" id="bd1"></div>
+          <div class="beat-dot" id="bd2"></div>
+          <div class="beat-dot" id="bd3"></div>
+        </div>
+        <div id="lyric-bar">
+          <span class="lyric-token" style="color:rgba(255,255,255,.3);font-size:4vw">准备中…</span>
+        </div>
+        <div id="progress-bar"></div>
+      </div>
+
+    </div><!-- /#top-half -->
+
+    <!-- ─ BOTTOM HALF: 数字输入区 ─ -->
+    <div id="bottom-half">
+      <div id="numpad">
+        <button class="num-key" data-n="1">1</button>
+        <button class="num-key" data-n="2">2</button>
+        <button class="num-key" data-n="3">3</button>
+        <button class="num-key" data-n="4">4</button>
+        <button class="num-key" data-n="5">5</button>
+        <button class="num-key" data-n="6">6</button>
+        <button class="num-key" data-n="7">7</button>
+        <button class="num-key" data-n="8">8</button>
+        <button class="num-key" data-n="9">9</button>
+      </div>
+    </div><!-- /#bottom-half -->
+
+    <!-- overlays -->
+    <div id="combo-burst"></div>
+    <div id="status-msg"></div>
+
+  </div><!-- /#screen-game -->
+
+  <!-- ══ RESULT ══ -->
+  <div id="screen-result" class="screen">
+    <div class="result-card">
+      <div class="result-title">🎉 完成！</div>
+      <div class="result-score" id="res-score">0</div>
+      <div class="result-score-label">本局得分</div>
+      <div class="result-best" id="res-best">最高分：0</div>
+      <div class="result-stats">
+        <div class="result-stat"><div class="val" id="res-correct">0</div><div class="lbl">答对</div></div>
+        <div class="result-stat"><div class="val" id="res-combo">0</div><div class="lbl">最大连击</div></div>
+        <div class="result-stat"><div class="val" id="res-fever">0</div><div class="lbl">狂热次</div></div>
+      </div>
+    </div>
+    <button class="btn-replay" ontouchstart="replayGame()" onclick="replayGame()">再来一局</button>
+    <button class="btn-back" ontouchstart="goSelect()" onclick="goSelect()">返回选择</button>
+  </div>
+
+</div><!-- /#game-container -->
+
+
+<script>
+/* ══════════════════════════════════════════════
+   AUDIO — Web Audio API
+══════════════════════════════════════════════ */
+let AC = null
+
+function ensureAC() {
+  if (!AC) {
+    try { AC = new (window.AudioContext || window.webkitAudioContext)() } catch(e) {}
+  }
+  if (AC && AC.state === 'suspended') AC.resume()
+  return AC
+}
+
+function playTick(strong) {
+  const ac = ensureAC(); if (!ac) return
+  try {
+    const o = ac.createOscillator()
+    const g = ac.createGain()
+    o.connect(g); g.connect(ac.destination)
+    o.type = 'sine'
+    o.frequency.value = strong ? 1100 : 750
+    const t = ac.currentTime
+    g.gain.setValueAtTime(strong ? 0.32 : 0.14, t)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.09)
+    o.start(t); o.stop(t + 0.1)
+  } catch(e) {}
+}
+
+function playCorrect() {
+  const ac = ensureAC(); if (!ac) return
+  try {
+    const t = ac.currentTime
+    ;[440, 660].forEach((freq, i) => {
+      const o = ac.createOscillator(), g = ac.createGain()
+      o.connect(g); g.connect(ac.destination)
+      o.type = 'sine'; o.frequency.value = freq
+      const s = t + i * 0.09
+      g.gain.setValueAtTime(0.22, s)
+      g.gain.exponentialRampToValueAtTime(0.001, s + 0.16)
+      o.start(s); o.stop(s + 0.17)
+    })
+  } catch(e) {}
+}
+
+function playWrong() {
+  const ac = ensureAC(); if (!ac) return
+  try {
+    const o = ac.createOscillator(), g = ac.createGain()
+    o.connect(g); g.connect(ac.destination)
+    o.type = 'sawtooth'
+    const t = ac.currentTime
+    o.frequency.setValueAtTime(320, t)
+    o.frequency.linearRampToValueAtTime(140, t + 0.22)
+    g.gain.setValueAtTime(0.22, t)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.28)
+    o.start(t); o.stop(t + 0.29)
+  } catch(e) {}
+}
+
+function playFever() {
+  const ac = ensureAC(); if (!ac) return
+  try {
+    const t = ac.currentTime
+    ;[523, 659, 784, 1047].forEach((freq, i) => {
+      const o = ac.createOscillator(), g = ac.createGain()
+      o.connect(g); g.connect(ac.destination)
+      o.type = 'sine'; o.frequency.value = freq
+      const s = t + i * 0.04
+      g.gain.setValueAtTime(0.14, s)
+      g.gain.exponentialRampToValueAtTime(0.001, s + 0.45)
+      o.start(s); o.stop(s + 0.46)
+    })
+  } catch(e) {}
+}
+
+/* ── Master Beat: 统一调度鼓声 + 视觉 + 语音 ── */
+let bgmTimer = null, bgmRafId = 0, bgmStep = 0, bgmNextTime = 0
+let masterBeatGen = 0
+// 待触发的视觉拍队列：{acTime, step, gen}，由 rAF 循环消费
+const visualBeatQueue = []
+
+function startMasterBeat() {
+  stopMasterBeat()
+  masterBeatGen++
+  const gen = masterBeatGen
+  const ac = ensureAC(); if (!ac) return
+  G.beatInterval = 60000 / G.diff.bpm
+  bgmStep = 0
+  visualBeatQueue.length = 0
+  bgmNextTime = ac.currentTime + 0.05   // 50ms 起步热身
+
+  // ① setInterval：预排鼓声（AudioContext 精确调度）+ 入队视觉拍
+  bgmTimer = setInterval(() => {
+    const ac = ensureAC(); if (!ac) return
+    const stepDur = 60 / G.diff.bpm
+    const lookahead = 0.10              // 预排 100ms 窗口
+    while (bgmNextTime < ac.currentTime + lookahead) {
+      const s = bgmStep % 4
+      makeHihat(bgmNextTime)
+      if (s === 0 || s === 2) makeKick(bgmNextTime)
+      if (s === 1 || s === 3) makeSnare(bgmNextTime)
+      visualBeatQueue.push({ acTime: bgmNextTime, step: bgmStep, gen })
+      bgmNextTime += stepDur; bgmStep++
+    }
+  }, 20)
+
+  // ② rAF 循环：用 AudioContext 时钟判断何时触发视觉回调
+  //    精度 = 屏幕刷新周期（~16ms），远优于 setTimeout 随机抖动
+  ;(function rafLoop() {
+    bgmRafId = requestAnimationFrame(rafLoop)
+    const ac = ensureAC(); if (!ac) return
+    const now = ac.currentTime
+    while (visualBeatQueue.length && visualBeatQueue[0].acTime <= now) {
+      const { step, gen: g } = visualBeatQueue.shift()
+      if (g === masterBeatGen) onVisualBeat(step)
+    }
+  })()
+}
+
+function stopMasterBeat() {
+  if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null }
+  if (bgmRafId) { cancelAnimationFrame(bgmRafId); bgmRafId = 0 }
+  visualBeatQueue.length = 0
+  clearTimeout(G.windowCloseTimer)
+  G.windowOpen = false
+}
+
+// 旧名称别名
+function startBGM() { startMasterBeat() }
+function stopBGM()  { stopMasterBeat() }
+
+function makeKick(t) {
+  const ac = ensureAC(); if (!ac) return
+  const o = ac.createOscillator(), g = ac.createGain()
+  o.connect(g); g.connect(ac.destination)
+  o.type = 'sine'
+  o.frequency.setValueAtTime(160, t)
+  o.frequency.exponentialRampToValueAtTime(0.001, t + 0.28)
+  g.gain.setValueAtTime(0.7, t)
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.3)
+  o.start(t); o.stop(t + 0.31)
+}
+
+function makeSnare(t) {
+  const ac = ensureAC(); if (!ac) return
+  const buf = ac.createBuffer(1, ac.sampleRate * 0.12, ac.sampleRate)
+  const d = buf.getChannelData(0)
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+  const src = ac.createBufferSource(), g = ac.createGain()
+  src.buffer = buf; src.connect(g); g.connect(ac.destination)
+  g.gain.setValueAtTime(0.35, t)
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.14)
+  src.start(t); src.stop(t + 0.15)
+}
+
+function makeHihat(t) {
+  const ac = ensureAC(); if (!ac) return
+  const buf = ac.createBuffer(1, ac.sampleRate * 0.04, ac.sampleRate)
+  const d = buf.getChannelData(0)
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+  const src = ac.createBufferSource()
+  const flt = ac.createBiquadFilter(), g = ac.createGain()
+  flt.type = 'highpass'; flt.frequency.value = 7000
+  src.buffer = buf; src.connect(flt); flt.connect(g); g.connect(ac.destination)
+  g.gain.setValueAtTime(0.12, t)
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.04)
+  src.start(t); src.stop(t + 0.05)
+}
+
+/* ── TTS: Web Speech API ── */
+function speak(text) {
+  if (!window.speechSynthesis || !text) return
+  try {
+    speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'zh-CN'; u.rate = 1.1; u.pitch = 1.05; u.volume = 1.0
+    speechSynthesis.speak(u)
+  } catch(e) {}
+}
+
+function sentenceText(sentence, full) {
+  // full=true: read everything incl answers; full=false: read tokens only
+  return sentence.tokens.map(t => {
+    if (t.type === 'read') return t.text
+    if (!full) return ''
+    if (t.type === 'answer_ones_zero') return '整'
+    return String(t.digits[0])
+  }).join('')
+}
+
+/* ══════════════════════════════════════════════
+   DATA: ×3 口诀 token 化
+══════════════════════════════════════════════ */
+function buildTable3() {
+  const sentences = []
+  const CH = ['一','二','三','四','五','六','七','八','九']
+  for (let i = 1; i <= 9; i++) {
+    const result = 3 * i
+    const tokens = []
+    tokens.push({ text:'三', type:'read' })
+    tokens.push({ text:CH[i-1], type:'read' })
+    if (result < 10) {
+      tokens.push({ text:'得', type:'read' })
+      tokens.push({ text:'_', type:'answer', digits:[result], label:String(result) })
+    } else {
+      const tens = Math.floor(result / 10)
+      const ones = result % 10
+      const tensWord = tens === 1 ? '十' : '二十'
+      if (ones === 0) {
+        tokens.push({ text:tensWord, type:'answer', phase:'tens',
+          digits:[tens], fullAnswer:result })
+        tokens.push({ text:'整', type:'answer_ones_zero', phase:'ones',
+          digits:[0], fullAnswer:result })
+      } else {
+        tokens.push({ text:tensWord, type:'answer', phase:'tens',
+          digits:[tens], fullAnswer:result })
+        tokens.push({ text:'_', type:'answer_ones', phase:'ones',
+          digits:[ones], fullAnswer:result })
+      }
+    }
+    sentences.push({ multiplier:i, result, tokens, label:`3×${i}=${result}` })
+  }
+  return sentences
+}
+
+const TABLE3 = buildTable3()
+
+/* ══════════════════════════════════════════════
+   DIFFICULTY CONFIG
+══════════════════════════════════════════════ */
+const DIFF = {
+  beginner:     { bpm: 80, windowMs:500, guide:'full', groupSize:1 },
+  intermediate: { bpm:100, windowMs:400, guide:'dim',  groupSize:2 },
+  advanced:     { bpm:120, windowMs:300, guide:'none', groupSize:3 },
+  expert:       { bpm:140, windowMs:240, guide:'none', groupSize:9 },
+}
+
+/* ══════════════════════════════════════════════
+   GAME STATE
+══════════════════════════════════════════════ */
+const G = {
+  status:'idle', diff:null,
+  // listen/fill phase
+  phase:'listen',      // 'listen' | 'fill'
+  groupStart:0,        // first sentence index of current group
+  groupSize:1,         // sentences per listen+fill cycle
+  // beat timing (beatInterval used for sentence gap delays)
+  beatInterval:0,
+  // sentence position
+  sentenceIdx:0, tokenIdx:0,
+  // answer state
+  windowOpen:false, windowCloseTimer:null,
+  currentAnswerTokenIdx:-1,
+  tensSlotIdx:-1,          // 两位数：十位格在 lyric bar 里的下标（独立保存）
+  pendingAnswer:null, twoDigit:false,
+  // score
+  score:0, bestScore:parseInt(localStorage.getItem('rhythmtable_best')||'0'),
+  combo:0, maxCombo:0, fever:false, feverCount:0, correctCount:0,
+  inputLocked:false
+}
+
+/* ══════════════════════════════════════════════
+   SCREEN UTILS
+══════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+}
+function showLocked() { showStatusMsg('🔒 敬请期待') }
+function showStatusMsg(txt, dur=1400) {
+  const el = document.getElementById('status-msg')
+  el.textContent = txt; el.classList.add('show')
+  clearTimeout(el._t)
+  el._t = setTimeout(() => el.classList.remove('show'), dur)
+}
+
+/* ══════════════════════════════════════════════
+   BEAT ENGINE
+══════════════════════════════════════════════ */
+// RAF 引擎已废弃，改用 startMasterBeat（单一 AudioContext 时钟驱动）
+function startBeatEngine() { startMasterBeat() }
+function stopBeatEngine()  { stopMasterBeat() }
+
+// onVisualBeat：由 rAF 在 AudioContext 时钟精确触发
+function onVisualBeat(step) {
+  if (G.status === 'idle') return
+  // 节拍灯反映当前句内 token 位置（不用全局 step%4，避免句子错位）
+  const dotPos = G.tokenIdx % 4
+  document.querySelectorAll('.beat-dot').forEach((d,i) =>
+    d.classList.toggle('active', i === dotPos))
+  advanceToken()
+}
+
+/* ══════════════════════════════════════════════
+   TOKEN ADVANCE
+══════════════════════════════════════════════ */
+function advanceToken() {
+  const sentence = TABLE3[G.sentenceIdx]
+  if (!sentence) { endGame(); return }
+
+  if (G.tokenIdx >= sentence.tokens.length) {
+    onSentenceDone(); return
+  }
+
+  const token = sentence.tokens[G.tokenIdx]
+  G.tokenIdx++
+  renderLyricHighlight(G.tokenIdx - 1)
+
+  if (token.type === 'read') {
+    speak(token.text)   // 一拍一字，逐字播报
+    return
+  }
+
+  // ── LISTEN phase: speak the answer digit, no input ──
+  if (G.phase === 'listen') {
+    if (token.type === 'answer_ones_zero') speak('整')
+    else speak(String(token.digits[0]))
+    return
+  }
+
+  // ── FILL phase: open input window ──
+  if (token.type === 'answer_ones_zero') {
+    autoPassZeroOnes(token, G.tokenIdx - 1)
+  } else if (token.phase === 'tens') {
+    openAnswerWindow(token, G.tokenIdx - 1, true)
+  } else if (token.phase === 'ones') {
+    openAnswerWindow(token, G.tokenIdx - 1, false, 'ones')
+  } else {
+    openAnswerWindow(token, G.tokenIdx - 1, false)
+  }
+}
+
+function onSentenceDone() {
+  // 最后一个 token 是答题槽时，等玩家答完再切句
+  if (G.windowOpen) return
+  G.sentenceIdx++
+  G.tokenIdx = 0
+  const groupEnd = Math.min(G.groupStart + G.groupSize, 9)
+
+  if (G.sentenceIdx < groupEnd) {
+    // 同一 phase 继续下一句 —— 不停拍，直接切换
+    buildLyricBar(TABLE3[G.sentenceIdx])
+    updateProgress()
+    return
+  }
+
+  if (G.phase === 'listen') {
+    // 听完 → 立即切填，master beat 持续运行
+    G.phase = 'fill'
+    G.sentenceIdx = G.groupStart
+    G.tokenIdx = 0
+    disableNumpad(false)
+    buildLyricBar(TABLE3[G.sentenceIdx])
+    updateProgress()
+    showStatusMsg('✍️ 填！', 600)
+  } else {
+    // 填完 → 立即切下一组听
+    const nextGroupStart = groupEnd
+    if (nextGroupStart >= 9) { endGame(); return }
+    G.groupStart = nextGroupStart
+    G.phase = 'listen'
+    G.sentenceIdx = G.groupStart
+    G.tokenIdx = 0
+    disableNumpad(true)
+    buildLyricBar(TABLE3[G.sentenceIdx])
+    updateProgress()
+    showStatusMsg('👂 听！', 600)
+  }
+}
+
+/* ══════════════════════════════════════════════
+   ANSWER WINDOW
+══════════════════════════════════════════════ */
+function openAnswerWindow(token, tokenIdx, isTens, phase) {
+  G.windowOpen = true
+  G.currentAnswerTokenIdx = tokenIdx
+  G.inputLocked = false
+
+  if (isTens) {
+    G.twoDigit = true
+    G.tensSlotIdx = tokenIdx   // 保存十位格下标，之后显示用
+    G.pendingAnswer = { tens:null, expectedTens:token.digits[0], expectedOnes:null, fullAnswer:token.fullAnswer }
+  } else if (phase === 'ones') {
+    // ones token 在下一拍触发：补充 expectedOnes，currentAnswerTokenIdx 更新为个位格
+    G.pendingAnswer.expectedOnes = token.digits[0]
+  } else {
+    G.twoDigit = false
+    G.tensSlotIdx = -1
+    G.pendingAnswer = { expected:token.digits[0] }
+  }
+
+  if (G.diff.guide !== 'none' && G.phase === 'fill') flashGuideKeys(token)
+
+  const slot = document.querySelectorAll('.lyric-token')[tokenIdx]
+  if (slot) slot.classList.add('open')
+
+  clearTimeout(G.windowCloseTimer)
+  G.windowCloseTimer = setTimeout(() => {
+    if (G.windowOpen) onWrongAnswer(tokenIdx, true)
+  }, G.diff.windowMs + G.beatInterval)
+}
+
+function autoPassZeroOnes(token, tokenIdx) {
+  const slot = document.querySelectorAll('.lyric-token')[tokenIdx]
+  if (slot) { slot.textContent = '整'; slot.classList.add('correct') }
+}
+
+function flashGuideKeys(token) {
+  clearAllKeyFlash()
+  token.digits.forEach(d => {
+    if (d >= 1 && d <= 9) {
+      const k = document.querySelector(`.num-key[data-n="${d}"]`)
+      if (k) k.classList.add('flash')
+    }
+  })
+}
+function clearAllKeyFlash() {
+  document.querySelectorAll('.num-key').forEach(k =>
+    k.classList.remove('flash','flash-dim','correct-flash','wrong-flash'))
+}
+
+/* ══════════════════════════════════════════════
+   INPUT
+══════════════════════════════════════════════ */
+document.querySelectorAll('.num-key').forEach(key => {
+  key.addEventListener('touchstart', e => {
+    e.preventDefault()
+    handleInput(parseInt(key.dataset.n))
+    key.classList.add('pressed')
+  }, { passive:false })
+  key.addEventListener('touchend', () => key.classList.remove('pressed'))
+  key.addEventListener('mousedown', () => {
+    handleInput(parseInt(key.dataset.n))
+    key.classList.add('pressed')
+  })
+  key.addEventListener('mouseup', () => key.classList.remove('pressed'))
+})
+
+function handleInput(digit) {
+  if (G.status === 'idle' || G.phase === 'listen' || G.inputLocked || !G.windowOpen) return
+  G.twoDigit ? handleTwoDigitInput(digit) : handleSingleDigitInput(digit)
+}
+
+function handleSingleDigitInput(digit) {
+  const expected = G.pendingAnswer.expected
+  const idx = G.currentAnswerTokenIdx
+  digit === expected ? onCorrectAnswer(idx, digit) : onWrongAnswer(idx, false, digit)
+}
+
+function handleTwoDigitInput(digit) {
+  if (G.pendingAnswer.tens === null) {
+    // 等待十位
+    if (digit === G.pendingAnswer.expectedTens) {
+      G.pendingAnswer.tens = digit
+      // 始终用 tensSlotIdx 显示十位（不受 currentAnswerTokenIdx 变化影响）
+      const slot = document.querySelectorAll('.lyric-token')[G.tensSlotIdx]
+      if (slot) { slot.textContent = String(digit); slot.style.color = '#ffcc44'; slot.classList.remove('open') }
+      clearAllKeyFlash()
+      // 如果个位 token 已经在下一拍触发并设置了 expectedOnes，立即闪光个位键
+      if (G.pendingAnswer.expectedOnes !== null) {
+        const onesTok = TABLE3[G.sentenceIdx].tokens[G.tokenIdx - 1]
+        if (onesTok) flashGuideKeys(onesTok)
+      }
+    } else {
+      onWrongAnswer(G.tensSlotIdx, false, digit)
+    }
+  } else {
+    // 等待个位，currentAnswerTokenIdx 已更新为个位格
+    const onesIdx = G.currentAnswerTokenIdx
+    digit === G.pendingAnswer.expectedOnes
+      ? onCorrectAnswer(onesIdx, digit, true)
+      : onWrongAnswer(onesIdx, false, digit)
+  }
+}
+
+/* ══════════════════════════════════════════════
+   CORRECT / WRONG
+══════════════════════════════════════════════ */
+function onCorrectAnswer(tokenIdx, digit, isOnes) {
+  clearTimeout(G.windowCloseTimer)
+  G.windowOpen = false
+  G.inputLocked = true
+  clearAllKeyFlash()
+  playCorrect()
+
+  const slot = document.querySelectorAll('.lyric-token')[tokenIdx]
+  if (slot) {
+    // each slot shows only ITS digit: tens slot→tens, ones slot→ones
+    slot.textContent = String(digit)
+    slot.classList.remove('open')
+    slot.classList.add('correct')
+    slot.style.color = ''
+  }
+
+  let pts = 10 + 5  // base + in-window bonus
+  if (G.fever) pts = Math.floor(pts * 1.5)
+  // no demo half-score anymore
+  G.score += pts
+  G.combo++
+  G.correctCount++
+  if (G.combo > G.maxCombo) G.maxCombo = G.combo
+
+  if (!G.fever && G.combo >= 5) {
+    G.fever = true; G.feverCount++
+    enterFever()
+  }
+  updateHUD()
+  charDance()
+  if (G.combo % 5 === 0) triggerComboBurst()
+
+  const k = document.querySelector(`.num-key[data-n="${digit}"]`)
+  if (k) {
+    k.classList.add('correct-flash')
+    setTimeout(() => k.classList.remove('correct-flash'), 300)
+  }
+}
+
+function onWrongAnswer(tokenIdx, isTimeout, digit) {
+  if (G.inputLocked) return
+  clearTimeout(G.windowCloseTimer)
+  G.windowOpen = false
+  G.inputLocked = true
+  clearAllKeyFlash()
+  playWrong()
+
+  const slot = document.querySelectorAll('.lyric-token')[tokenIdx]
+  if (slot) {
+    slot.textContent = isTimeout ? '✗' : String(digit)
+    slot.classList.remove('open'); slot.classList.add('wrong'); slot.style.color = ''
+  }
+
+  G.combo = 0; G.fever = false
+  exitFever(); updateHUD(); charFall()
+
+  if (!isTimeout && digit) {
+    const k = document.querySelector(`.num-key[data-n="${digit}"]`)
+    if (k) { k.classList.add('wrong-flash'); setTimeout(() => k.classList.remove('wrong-flash'), 300) }
+  }
+
+  showStatusMsg('😵 重来！', 900)
+  stopBeatEngine()
+  setTimeout(() => {
+    G.tokenIdx = 0
+    buildLyricBar(TABLE3[G.sentenceIdx])
+    if (G.status !== 'idle') startBeatEngine()  // per-token speak will re-sync
+  }, G.beatInterval * 2)
+}
+
+/* ══════════════════════════════════════════════
+   CHAR ANIMATIONS
+══════════════════════════════════════════════ */
+function charDance() {
+  const el = document.getElementById('char-img')
+  if (!el) return
+  el.classList.remove('dance','fall'); void el.offsetWidth
+  el.classList.add('dance')
+  if (el.tagName === 'IMG') el.src = 'assets/char_dance.png'
+}
+function charFall() {
+  const el = document.getElementById('char-img')
+  if (!el) return
+  el.classList.remove('dance','fall'); void el.offsetWidth
+  el.classList.add('fall')
+  if (el.tagName === 'IMG') el.src = 'assets/char_fall.png'
+  setTimeout(() => { if (el && el.tagName === 'IMG') el.src = 'assets/char_dance.png' }, 1400)
+}
+
+/* ══════════════════════════════════════════════
+   FEVER
+══════════════════════════════════════════════ */
+function enterFever() {
+  playFever()
+  document.getElementById('hud-fever').classList.add('active')
+  document.getElementById('bg-layer').classList.add('fever-on')
+  triggerComboBurst()
+}
+function exitFever() {
+  document.getElementById('hud-fever').classList.remove('active')
+  document.getElementById('bg-layer').classList.remove('fever-on')
+}
+function triggerComboBurst() {
+  const el = document.getElementById('combo-burst')
+  el.classList.remove('burst'); void el.offsetWidth
+  el.classList.add('burst')
+  setTimeout(() => el.classList.remove('burst'), 400)
+}
+
+/* ══════════════════════════════════════════════
+   LYRIC BAR
+══════════════════════════════════════════════ */
+function buildLyricBar(sentence) {
+  const bar = document.getElementById('lyric-bar')
+  bar.innerHTML = ''
+  sentence.tokens.forEach(tok => {
+    const span = document.createElement('span')
+    span.className = 'lyric-token'
+    if (tok.type === 'read') {
+      span.textContent = tok.text
+    } else if (G.phase === 'listen') {
+      // listen: show actual digit, dimmed
+      span.classList.add('answer-slot', 'revealed')
+      span.textContent = tok.type === 'answer_ones_zero' ? '整' : String(tok.digits[0])
+    } else {
+      span.classList.add('answer-slot')
+      span.textContent = '＿'
+    }
+    bar.appendChild(span)
+  })
+}
+
+function renderLyricHighlight(activeIdx) {
+  document.querySelectorAll('.lyric-token').forEach((t, i) => {
+    t.classList.remove('active','passed')
+    if (i < activeIdx) t.classList.add('passed')
+    else if (i === activeIdx) t.classList.add('active')
+  })
+}
+
+/* ══════════════════════════════════════════════
+   PROGRESS
+══════════════════════════════════════════════ */
+function buildProgress() {
+  const bar = document.getElementById('progress-bar')
+  bar.innerHTML = ''
+  TABLE3.forEach((_, i) => {
+    const d = document.createElement('div')
+    d.className = 'progress-dot'; d.id = `pd-${i}`
+    bar.appendChild(d)
+  })
+  updateProgress()
+}
+function updateProgress() {
+  TABLE3.forEach((_, i) => {
+    const d = document.getElementById(`pd-${i}`)
+    if (!d) return
+    d.classList.remove('done','current')
+    if (i < G.sentenceIdx) d.classList.add('done')
+    else if (i === G.sentenceIdx) d.classList.add('current')
+  })
+}
+
+/* ══════════════════════════════════════════════
+   HUD
+══════════════════════════════════════════════ */
+function updateHUD() {
+  document.getElementById('hud-score-val').textContent = G.score
+  document.getElementById('hud-combo-val').textContent = G.combo
+  const comboEl = document.getElementById('hud-combo')
+  comboEl.classList.remove('pop'); void comboEl.offsetWidth
+  if (G.combo > 0) comboEl.classList.add('pop')
+}
+
+/* ══════════════════════════════════════════════
+   GAME FLOW
+══════════════════════════════════════════════ */
+function startGame(level) {
+  ensureAC()
+  G.diff = DIFF[level] || DIFF.beginner
+  G.groupSize = G.diff.groupSize
+  G.status = 'playing'
+  G.score = 0; G.combo = 0; G.maxCombo = 0
+  G.fever = false; G.feverCount = 0; G.correctCount = 0
+  G.windowOpen = false; G.inputLocked = false
+  exitFever(); updateHUD()
+  showScreen('screen-game')
+  buildProgress()
+  startGroup(0)
+}
+
+function startGroup(groupStart) {
+  G.groupStart = groupStart
+  G.phase = 'listen'
+  G.sentenceIdx = groupStart
+  G.tokenIdx = 0
+  // Compute beat interval fresh
+  G.beatInterval = 60000 / G.diff.bpm
+  disableNumpad(true)
+  buildLyricBar(TABLE3[groupStart])
+  updateProgress()
+  showStatusMsg('👂 听！', 700)
+  stopBeatEngine()
+  startBGM()
+  setTimeout(() => { if (G.status !== 'idle') startBeatEngine() }, 600)
+}
+
+function disableNumpad(disabled) {
+  document.querySelectorAll('.num-key').forEach(k => {
+    k.style.opacity = disabled ? '0.3' : '1'
+    k.style.pointerEvents = disabled ? 'none' : ''
+  })
+}
+
+function endGame() {
+  G.status = 'idle'
+  stopMasterBeat()
+  clearAllKeyFlash()
+  speechSynthesis && speechSynthesis.cancel()
+  if (G.score > G.bestScore) {
+    G.bestScore = G.score
+    localStorage.setItem('rhythmtable_best', G.bestScore)
+  }
+  setTimeout(showResult, 700)
+}
+
+function showResult() {
+  document.getElementById('res-score').textContent = G.score
+  document.getElementById('res-best').textContent = `最高分：${G.bestScore}`
+  document.getElementById('res-correct').textContent = G.correctCount
+  document.getElementById('res-combo').textContent = G.maxCombo
+  document.getElementById('res-fever').textContent = G.feverCount
+  showScreen('screen-result')
+  speak(`本局得分 ${G.score} 分`)
+}
+
+function replayGame() {
+  startGame(Object.keys(DIFF).find(k => DIFF[k] === G.diff) || 'beginner')
+}
+function goSelect() {
+  G.status = 'idle'; stopMasterBeat()
+  speechSynthesis && speechSynthesis.cancel()
+  showScreen('screen-select')
+}
+
+/* ══════════════════════════════════════════════
+   PAGE VISIBILITY
+══════════════════════════════════════════════ */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopMasterBeat()
+    speechSynthesis && speechSynthesis.cancel()
+  } else if (G.status !== 'idle') {
+    startMasterBeat()
+  }
+})
+</script>
+</body>
+</html>

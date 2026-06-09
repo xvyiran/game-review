@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>九九乘法表混乱闯关</title>
+<style>
+/* ── Reset ── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0f1a;
+  font-family:'PingFang SC','Helvetica Neue',sans-serif}
+button{border:none;outline:none;cursor:pointer;background:none}
+
+/* ── Container ── */
+#gc{position:relative;width:100vw;height:100dvh;overflow:hidden;
+  display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+
+/* ── Screens ── */
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.active{display:flex}
+
+/* ════════════════════
+   INTRO
+════════════════════ */
+#screen-intro{
+  background:linear-gradient(180deg,#0d0f1a 0%,#1a1030 60%,#0d0f1a 100%);
+  justify-content:space-evenly;align-items:center;padding:5vw 6vw;
+  position:relative;overflow:hidden;
+}
+.intro-bg{
+  position:absolute;inset:0;
+  background:url('assets/bg_main.png') center 60%/cover no-repeat;
+  opacity:.12;pointer-events:none;
+}
+.intro-title-wrap{position:relative;z-index:1;text-align:center}
+.intro-eyebrow{font-size:min(3.5vw,14px);color:#ff9900;letter-spacing:.3em;
+  text-transform:uppercase;margin-bottom:2vw}
+.intro-title{font-size:min(14vw,56px);font-weight:900;
+  background:linear-gradient(135deg,#ffcc00,#ff6600,#ff2200);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:.08em;white-space:nowrap}
+.intro-subtitle{font-size:min(3.8vw,15px);color:rgba(255,200,100,.6);
+  margin-top:1vw;letter-spacing:.05em}
+
+/* 角色预览 */
+.intro-char{
+  position:relative;z-index:1;
+  width:clamp(80px,22vw,110px);height:clamp(80px,22vw,110px);
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,150,0,.25),transparent 70%);
+  display:flex;align-items:center;justify-content:center;
+}
+.intro-char img{width:80%;height:80%;object-fit:contain}
+
+/* 故事文字 */
+.intro-story{
+  position:relative;z-index:1;
+  text-align:center;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,180,0,.2);
+  border-radius:16px;padding:4vw 5vw;width:100%;
+}
+.intro-story p{font-size:min(4.2vw,17px);color:rgba(255,255,255,.85);
+  line-height:1.8;letter-spacing:.06em}
+.intro-story p em{color:#ffcc44;font-style:normal;font-weight:700}
+
+/* 开始按钮 */
+.btn-start-intro{
+  position:relative;z-index:1;
+  width:100%;padding:4.5vw 0;
+  background:linear-gradient(135deg,#ff8c00,#ff3300);
+  border-radius:16px;font-size:min(5.5vw,22px);font-weight:900;
+  color:#fff;letter-spacing:.1em;
+  box-shadow:0 0 30px rgba(255,100,0,.4);
+  transition:transform .1s;
+}
+.btn-start-intro:active{transform:scale(.96)}
+
+/* ── 九九乘法表背景装饰 ── */
+.mult-bg{
+  position:absolute;inset:0;overflow:hidden;
+  font-size:min(3vw,12px);
+  color:rgba(255,150,0,.07);
+  padding:10px 14px;line-height:2.4;
+  word-spacing:.7em;letter-spacing:.03em;
+  font-weight:600;pointer-events:none;z-index:0;
+}
+
+/* ════════════════════
+   GAME SCREEN
+════════════════════ */
+#screen-game{background:#0d0f1a;flex-direction:column}
+
+/* Top half: stage */
+#top-half{height:50dvh;position:relative;overflow:hidden;flex-shrink:0}
+
+/* HUD */
+#hud{position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:2vw 4vw;
+  background:linear-gradient(180deg,rgba(0,0,0,.65),transparent);
+  pointer-events:none}
+.hud-score{color:#fff;font-size:min(4vw,16px);font-weight:700}
+.hud-score span{color:#ffcc44;font-size:min(5.5vw,22px)}
+.hud-combo{font-size:min(3.5vw,14px);color:#ff9900;font-weight:700;transition:transform .12s}
+.hud-combo.pop{transform:scale(1.5)}
+.hud-fever{display:none;font-size:min(3.2vw,13px);font-weight:900;
+  color:#ff4400;animation:feverPulse .5s infinite alternate}
+.hud-fever.active{display:block}
+@keyframes feverPulse{from{opacity:.7}to{opacity:1;text-shadow:0 0 10px #ff4400}}
+
+/* Timer bar */
+#timer-bar-wrap{position:absolute;top:10vw;left:4vw;right:4vw;z-index:11;
+  height:4px;background:rgba(255,255,255,.1);border-radius:2px}
+#timer-bar{height:100%;background:linear-gradient(90deg,#ff4400,#ffcc00);
+  border-radius:2px;transition:width .9s linear;width:100%}
+
+/* BG */
+#bg-layer{position:absolute;inset:0;z-index:1}
+#bg-layer img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#bg-layer .bg-fever-img{opacity:0;transition:opacity .5s}
+#bg-layer.fever-on .bg-fever-img{opacity:1}
+#bg-layer.fever-on .bg-normal{opacity:0;transition:opacity .5s}
+
+/* Character */
+#char-layer{position:absolute;bottom:30vw;left:50%;
+  transform:translateX(-50%);
+  width:clamp(56px,15vw,80px);z-index:4}
+#char-img{width:100%;height:auto}
+@keyframes charDance{
+  0%{transform:translateY(0) rotate(0)}
+  25%{transform:translateY(-8px) rotate(-6deg)}
+  50%{transform:translateY(0) rotate(0)}
+  75%{transform:translateY(-5px) rotate(5deg)}
+  100%{transform:translateY(0) rotate(0)}}
+@keyframes charFall{
+  0%{transform:rotate(0)}
+  25%{transform:rotate(-30deg) translateY(4px)}
+  55%{transform:rotate(18deg) translateY(2px)}
+  80%{transform:rotate(-8deg)}
+  100%{transform:rotate(0)}}
+#char-img.dance{animation:charDance .55s ease-in-out 3}
+#char-img.fall{animation:charFall .65s ease-in-out 2}
+
+/* Demo banner */
+#demo-banner{position:absolute;top:10vw;left:0;right:0;
+  background:rgba(0,0,0,.7);color:#ffbb33;
+  font-size:min(3.8vw,15px);font-weight:700;
+  text-align:center;padding:2vw;z-index:15;display:none}
+#demo-banner.show{display:block}
+
+/* ── Question bar (bottom of top-half) ── */
+#question-section{
+  position:absolute;bottom:0;left:0;right:0;z-index:6;
+  background:rgba(8,10,22,.9);
+  padding:2.5vw 3vw 2vw;
+  display:flex;flex-direction:column;gap:2vw;
+}
+#beat-bar{display:flex;justify-content:center;gap:4vw}
+.beat-dot{width:clamp(8px,2.5vw,12px);height:clamp(8px,2.5vw,12px);
+  border-radius:50%;background:rgba(255,255,255,.15);transition:none}
+.beat-dot.active{background:#ff9900;transform:scale(1.5);
+  box-shadow:0 0 8px #ff9900}
+
+#question-bar{
+  display:flex;align-items:center;justify-content:center;
+  min-height:clamp(40px,12vw,54px);gap:2vw;
+}
+.q-num{font-size:clamp(24px,7.5vw,36px);font-weight:900;color:#fff}
+.q-op{font-size:clamp(20px,6vw,28px);color:rgba(255,180,80,.8);font-weight:700}
+.q-eq{font-size:clamp(20px,6vw,28px);color:rgba(255,255,255,.5);font-weight:700}
+.q-slot{
+  min-width:clamp(28px,9vw,42px);height:clamp(28px,9vw,42px);
+  border-radius:8px;border:2px solid rgba(255,150,0,.35);
+  background:rgba(255,80,0,.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(22px,7vw,32px);font-weight:900;color:#ffaa00;
+}
+.q-slot.open{
+  border-color:#ff9900;background:rgba(255,120,0,.28);
+  animation:slotPulse .45s infinite alternate}
+.q-slot.correct{border-color:#44ff88;background:rgba(0,180,70,.2);
+  animation:none;color:#55ff99}
+.q-slot.wrong{border-color:#ff4444;background:rgba(180,0,0,.2);
+  animation:none;color:#ff5555}
+@keyframes slotPulse{
+  from{box-shadow:0 0 4px rgba(255,150,0,.4)}
+  to{box-shadow:0 0 16px rgba(255,150,0,1),inset 0 0 8px rgba(255,100,0,.3)}}
+
+#progress-dots{display:flex;justify-content:center;gap:2vw}
+.prog-dot{width:clamp(5px,1.8vw,8px);height:clamp(5px,1.8vw,8px);
+  border-radius:50%;background:rgba(255,255,255,.15)}
+.prog-dot.done{background:#ffbb33}
+.prog-dot.current{background:#ff9900;box-shadow:0 0 4px #ff9900}
+
+/* ── Bottom half: numpad ── */
+#bottom-half{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:3vw;background:#0d0f1a;position:relative;
+}
+#numpad{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:clamp(6px,2.5vw,12px);
+  width:min(88vw,calc(44dvh - 8vw));
+}
+.num-key-zero{
+  grid-column:1/-1;aspect-ratio:auto!important;
+  height:clamp(38px,10vw,52px);border-radius:12px;
+}
+.num-key{
+  aspect-ratio:1;border-radius:14px;
+  background:#1a1e30;border:2px solid #252840;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(22px,7vw,38px);font-weight:800;color:#fff;
+  transition:transform .08s,border-color .12s,box-shadow .12s;
+  user-select:none;
+}
+.num-key:active,.num-key.pressed{transform:scale(.91);background:#0d0f1a}
+.num-key.flash{border-color:#ff9900;background:#2a1a00;
+  box-shadow:0 0 16px rgba(255,150,0,.8),inset 0 0 8px rgba(255,100,0,.3);
+  animation:keyFlash .5s infinite alternate}
+.num-key.correct-flash{background:#0a2518;border-color:#44ff88;
+  box-shadow:0 0 18px rgba(0,255,100,.6)}
+.num-key.wrong-flash{background:#2a0a0a;border-color:#ff4444;
+  box-shadow:0 0 18px rgba(255,50,50,.6)}
+@keyframes keyFlash{
+  from{box-shadow:0 0 8px rgba(255,150,0,.5)}
+  to{box-shadow:0 0 20px rgba(255,150,0,1),inset 0 0 12px rgba(255,100,0,.4)}}
+
+/* Combo burst */
+#combo-burst{position:absolute;inset:0;pointer-events:none;z-index:50;
+  background:radial-gradient(circle,rgba(255,150,0,.4),transparent 70%);
+  opacity:0}
+@keyframes burstAnim{0%{opacity:.85;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
+#combo-burst.burst{animation:burstAnim .4s ease-out forwards}
+
+/* Status message */
+#status-msg{position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(0,0,0,.8);border-radius:14px;
+  padding:3vw 7vw;font-size:clamp(16px,5vw,22px);font-weight:700;color:#fff;
+  pointer-events:none;z-index:60;opacity:0;transition:opacity .2s;white-space:nowrap}
+#status-msg.show{opacity:1}
+
+/* ════════════════════
+   RESULT
+════════════════════ */
+#screen-result{
+  background:linear-gradient(180deg,#0d0f1a,#1a0a28 100%);
+  justify-content:center;align-items:center;gap:4vh;padding:6vw;
+}
+.result-card{
+  background:#161928;border-radius:22px;
+  padding:6vw 8vw;width:100%;max-width:340px;
+  border:2px solid #2a2048;text-align:center;
+  animation:cardIn .4s ease-out;
+}
+@keyframes cardIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.result-title{font-size:min(6vw,24px);font-weight:900;
+  background:linear-gradient(135deg,#ffcc00,#ff6600);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:3vw}
+.result-score{font-size:min(16vw,64px);font-weight:900;color:#fff;line-height:1}
+.result-label{font-size:min(3.5vw,14px);color:rgba(255,255,255,.45);margin-top:1vw}
+.result-stats{display:flex;justify-content:space-around;margin-top:4vw;
+  padding-top:3vw;border-top:1px solid rgba(255,255,255,.08)}
+.result-stat .val{font-size:min(6vw,24px);font-weight:700;color:#fff}
+.result-stat .lbl{font-size:min(2.8vw,11px);color:rgba(255,255,255,.4)}
+.btn-replay{background:linear-gradient(135deg,#ff8c00,#ff3300);
+  border-radius:14px;padding:4vw 0;font-size:min(5vw,20px);font-weight:800;
+  color:#fff;box-shadow:0 4px 20px rgba(255,100,0,.4);
+  transition:transform .1s;width:100%;max-width:340px}
+.btn-replay:active{transform:scale(.96)}
+.btn-back{color:rgba(255,255,255,.35);font-size:min(3.5vw,14px);padding:2vw}
+</style>
+</head>
+<body>
+<div id="gc">
+
+  <!-- ══ INTRO ══ -->
+  <div id="screen-intro" class="screen active">
+    <div class="intro-bg"></div>
+    <div class="mult-bg" aria-hidden="true">一一得一 一二得二 一三得三 一四得四 一五得五 一六得六 一七得七 一八得八 一九得九 二二得四 二三得六 二四得八 二五一十 二六十二 二七十四 二八十六 二九十八 三三得九 三四十二 三五十五 三六十八 三七二十一 三八二十四 三九二十七 四四十六 四五二十 四六二十四 四七二十八 四八三十二 四九三十六 五五二十五 五六三十 五七三十五 五八四十 五九四十五 六六三十六 六七四十二 六八四十八 六九五十四 七七四十九 七八五十六 七九六十三 八八六十四 八九七十二 九九八十一 一一得一 一二得二 一三得三 一四得四 一五得五 一六得六 一七得七 一八得八 一九得九 二二得四 二三得六 二四得八 二五一十 二六十二 二七十四 二八十六 二九十八 三三得九 三四十二 三五十五 三六十八 三七二十一 三八二十四 三九二十七 四四十六 四五二十 四六二十四 四七二十八 四八三十二 四九三十六 五五二十五 五六三十 五七三十五 五八四十 五九四十五 六六三十六 六七四十二 六八四十八 六九五十四 七七四十九 七八五十六 七九六十三 八八六十四 八九七十二 九九八十一</div>
+
+    <div class="intro-title-wrap">
+      <div class="intro-eyebrow">九九乘法表</div>
+      <div class="intro-title">混乱闯关</div>
+      <div class="intro-subtitle">节奏 × 算术 · 神域挑战</div>
+    </div>
+
+    <div class="intro-char">
+      <img src="assets/char_dance.png" alt="🥁"
+        onerror="this.outerHTML='<div style=\'font-size:14vw\'>🥁</div>'">
+    </div>
+
+    <div class="intro-story">
+      <p>在节拍的召唤下<br>
+         点击<em>正确的数字</em><br>
+         让小人连通<em>计算与节奏之神</em></p>
+    </div>
+
+    <button class="btn-start-intro"
+      ontouchstart="startIntro()" onclick="startIntro()">
+      开始演示 →
+    </button>
+  </div>
+
+  <!-- ══ GAME ══ -->
+  <div id="screen-game" class="screen">
+
+    <div id="top-half">
+      <div id="hud">
+        <div class="hud-score">分数 <span id="hud-score">0</span></div>
+        <div class="hud-fever" id="hud-fever">🔥 神域连通</div>
+        <div class="hud-combo" id="hud-combo">连击 <span id="hud-combo-n">0</span></div>
+      </div>
+      <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+
+      <div id="bg-layer">
+        <img class="bg-normal" src="assets/bg_main.png" alt=""
+          onerror="this.style.cssText='position:absolute;inset:0;width:100%;height:100%;background:linear-gradient(180deg,#1a0a00,#0d0000)'">
+        <img class="bg-fever-img" src="assets/bg_fever.png" alt=""
+          onerror="this.style.display='none'">
+        <div class="mult-bg" aria-hidden="true">一一得一 一二得二 一三得三 一四得四 一五得五 一六得六 一七得七 一八得八 一九得九 二二得四 二三得六 二四得八 二五一十 二六十二 二七十四 二八十六 二九十八 三三得九 三四十二 三五十五 三六十八 三七二十一 三八二十四 三九二十七 四四十六 四五二十 四六二十四 四七二十八 四八三十二 四九三十六 五五二十五 五六三十 五七三十五 五八四十 五九四十五 六六三十六 六七四十二 六八四十八 六九五十四 七七四十九 七八五十六 七九六十三 八八六十四 八九七十二 九九八十一</div>
+      </div>
+
+      <div id="char-layer">
+        <img id="char-img" src="assets/char_dance.png" alt="🥁"
+          onerror="this.outerHTML='<div id=\'char-img\' style=\'font-size:12vw;text-align:center\'>🥁</div>'">
+      </div>
+
+      <div id="demo-banner">▶ 演示中，观察节拍与答案……</div>
+
+      <div id="question-section">
+        <div id="beat-bar">
+          <div class="beat-dot"></div>
+          <div class="beat-dot"></div>
+          <div class="beat-dot"></div>
+          <div class="beat-dot"></div>
+        </div>
+        <div id="question-bar">
+          <span class="q-num" id="qa">3</span>
+          <span class="q-op">×</span>
+          <span class="q-num" id="qb">3</span>
+          <span class="q-eq">=</span>
+          <span class="q-slot" id="slot-tens" style="display:none"></span>
+          <span class="q-slot" id="slot-ans">＿</span>
+        </div>
+        <div id="progress-dots"></div>
+      </div>
+    </div>
+
+    <div id="bottom-half">
+      <div id="numpad">
+        <button class="num-key" data-n="1">1</button>
+        <button class="num-key" data-n="2">2</button>
+        <button class="num-key" data-n="3">3</button>
+        <button class="num-key" data-n="4">4</button>
+        <button class="num-key" data-n="5">5</button>
+        <button class="num-key" data-n="6">6</button>
+        <button class="num-key" data-n="7">7</button>
+        <button class="num-key" data-n="8">8</button>
+        <button class="num-key" data-n="9">9</button>
+        <button class="num-key num-key-zero" data-n="0">0</button>
+      </div>
+    </div>
+
+    <div id="combo-burst"></div>
+    <div id="status-msg"></div>
+  </div>
+
+  <!-- ══ RESULT ══ -->
+  <div id="screen-result" class="screen">
+    <div class="result-card">
+      <div class="result-title">✦ 神域战报 ✦</div>
+      <div class="result-score" id="res-score">0</div>
+      <div class="result-label">本局得分</div>
+      <div class="result-stats">
+        <div class="result-stat"><div class="val" id="res-correct">0</div><div class="lbl">答对</div></div>
+        <div class="result-stat"><div class="val" id="res-combo">0</div><div class="lbl">最大连击</div></div>
+        <div class="result-stat"><div class="val" id="res-acc">0%</div><div class="lbl">准确率</div></div>
+      </div>
+    </div>
+    <button class="btn-replay" ontouchstart="replayGame()" onclick="replayGame()">再战神域</button>
+    <button class="btn-back" ontouchstart="goIntro()" onclick="goIntro()">返回</button>
+  </div>
+
+</div><!-- /#gc -->
+
+<script>
+/* ══════════════════════════════════════
+   AUDIO — Web Audio API (与 demo.html 保持一致)
+══════════════════════════════════════ */
+let AC = null
+function ensureAC() {
+  if (!AC) { try { AC = new (window.AudioContext||window.webkitAudioContext)() } catch(e){} }
+  if (AC && AC.state==='suspended') AC.resume()
+  return AC
+}
+function makeKick(t){
+  const ac=ensureAC();if(!ac)return
+  const o=ac.createOscillator(),g=ac.createGain()
+  o.connect(g);g.connect(ac.destination);o.type='sine'
+  o.frequency.setValueAtTime(160,t);o.frequency.exponentialRampToValueAtTime(0.001,t+.28)
+  g.gain.setValueAtTime(.7,t);g.gain.exponentialRampToValueAtTime(0.001,t+.3)
+  o.start(t);o.stop(t+.31)
+}
+function makeSnare(t){
+  const ac=ensureAC();if(!ac)return
+  const buf=ac.createBuffer(1,ac.sampleRate*.12,ac.sampleRate)
+  const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1
+  const src=ac.createBufferSource(),g=ac.createGain()
+  src.buffer=buf;src.connect(g);g.connect(ac.destination)
+  g.gain.setValueAtTime(.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+.14)
+  src.start(t);src.stop(t+.15)
+}
+function makeHihat(t){
+  const ac=ensureAC();if(!ac)return
+  const buf=ac.createBuffer(1,ac.sampleRate*.04,ac.sampleRate)
+  const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1
+  const src=ac.createBufferSource()
+  const flt=ac.createBiquadFilter(),g=ac.createGain()
+  flt.type='highpass';flt.frequency.value=7000
+  src.buffer=buf;src.connect(flt);flt.connect(g);g.connect(ac.destination)
+  g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(0.001,t+.04)
+  src.start(t);src.stop(t+.05)
+}
+function playCorrect(){
+  const ac=ensureAC();if(!ac)return
+  const t=ac.currentTime
+  ;[440,660].forEach((f,i)=>{
+    const o=ac.createOscillator(),g=ac.createGain()
+    o.connect(g);g.connect(ac.destination);o.type='sine';o.frequency.value=f
+    const s=t+i*.09;g.gain.setValueAtTime(.22,s);g.gain.exponentialRampToValueAtTime(0.001,s+.16)
+    o.start(s);o.stop(s+.17)
+  })
+}
+function playWrong(){
+  const ac=ensureAC();if(!ac)return
+  const o=ac.createOscillator(),g=ac.createGain()
+  o.connect(g);g.connect(ac.destination);o.type='sawtooth'
+  const t=ac.currentTime
+  o.frequency.setValueAtTime(320,t);o.frequency.linearRampToValueAtTime(140,t+.22)
+  g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(0.001,t+.28)
+  o.start(t);o.stop(t+.29)
+}
+function playFever(){
+  const ac=ensureAC();if(!ac)return
+  const t=ac.currentTime
+  ;[523,659,784,1047].forEach((f,i)=>{
+    const o=ac.createOscillator(),g=ac.createGain()
+    o.connect(g);g.connect(ac.destination);o.type='sine';o.frequency.value=f
+    const s=t+i*.04;g.gain.setValueAtTime(.13,s);g.gain.exponentialRampToValueAtTime(0.001,s+.45)
+    o.start(s);o.stop(s+.46)
+  })
+}
+
+/* ── TTS ── */
+function speak(text){
+  if(!window.speechSynthesis||!text)return
+  try{
+    speechSynthesis.cancel()
+    const u=new SpeechSynthesisUtterance(text)
+    u.lang='zh-CN';u.rate=1.1;u.pitch=1.05;u.volume=1
+    speechSynthesis.speak(u)
+  }catch(e){}
+}
+
+/* ── Master Beat (RAF + AC 精确对齐，与 demo.html 相同架构) ── */
+let bgmTimer=null, bgmRafId=0, bgmStep=0, bgmNextTime=0
+let masterBeatGen=0
+const visualBeatQueue=[]
+
+function startMasterBeat(){
+  stopMasterBeat()
+  masterBeatGen++
+  const ac=ensureAC();if(!ac)return
+  G.beatInterval=60000/G.diff.bpm
+  bgmStep=0;visualBeatQueue.length=0
+  bgmNextTime=ac.currentTime+.05
+
+  bgmTimer=setInterval(()=>{
+    const ac=ensureAC();if(!ac)return
+    const stepDur=60/G.diff.bpm
+    const lookahead=.10
+    while(bgmNextTime<ac.currentTime+lookahead){
+      const s=bgmStep%4
+      makeHihat(bgmNextTime)
+      if(s===0||s===2)makeKick(bgmNextTime)
+      if(s===1||s===3)makeSnare(bgmNextTime)
+      visualBeatQueue.push({acTime:bgmNextTime,step:bgmStep,gen:masterBeatGen})
+      bgmNextTime+=stepDur;bgmStep++
+    }
+  },20)
+
+  ;(function rafLoop(){
+    bgmRafId=requestAnimationFrame(rafLoop)
+    const ac=ensureAC();if(!ac)return
+    const now=ac.currentTime
+    while(visualBeatQueue.length&&visualBeatQueue[0].acTime<=now){
+      const{step,gen}=visualBeatQueue.shift()
+      if(gen===masterBeatGen)onVisualBeat(step)
+    }
+  })()
+}
+
+function stopMasterBeat(){
+  if(bgmTimer){clearInterval(bgmTimer);bgmTimer=null}
+  if(bgmRafId){cancelAnimationFrame(bgmRafId);bgmRafId=0}
+  visualBeatQueue.length=0
+  clearTimeout(G.windowTimer)
+  G.windowOpen=false
+}
+
+/* ══════════════════════════════════════
+   GAME DATA
+══════════════════════════════════════ */
+const CH=['一','二','三','四','五','六','七','八','九']
+const toCH=n=>n>=1&&n<=9?CH[n-1]:String(n)
+
+/* 九九乘法表传统口诀：三三得九、三四十二、三七二十一 等 */
+function buildMnemonic(a,b){
+  const r=a*b, ac=CH[a-1], bc=CH[b-1]
+  if(r<10) return ac+bc+'得'+CH[r-1]
+  const t=Math.floor(r/10), o=r%10
+  if(r===10) return ac+bc+'一十'
+  if(t===1) return ac+bc+'十'+CH[o-1]
+  if(o===0) return ac+bc+CH[t-1]+'十'
+  return ac+bc+CH[t-1]+'十'+CH[o-1]
+}
+
+// 全部 45 道题 (a≤b)
+function buildAllQ(){
+  const q=[]
+  for(let a=1;a<=9;a++)
+    for(let b=a;b<=9;b++)
+      q.push({a,b,result:a*b})
+  return q
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=0|(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]
+  }
+  return arr
+}
+
+/* 每题生成 4-beat token 序列
+   beat0: show  — 显示题目，TTS念"a乘b"
+   beat1: wait  — 等待（TTS继续），无输入
+   beat2: answer — 打开答题窗（单位数 或 十位）
+   beat3: ones/rest — 个位（两位数）或 静默（单位数）
+*/
+function makeTokens(q){
+  const {a,b,result}=q
+  const isDouble=result>=10
+  const tens=Math.floor(result/10)
+  const ones=result%10
+  return[
+    {type:'show'},
+    {type:'wait'},
+    isDouble
+      ?{type:'answer',phase:'tens',digit:tens,fullAnswer:result}
+      :{type:'answer',phase:'single',digit:result,fullAnswer:result},
+    isDouble
+      ?{type:'answer_ones',phase:'ones',digit:ones,fullAnswer:result}
+      :{type:'rest'}
+  ]
+}
+
+/* Demo: 演示用固定题目，附带自动按键时机 */
+const DEMO_QS=[
+  {a:3,b:3,result:9},    // 单位数
+  {a:3,b:4,result:12},   // 两位数
+  {a:2,b:7,result:14},   // 两位数
+]
+
+/* ══════════════════════════════════════
+   GAME STATE
+══════════════════════════════════════ */
+const DIFF={bpm:100,windowMs:420}
+
+const G={
+  status:'idle',
+  diff:DIFF,
+  mode:'demo',           // 'demo' | 'play'
+  demoQIdx:0,            // demo 进行到第几题
+  isDemo:false,
+
+  // 题目队列
+  questions:[],
+  qIdx:0,
+
+  // 当前题目
+  currentQ:null,
+  tokens:[],
+  tokenIdx:0,            // 0-3，当前所在 beat
+
+  // 答题状态
+  windowOpen:false,
+  windowTimer:null,
+  twoDigit:false,
+  tensEntered:false,
+  tensSlotIdx:-1,
+  pendingAnswer:null,
+  inputLocked:false,
+
+  // 分数
+  score:0, bestScore:parseInt(localStorage.getItem('rt2_best')||'0'),
+  combo:0, maxCombo:0,
+  correct:0, total:0,
+  fever:false, feverCount:0,
+  beatInterval:0,
+
+  // 计时器
+  timeLeft:60,
+  timerInterval:null,
+}
+
+/* ══════════════════════════════════════
+   SCREEN UTILS
+══════════════════════════════════════ */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+}
+function showMsg(txt,dur=1200){
+  const el=document.getElementById('status-msg')
+  el.textContent=txt;el.classList.add('show')
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),dur)
+}
+function disableNumpad(d){
+  document.querySelectorAll('.num-key').forEach(k=>{
+    k.style.opacity=d?'.3':'1'
+    k.style.pointerEvents=d?'none':''
+  })
+}
+
+/* ══════════════════════════════════════
+   BEAT ENGINE CALLBACKS
+══════════════════════════════════════ */
+function onVisualBeat(step){
+  if(G.status==='idle')return
+  // 节拍灯：反映当前 token 位置
+  const dotPos=G.tokenIdx%4
+  document.querySelectorAll('.beat-dot').forEach((d,i)=>
+    d.classList.toggle('active',i===dotPos))
+  advanceBeat()
+}
+
+function advanceBeat(){
+  if(!G.currentQ){loadNextQuestion();return}
+  if(G.tokenIdx>=4){onQuestionDone();return}
+
+  const tok=G.tokens[G.tokenIdx]
+  G.tokenIdx++
+
+  switch(tok.type){
+    case'show':
+      renderQuestion()
+      speak(buildMnemonic(G.currentQ.a,G.currentQ.b))
+      break
+    case'wait':
+      // 静默等待
+      break
+    case'answer':
+      if(!G.isDemo) openAnswerWindow(tok)
+      else scheduleDemoPress(tok)
+      break
+    case'answer_ones':
+      if(!G.isDemo) openOnesWindow(tok)
+      else scheduleDemoOnesPress(tok)
+      break
+    case'rest':
+      // 静默拍，什么都不做
+      break
+  }
+}
+
+function onQuestionDone(){
+  if(G.windowOpen)return  // 等答题完毕
+  G.total++
+  loadNextQuestion()
+}
+
+/* ══════════════════════════════════════
+   QUESTION MANAGEMENT
+══════════════════════════════════════ */
+function loadNextQuestion(){
+  if(G.isDemo){
+    if(G.demoQIdx>=DEMO_QS.length){
+      endDemo();return
+    }
+    G.currentQ=DEMO_QS[G.demoQIdx++]
+  } else {
+    if(G.qIdx>=G.questions.length){
+      G.questions=shuffle(buildAllQ())
+      G.qIdx=0
+    }
+    G.currentQ=G.questions[G.qIdx++]
+  }
+
+  G.tokens=makeTokens(G.currentQ)
+  G.tokenIdx=0
+  G.twoDigit=G.currentQ.result>=10
+  G.tensEntered=false
+  G.windowOpen=false
+  G.inputLocked=false
+  renderQuestion()
+  updateProgressDots()
+}
+
+function renderQuestion(){
+  if(!G.currentQ)return
+  const{a,b,result}=G.currentQ
+  const isDouble=result>=10
+
+  document.getElementById('qa').textContent=a
+  document.getElementById('qb').textContent=b
+
+  const slotTens=document.getElementById('slot-tens')
+  const slotAns=document.getElementById('slot-ans')
+
+  if(isDouble){
+    slotTens.style.display='flex'
+    slotTens.textContent='＿'
+    slotTens.className='q-slot'
+    slotAns.textContent='＿'
+    slotAns.className='q-slot'
+  } else {
+    slotTens.style.display='none'
+    slotAns.textContent='＿'
+    slotAns.className='q-slot'
+  }
+}
+
+/* ══════════════════════════════════════
+   ANSWER WINDOWS
+══════════════════════════════════════ */
+function openAnswerWindow(tok){
+  G.windowOpen=true
+  G.inputLocked=false
+  clearTimeout(G.windowTimer)
+
+  if(tok.phase==='single'){
+    G.twoDigit=false
+    G.pendingAnswer={expected:tok.digit}
+    flashKey(tok.digit)
+    const slot=document.getElementById('slot-ans')
+    slot.classList.add('open')
+    G.windowTimer=setTimeout(()=>{if(G.windowOpen)onTimeout('ans')},G.diff.windowMs+G.beatInterval)
+  } else {
+    // tens
+    G.twoDigit=true
+    G.tensEntered=false
+    G.pendingAnswer={expectedTens:tok.digit,expectedOnes:null}
+    flashKey(tok.digit)
+    const slotTens=document.getElementById('slot-tens')
+    slotTens.classList.add('open')
+    G.windowTimer=setTimeout(()=>{if(G.windowOpen&&!G.tensEntered)onTimeout('tens')},G.diff.windowMs+G.beatInterval)
+  }
+}
+
+function openOnesWindow(tok){
+  // 个位 token 触发时，pendingAnswer 已有 tens，补充 ones
+  G.pendingAnswer.expectedOnes=tok.digit
+  clearAllFlash()
+  flashKey(tok.digit)
+  const slot=document.getElementById('slot-ans')
+  slot.classList.add('open')
+  clearTimeout(G.windowTimer)
+  G.windowTimer=setTimeout(()=>{if(G.windowOpen)onTimeout('ones')},G.diff.windowMs+G.beatInterval)
+}
+
+function onTimeout(which){
+  if(!G.windowOpen)return
+  G.windowOpen=false
+  clearAllFlash()
+  playWrong()
+  G.combo=0;G.fever=false
+  exitFever();updateHUD();charFall()
+  const slotId=which==='tens'?'slot-tens':'slot-ans'
+  const slot=document.getElementById(slotId)
+  slot.classList.remove('open');slot.classList.add('wrong');slot.textContent='✗'
+  showMsg('😵 超时！',700)
+}
+
+/* ══════════════════════════════════════
+   INPUT
+══════════════════════════════════════ */
+document.querySelectorAll('.num-key').forEach(key=>{
+  key.addEventListener('touchstart',e=>{
+    e.preventDefault()
+    handleInput(parseInt(key.dataset.n))
+    key.classList.add('pressed')
+  },{passive:false})
+  key.addEventListener('touchend',()=>key.classList.remove('pressed'))
+  key.addEventListener('mousedown',()=>{handleInput(parseInt(key.dataset.n));key.classList.add('pressed')})
+  key.addEventListener('mouseup',()=>key.classList.remove('pressed'))
+})
+
+function handleInput(digit){
+  if(G.status==='idle'||G.isDemo||G.inputLocked||!G.windowOpen)return
+  if(G.twoDigit) handleTwoDigit(digit)
+  else handleSingle(digit)
+}
+
+function handleSingle(digit){
+  clearTimeout(G.windowTimer)
+  G.windowOpen=false
+  G.inputLocked=true
+  clearAllFlash()
+  const slot=document.getElementById('slot-ans')
+  slot.classList.remove('open')
+
+  if(digit===G.pendingAnswer.expected){
+    onCorrect(digit,'ans')
+  } else {
+    onWrong(digit,'ans',G.pendingAnswer.expected)
+  }
+}
+
+function handleTwoDigit(digit){
+  if(!G.tensEntered){
+    // 输入十位
+    if(digit===G.pendingAnswer.expectedTens){
+      G.tensEntered=true
+      const slotTens=document.getElementById('slot-tens')
+      slotTens.textContent=String(digit)
+      slotTens.classList.remove('open')
+      slotTens.style.color='#ffcc44'
+      clearAllFlash()
+      // ones 窗口在下一拍自动开启（token3），这里不做操作
+    } else {
+      clearTimeout(G.windowTimer)
+      G.windowOpen=false
+      clearAllFlash()
+      onWrong(digit,'tens',G.pendingAnswer.expectedTens)
+    }
+  } else {
+    // 输入个位
+    clearTimeout(G.windowTimer)
+    G.windowOpen=false
+    G.inputLocked=true
+    clearAllFlash()
+    const slot=document.getElementById('slot-ans')
+    slot.classList.remove('open')
+    if(digit===G.pendingAnswer.expectedOnes){
+      // 同时修正 tens slot 颜色
+      const slotTens=document.getElementById('slot-tens')
+      slotTens.classList.add('correct');slotTens.style.color=''
+      onCorrect(digit,'ans')
+    } else {
+      onWrong(digit,'ans',G.pendingAnswer.expectedOnes)
+    }
+  }
+}
+
+function onCorrect(digit, slotId){
+  playCorrect()
+  const slot=document.getElementById('slot-'+slotId)
+  if(slot){slot.textContent=String(digit);slot.classList.add('correct')}
+
+  let pts=15
+  if(G.fever)pts=Math.floor(pts*1.5)
+  G.score+=pts; G.combo++; G.correct++
+  if(G.combo>G.maxCombo)G.maxCombo=G.combo
+
+  if(!G.fever&&G.combo>=5){G.fever=true;G.feverCount++;enterFever()}
+  updateHUD(); charDance()
+  if(G.combo%5===0)triggerBurst()
+
+  const k=document.querySelector(`.num-key[data-n="${digit}"]`)
+  if(k){k.classList.add('correct-flash');setTimeout(()=>k.classList.remove('correct-flash'),300)}
+}
+
+function onWrong(digit, slotId, expected){
+  playWrong()
+  const slot=document.getElementById('slot-'+slotId)
+  if(slot){slot.textContent=String(digit)||'✗';slot.classList.add('wrong')}
+
+  G.combo=0;G.fever=false
+  exitFever();updateHUD();charFall()
+  showMsg('😵',500)
+
+  const k=document.querySelector(`.num-key[data-n="${digit}"]`)
+  if(k){k.classList.add('wrong-flash');setTimeout(()=>k.classList.remove('wrong-flash'),300)}
+}
+
+/* ══════════════════════════════════════
+   DEMO AUTO-PLAY
+══════════════════════════════════════ */
+function scheduleDemoPress(tok){
+  // 演示模式：beat2 时自动按十位/单位
+  const slot=tok.phase==='single'
+    ?document.getElementById('slot-ans')
+    :document.getElementById('slot-tens')
+  if(slot)slot.classList.add('open')
+
+  setTimeout(()=>{
+    if(!G.isDemo||G.status==='idle')return
+    const key=document.querySelector(`.num-key[data-n="${tok.digit}"]`)
+    if(key){key.classList.add('pressed','correct-flash');setTimeout(()=>key.classList.remove('pressed','correct-flash'),250)}
+
+    if(tok.phase==='single'){
+      const s=document.getElementById('slot-ans')
+      if(s){s.textContent=String(tok.digit);s.classList.remove('open');s.classList.add('correct')}
+    } else {
+      const s=document.getElementById('slot-tens')
+      if(s){s.textContent=String(tok.digit);s.classList.remove('open');s.classList.add('correct');s.style.color=''}
+      G.tensEntered=true
+    }
+    charDance(); playCorrect()
+  },220)
+}
+
+function scheduleDemoOnesPress(tok){
+  const slot=document.getElementById('slot-ans')
+  if(slot)slot.classList.add('open')
+  setTimeout(()=>{
+    if(!G.isDemo||G.status==='idle')return
+    const key=document.querySelector(`.num-key[data-n="${tok.digit}"]`)
+    if(key){key.classList.add('pressed','correct-flash');setTimeout(()=>key.classList.remove('pressed','correct-flash'),250)}
+    const s=document.getElementById('slot-ans')
+    if(s){s.textContent=String(tok.digit);s.classList.remove('open');s.classList.add('correct')}
+  },220)
+}
+
+function endDemo(){
+  G.isDemo=false
+  document.getElementById('demo-banner').classList.remove('show')
+  disableNumpad(false)
+  showMsg('你来！跟着节拍！',1000)
+  // 直接切入正式游戏，不停拍
+  G.status='playing'
+  G.mode='play'
+  G.questions=shuffle(buildAllQ())
+  G.qIdx=0
+  startTimer()
+  loadNextQuestion()
+}
+
+/* ══════════════════════════════════════
+   FEVER
+══════════════════════════════════════ */
+function enterFever(){
+  playFever()
+  document.getElementById('hud-fever').classList.add('active')
+  document.getElementById('bg-layer').classList.add('fever-on')
+  triggerBurst()
+}
+function exitFever(){
+  document.getElementById('hud-fever').classList.remove('active')
+  document.getElementById('bg-layer').classList.remove('fever-on')
+}
+function triggerBurst(){
+  const el=document.getElementById('combo-burst')
+  el.classList.remove('burst');void el.offsetWidth
+  el.classList.add('burst');setTimeout(()=>el.classList.remove('burst'),400)
+}
+
+/* ══════════════════════════════════════
+   CHAR
+══════════════════════════════════════ */
+function charDance(){
+  const el=document.getElementById('char-img');if(!el)return
+  el.classList.remove('dance','fall');void el.offsetWidth
+  el.classList.add('dance')
+  if(el.tagName==='IMG')el.src='assets/char_dance.png'
+}
+function charFall(){
+  const el=document.getElementById('char-img');if(!el)return
+  el.classList.remove('dance','fall');void el.offsetWidth
+  el.classList.add('fall')
+  if(el.tagName==='IMG')el.src='assets/char_fall.png'
+  setTimeout(()=>{if(el&&el.tagName==='IMG')el.src='assets/char_dance.png'},1400)
+}
+
+/* ══════════════════════════════════════
+   HUD & PROGRESS
+══════════════════════════════════════ */
+function updateHUD(){
+  document.getElementById('hud-score').textContent=G.score
+  document.getElementById('hud-combo-n').textContent=G.combo
+  const c=document.getElementById('hud-combo')
+  c.classList.remove('pop');void c.offsetWidth
+  if(G.combo>0)c.classList.add('pop')
+}
+
+function updateProgressDots(){
+  const bar=document.getElementById('progress-dots');if(!bar)return
+  const total=G.questions.length||45
+  const done=G.qIdx
+  const seg=Math.min(done,9)  // 只显示最近 9 格避免溢出
+  bar.innerHTML=''
+  for(let i=0;i<9;i++){
+    const d=document.createElement('div')
+    d.className='prog-dot'+(i<seg?' done':i===seg?' current':'')
+    bar.appendChild(d)
+  }
+}
+
+/* ══════════════════════════════════════
+   KEY FLASH
+══════════════════════════════════════ */
+function flashKey(digit){
+  clearAllFlash()
+  const k=document.querySelector(`.num-key[data-n="${digit}"]`)
+  if(k)k.classList.add('flash')
+}
+function clearAllFlash(){
+  document.querySelectorAll('.num-key').forEach(k=>
+    k.classList.remove('flash','flash-dim','correct-flash','wrong-flash'))
+}
+
+/* ══════════════════════════════════════
+   TIMER
+══════════════════════════════════════ */
+function startTimer(){
+  G.timeLeft=60
+  document.getElementById('timer-bar').style.width='100%'
+  clearInterval(G.timerInterval)
+  G.timerInterval=setInterval(()=>{
+    G.timeLeft--
+    document.getElementById('timer-bar').style.width=(G.timeLeft/60*100)+'%'
+    if(G.timeLeft<=0) endGame()
+  },1000)
+}
+function stopTimer(){clearInterval(G.timerInterval)}
+
+/* ══════════════════════════════════════
+   GAME FLOW
+══════════════════════════════════════ */
+function startIntro(){
+  ensureAC()
+  showScreen('screen-game')
+  G.status='playing'
+  G.mode='demo'
+  G.isDemo=true
+  G.demoQIdx=0
+  G.score=0;G.combo=0;G.maxCombo=0
+  G.correct=0;G.total=0
+  G.fever=false;G.feverCount=0
+  G.windowOpen=false;G.inputLocked=false
+  exitFever();updateHUD()
+  disableNumpad(true)
+  document.getElementById('demo-banner').classList.add('show')
+  loadNextQuestion()
+  startMasterBeat()
+}
+
+function endGame(){
+  G.status='idle'
+  stopMasterBeat(); stopTimer()
+  clearAllFlash()
+  speechSynthesis&&speechSynthesis.cancel()
+  if(G.score>G.bestScore){
+    G.bestScore=G.score
+    localStorage.setItem('rt2_best',G.bestScore)
+  }
+  setTimeout(showResult,600)
+}
+
+function showResult(){
+  document.getElementById('res-score').textContent=G.score
+  document.getElementById('res-correct').textContent=G.correct
+  document.getElementById('res-combo').textContent=G.maxCombo
+  const acc=G.total>0?Math.round(G.correct/G.total*100):0
+  document.getElementById('res-acc').textContent=acc+'%'
+  showScreen('screen-result')
+  speak('本局得分'+G.score+'分')
+}
+
+function replayGame(){
+  startIntro()
+}
+function goIntro(){
+  G.status='idle';stopMasterBeat();stopTimer()
+  speechSynthesis&&speechSynthesis.cancel()
+  showScreen('screen-intro')
+}
+
+/* ── 页面隐藏暂停 ── */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){stopMasterBeat();stopTimer();speechSynthesis&&speechSynthesis.cancel()}
+  else if(G.status!=='idle'){startMasterBeat();if(!G.isDemo)startTimer()}
+})
+</script>
+</body>
+</html>

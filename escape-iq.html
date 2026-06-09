@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>图形密室 · EscapeIQ</title>
+<style>
+:root {
+  --water-normal: #4fc3f7;
+  --water-deep:   #1565c0;
+  --water-surge:  #0288d1;
+  --bg-room:      #e8f4f8;
+  --bg-wall:      #b2dfdb;
+  --color-primary:#26c6da;
+  --color-success:#66bb6a;
+  --color-wrong:  #ef5350;
+  --color-text:   #263238;
+  --color-card:   #ffffff;
+  --radius-card:  16px;
+  --radius-btn:   14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-room);
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;
+  color:var(--color-text);-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;user-select:none}
+
+#game-container{width:100vw;height:100vh;height:100dvh;position:relative;overflow:hidden}
+
+/* ── screens ── */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s}
+.screen.active{opacity:1;pointer-events:all}
+
+/* ── START SCREEN ── */
+#screen-start{background:linear-gradient(160deg,#e0f7fa 0%,#b2ebf2 50%,#e8f5e9 100%)}
+.start-title{font-size:clamp(28px,8vw,38px);font-weight:900;color:#00838f;
+  letter-spacing:2px;text-align:center;line-height:1.2}
+.start-subtitle{font-size:14px;color:#607d8b;margin:8px 0 28px;text-align:center}
+.difficulty-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;width:min(340px,88vw)}
+.diff-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:12px 4px;border:2.5px solid transparent;border-radius:var(--radius-btn);
+  background:#fff;cursor:pointer;transition:all .15s;box-shadow:0 3px 10px rgba(0,0,0,.1)}
+.diff-btn:active{transform:scale(.93)}
+.diff-btn .lv{font-size:18px;font-weight:900;color:#00838f}
+.diff-btn .lv-name{font-size:10px;color:#90a4ae;margin-top:2px}
+.diff-btn.selected,.diff-btn:hover{border-color:#26c6da;background:#e0f7fa}
+.start-hint{font-size:12px;color:#b0bec5;margin-top:20px;text-align:center;line-height:1.8}
+
+/* ── GAME SCREEN ── */
+#screen-game{
+  background: url('assets/bg_main.png') center top / cover no-repeat;
+  justify-content:flex-start;padding:0}
+/* 半透明遮罩让题目卡片更突出 */
+#screen-game::before{
+  content:'';position:absolute;inset:0;z-index:0;
+  background:rgba(255,255,255,.08);
+  pointer-events:none}
+
+/* HUD */
+#hud{width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:max(env(safe-area-inset-top,12px),12px) 16px 8px;
+  background:rgba(255,255,255,.7);backdrop-filter:blur(8px);
+  position:relative;z-index:30}
+.hud-item{display:flex;flex-direction:column;align-items:center}
+.hud-label{font-size:10px;color:#78909c;font-weight:600;letter-spacing:.5px}
+.hud-value{font-size:20px;font-weight:900;color:#263238;line-height:1.1}
+#lucid-badge{font-size:11px;background:#ff7043;color:#fff;border-radius:8px;
+  padding:2px 8px;display:none;animation:flash .5s ease 3}
+#lucid-badge.on{display:inline-block}
+
+/* Question panel */
+#question-panel{position:absolute;top:0;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:20;pointer-events:none;padding-bottom:22vw}
+#q-card{background:var(--color-card);border-radius:var(--radius-card);
+  box-shadow:0 8px 30px rgba(0,0,0,.15);padding:18px;
+  width:min(340px,88vw);pointer-events:none}
+#q-label{font-size:11px;font-weight:700;color:#90a4ae;letter-spacing:1px;
+  text-align:center;margin-bottom:10px}
+#q-canvas{display:block;margin:0 auto;border-radius:8px}
+
+/* Water — 全屏容器固定，水体从底部向上生长 */
+#water-container{
+  position:absolute;inset:0;
+  z-index:10;pointer-events:none}
+#water-body{
+  position:absolute;bottom:0;left:0;right:0;
+  height:0%;
+  background:linear-gradient(180deg,#29b6f6 0%,#0277bd 100%);
+  transition:height .12s linear}
+/* 真实水面波纹图（正常状态）*/
+#water-body::before{
+  content:'';
+  position:absolute;
+  top:-55px;left:0;right:0;height:115px;
+  background:url('assets/water_normal.png') repeat-x 0 60%;
+  background-size:auto 115px;
+  animation:wave-scroll 4s linear infinite;
+  pointer-events:none;
+  /* 裁掉图片顶部透明区域，从40%开始才显示 */
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 42%,black 100%);
+  mask-image:linear-gradient(to bottom,transparent 0%,black 42%,black 100%)}
+/* 危险状态：换深色水面图 */
+#water-body.danger{
+  background:linear-gradient(180deg,#1565c0 0%,#0d47a1 100%)}
+#water-body.danger::before{
+  background-image:url('assets/water_danger.png')}
+#water-body.surge{animation:surge-flash .3s ease-out}
+
+/* 水涨溅射特效图（答错时出现）*/
+#surge-overlay{
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:min(220px,56vw);
+  pointer-events:none;z-index:22;
+  opacity:0;transition:opacity .1s}
+#surge-overlay.show{
+  opacity:1;animation:surge-pop .5s ease-out forwards}
+#surge-overlay img{width:100%}
+
+/* 右侧水位刻度条 */
+#water-gauge{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  width:6px;height:40vh;
+  background:rgba(0,0,0,.08);border-radius:3px;
+  z-index:25;pointer-events:none;overflow:hidden}
+#water-gauge-fill{
+  position:absolute;bottom:0;left:0;right:0;
+  height:0%;border-radius:3px;
+  background:linear-gradient(180deg,#29b6f6,#0277bd);
+  transition:height .12s linear}
+#water-gauge-fill.danger{background:linear-gradient(180deg,#ef5350,#b71c1c)}
+
+/* 危险时屏幕边缘红色晕染 */
+#danger-vignette{
+  position:absolute;inset:0;z-index:15;pointer-events:none;
+  border-radius:0;opacity:0;transition:opacity .4s;
+  box-shadow:inset 0 0 60px 20px rgba(239,83,80,.45)}
+#danger-vignette.on{opacity:1;animation:pulse-vignette 1s ease-in-out infinite alternate}
+
+/* 真实小鱼图（white bg → multiply 混合模式让白色透明）*/
+.fish{position:absolute;animation:float-fish 4s ease-in-out infinite;
+  pointer-events:none;mix-blend-mode:multiply}
+.fish img{display:block}
+/* CSS 气泡（保留，作为水中漂浮元素）*/
+.bubble{position:absolute;width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.75);animation:rise-bubble 2.5s ease-in infinite;pointer-events:none}
+
+/* Options bar */
+#options-bar{position:absolute;bottom:0;left:0;right:0;z-index:30;
+  padding:8px 12px max(env(safe-area-inset-bottom,12px),12px);
+  background:rgba(255,255,255,.85);backdrop-filter:blur(10px);
+  display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt-btn{padding:13px 8px;border:2.5px solid #cfd8dc;border-radius:var(--radius-btn);
+  background:#fff;font-size:15px;font-weight:600;color:#37474f;
+  cursor:pointer;transition:all .12s;text-align:center;min-height:50px;
+  display:flex;align-items:center;justify-content:center}
+.opt-btn:active{transform:scale(.95)}
+.opt-btn.correct{background:#e8f5e9;border-color:#66bb6a;color:#2e7d32}
+.opt-btn.wrong{background:#ffebee;border-color:#ef5350;color:#c62828}
+.opt-btn.shake{animation:shake .4s ease}
+.opt-btn.disabled{opacity:.5;pointer-events:none}
+
+/* Door — 常态小图标（锁） */
+#door-icon{
+  position:absolute;top:10px;right:14px;
+  width:52px;opacity:.85;z-index:25;pointer-events:none;
+  transition:opacity .2s;filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
+/* Door overlay — 题目消失后，门在背景原位展开 */
+#door-overlay{
+  position:absolute;inset:0;z-index:40;pointer-events:none;
+  opacity:0;transition:opacity .25s}
+#door-overlay.open{opacity:1}
+/* 光晕从门位置向全屏扩散 */
+#door-light{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 58%,
+    rgba(255,252,180,1) 0%,rgba(255,220,80,.85) 20%,rgba(255,160,0,.3) 45%,transparent 68%);
+  opacity:0}
+#door-overlay.open #door-light{
+  animation:light-bloom 2s ease-out forwards}
+/* 门图定位在背景门的位置（bg_main 底部约 55-80% 高度） */
+#door-overlay-img{
+  position:absolute;
+  left:50%;bottom:18%;
+  transform:translateX(-50%);
+  width:min(300px,75vw);
+  opacity:0}
+#door-overlay.open #door-overlay-img{
+  animation:door-expand 1.4s cubic-bezier(.2,.8,.3,1.1) forwards}
+/* 全屏白光闪烁层 */
+#flash-white{
+  position:absolute;inset:0;z-index:45;
+  background:#fff;opacity:0;pointer-events:none;transition:opacity .22s}
+#flash-white.on{opacity:1}
+
+/* 游戏故事告知页 */
+#screen-intro{background:#000}
+.intro-bg{position:absolute;inset:0;
+  background:url('assets/bg_main.png') center/cover no-repeat;
+  filter:brightness(.5)}
+.intro-content{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;align-items:center;
+  padding:0 32px;text-align:center;color:#fff}
+.intro-lock{font-size:56px;margin-bottom:16px;
+  filter:drop-shadow(0 0 20px rgba(255,220,80,.8));
+  animation:float-fish 3s ease-in-out infinite}
+.intro-title{font-size:clamp(26px,7vw,34px);font-weight:900;
+  letter-spacing:3px;margin-bottom:12px;
+  text-shadow:0 2px 20px rgba(0,0,0,.8)}
+.intro-divider{width:48px;height:2px;background:rgba(255,220,80,.8);
+  border-radius:1px;margin:0 auto 20px}
+.intro-body{font-size:16px;line-height:2;color:rgba(255,255,255,.88);
+  text-shadow:0 1px 8px rgba(0,0,0,.9);margin-bottom:32px}
+.intro-body strong{color:#ffe57f;font-size:18px}
+
+/* Result screen */
+#screen-result{background:url('assets/bg_result_win.png') center/cover no-repeat}
+#screen-result.fail{background-image:url('assets/bg_result_fail.png')}
+/* 结算页内容区加白色磨砂卡片，确保文字可读 */
+.result-icon{font-size:72px;margin-bottom:12px}
+.result-title{font-size:28px;font-weight:900;color:#263238;margin-bottom:6px}
+.result-sub{font-size:14px;color:#78909c;margin-bottom:24px}
+.result-score-box{background:#fff;border-radius:20px;padding:20px 32px;
+  box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center;margin-bottom:20px;width:min(280px,80vw)}
+.result-score-main{font-size:52px;font-weight:900;color:#00838f;line-height:1}
+.result-score-label{font-size:12px;color:#90a4ae;margin-top:4px}
+.result-score-best{font-size:13px;color:#b0bec5;margin-top:8px}
+.result-bonus{font-size:13px;color:#ff7043;font-weight:700;margin-top:6px}
+.result-btns{display:flex;gap:12px}
+.btn{padding:14px 28px;border:none;border-radius:var(--radius-btn);font-size:16px;
+  font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s}
+.btn:active{transform:scale(.94);opacity:.9}
+.btn-primary{background:#26c6da;color:#fff}
+.btn-secondary{background:rgba(0,0,0,.08);color:#37474f}
+
+/* ── keyframes ── */
+@keyframes wave-scroll{from{background-position-x:0}to{background-position-x:-1080px}}
+@keyframes surge-flash{0%{filter:brightness(1)}50%{filter:brightness(1.5) saturate(1.3)}100%{filter:brightness(1)}}
+@keyframes surge-pop{0%{opacity:1;transform:translateX(-50%) scale(.6) translateY(20px)}70%{opacity:1;transform:translateX(-50%) scale(1.05) translateY(-8px)}100%{opacity:0;transform:translateX(-50%) scale(.9) translateY(-20px)}}
+@keyframes pulse-vignette{from{opacity:.6}to{opacity:1}}
+@keyframes light-bloom{0%{opacity:0;transform:scale(.2)}30%{opacity:1;transform:scale(.8)}100%{opacity:.9;transform:scale(2.8)}}
+@keyframes door-expand{0%{opacity:0;transform:translateX(-50%) scale(.15) translateY(80px)}50%{opacity:1;transform:translateX(-50%) scale(1.06) translateY(-10px)}100%{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@keyframes float-fish{0%,100%{transform:translateX(0) translateY(0)}50%{transform:translateX(12px) translateY(-6px)}}
+@keyframes rise-bubble{0%{transform:translateY(0);opacity:.7}100%{transform:translateY(-80px);opacity:0}}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes pop{0%{transform:scale(.8);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.anim-pop{animation:pop .35s ease}
+</style>
+</head>
+<body>
+<div id="game-container">
+
+  <!-- START -->
+  <div id="screen-start" class="screen active">
+    <div class="start-title">图形密室<br>EscapeIQ</div>
+    <div class="start-subtitle">水位上涨前，推理逃脱</div>
+    <div class="difficulty-grid" id="diff-grid">
+      <button class="diff-btn" data-lv="1"><span class="lv">L1</span><span class="lv-name">入门</span></button>
+      <button class="diff-btn" data-lv="2"><span class="lv">L2</span><span class="lv-name">初级</span></button>
+      <button class="diff-btn selected" data-lv="3"><span class="lv">L3</span><span class="lv-name">中级</span></button>
+      <button class="diff-btn" data-lv="4"><span class="lv">L4</span><span class="lv-name">高级</span></button>
+      <button class="diff-btn" data-lv="5"><span class="lv">L5</span><span class="lv-name">专家</span></button>
+    </div>
+    <button class="btn btn-primary" id="btn-start" style="margin-top:20px;padding:16px 48px;font-size:18px">开始逃脱</button>
+    <div class="start-hint">共10关 · 每关水位从零开始上涨<br>答错水猛涨，答对才能逃脱</div>
+  </div>
+
+  <!-- INTRO 故事告知页 -->
+  <div id="screen-intro" class="screen">
+    <div class="intro-bg"></div>
+    <div class="intro-content">
+      <div class="intro-lock">🔒</div>
+      <div class="intro-title">连环密室</div>
+      <div class="intro-divider"></div>
+      <p class="intro-body">
+        你被关在了一个连环密室里<br>
+        面前是无尽的大门<br><br>
+        每扇门背后都藏着一道图形密码<br>
+        水位正在上涨……<br><br>
+        <strong>你能解开密码逃出去吗？</strong>
+      </p>
+      <button class="btn btn-primary" id="btn-enter"
+        style="font-size:18px;padding:16px 52px;
+               box-shadow:0 4px 24px rgba(38,198,218,.6)">
+        进入密室
+      </button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div id="hud">
+      <div class="hud-item"><span class="hud-label">关卡</span><span class="hud-value" id="hud-q">1/10</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <span id="lucid-badge">🧠 清醒×1.5</span>
+        <span class="hud-value" id="hud-score" style="font-size:22px">0</span>
+        <span class="hud-label">分数</span>
+      </div>
+      <div class="hud-item"><span class="hud-label">最高</span><span class="hud-value" id="hud-best">0</span></div>
+    </div>
+
+    <div id="question-panel">
+      <div id="q-card">
+        <div id="q-label">续列</div>
+        <canvas id="q-canvas" width="300" height="120"></canvas>
+      </div>
+    </div>
+
+    <div id="water-container">
+      <div id="water-body" style="height:0%">
+        <span class="fish" style="left:12%;bottom:18%"><img src="assets/char_fish_01.png" width="52" alt=""></span>
+        <span class="fish" style="left:62%;bottom:30%;animation-delay:.9s;transform:scaleX(-1)"><img src="assets/char_fish_02.png" width="46" alt=""></span>
+        <span class="bubble" style="left:28%;bottom:8%;animation-delay:.4s"></span>
+        <span class="bubble" style="left:52%;bottom:4%;animation-delay:1.2s"></span>
+        <span class="bubble" style="left:78%;bottom:12%;animation-delay:.7s"></span>
+      </div>
+    </div>
+    <!-- 水涨溅射特效 -->
+    <div id="surge-overlay"><img src="assets/effect_water_surge.png" alt=""></div>
+    <!-- 右侧水位刻度条 -->
+    <div id="water-gauge"><div id="water-gauge-fill"></div></div>
+    <!-- 危险红色边缘晕染 -->
+    <div id="danger-vignette"></div>
+
+    <div id="options-bar">
+      <button class="opt-btn" id="opt0"></button>
+      <button class="opt-btn" id="opt1"></button>
+      <button class="opt-btn" id="opt2"></button>
+      <button class="opt-btn" id="opt3"></button>
+    </div>
+
+    <!-- 常态锁门小图标 -->
+    <img id="door-icon" src="assets/door_locked.png" alt="密室门">
+    <!-- 答对时：门在背景原位展开 + 光晕全屏 -->
+    <div id="door-overlay">
+      <div id="door-light"></div>
+      <img id="door-overlay-img" src="assets/door_open.png" alt="门开了！">
+    </div>
+    <!-- 白光闪烁层 -->
+    <div id="flash-white"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="screen-result" class="screen">
+    <div class="result-icon" id="res-icon">🎉</div>
+    <div class="result-title" id="res-title">密室逃脱成功！</div>
+    <div class="result-sub" id="res-sub">你的推理能力令人印象深刻</div>
+    <div class="result-score-box">
+      <div class="result-score-main" id="res-score">0</div>
+      <div class="result-score-label">本局得分</div>
+      <div class="result-score-best" id="res-best">历史最高：0 分</div>
+      <div class="result-bonus" id="res-bonus"></div>
+    </div>
+    <div class="result-btns">
+      <button class="btn btn-primary" id="btn-replay">再来一局</button>
+      <button class="btn btn-secondary" id="btn-menu">选难度</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const RISE_SPEED = {1:5,2:8,3:12,4:17,5:24} // %/s
+const SURGE_PCT  = 22  // wrong answer penalty
+const QUOTA = {
+  // 按题库实际可用级别校对：oddone L2+，matrix L3+，rotate L4+
+  1:{sequence:10,oddone:0,matrix:0,rotate:0},  // 全续列，最简单
+  2:{sequence:6, oddone:4,matrix:0,rotate:0},  // 引入找异类
+  3:{sequence:2, oddone:4,matrix:4,rotate:0},  // 引入矩阵
+  4:{sequence:0, oddone:2,matrix:5,rotate:3},  // 引入旋转
+  5:{sequence:0, oddone:2,matrix:3,rotate:5}   // 旋转为主
+}
+const TYPE_LABEL = {sequence:'续 列',oddone:'找异类',matrix:'矩阵补全',rotate:'旋转镜像'}
+const COLORS = ['#ef5350','#42a5f5','#66bb6a','#ffa726','#ab47bc']
+const COLOR_NAMES = ['红','蓝','绿','橙','紫']
+const SHAPES = ['circle','square','triangle','star','diamond']
+const SHAPE_NAMES = ['圆','方','三角','星','菱']
+
+// ═══════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════
+const G = {
+  status:'idle',difficulty:3,
+  questions:[],questionIndex:0,
+  score:0,bestScore:0,
+  consecutiveFirst:0,lucid:false,
+  firstAttempt:true,answered:false,
+  waterPct:0,riseRaf:null,lastTime:null
+}
+
+// ═══════════════════════════════════════════════
+// DOM
+// ═══════════════════════════════════════════════
+const $=id=>document.getElementById(id)
+const waterBody=$('water-body')
+const qCanvas=$('q-canvas')
+const ctx=qCanvas.getContext('2d')
+const opts=[0,1,2,3].map(i=>$('opt'+i))
+
+// ═══════════════════════════════════════════════
+// DRAWING
+// ═══════════════════════════════════════════════
+function drawShape(ctx,shape,x,y,size,color,filled=true){
+  ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=2
+  ctx.beginPath()
+  if(shape==='circle'){ctx.arc(x,y,size*.45,0,Math.PI*2)}
+  else if(shape==='square'){ctx.rect(x-size*.4,y-size*.4,size*.8,size*.8)}
+  else if(shape==='triangle'){ctx.moveTo(x,y-size*.45);ctx.lineTo(x+size*.4,y+size*.4);ctx.lineTo(x-size*.4,y+size*.4);ctx.closePath()}
+  else if(shape==='star'){
+    for(let i=0;i<5;i++){
+      const a=i*Math.PI*2/5-Math.PI/2,ar=a+Math.PI/5
+      if(i===0)ctx.moveTo(x+Math.cos(a)*size*.45,y+Math.sin(a)*size*.45)
+      else ctx.lineTo(x+Math.cos(a)*size*.45,y+Math.sin(a)*size*.45)
+      ctx.lineTo(x+Math.cos(ar)*size*.2,y+Math.sin(ar)*size*.2)
+    }ctx.closePath()
+  }else if(shape==='diamond'){ctx.moveTo(x,y-size*.45);ctx.lineTo(x+size*.35,y);ctx.lineTo(x,y+size*.45);ctx.lineTo(x-size*.35,y);ctx.closePath()}
+  if(filled)ctx.fill();else ctx.stroke()
+}
+
+function renderCanvas(q,W,H){
+  ctx.clearRect(0,0,W,H)
+  if(q.type==='sequence') renderSequence(q,W,H)
+  else if(q.type==='oddone') renderOddone(q,W,H)
+  else if(q.type==='matrix') renderMatrix(q,W,H)
+  else if(q.type==='rotate') renderRotate(q,W,H)
+}
+
+function renderSequence(q,W,H){
+  const items=q.sequence
+  const n=items.length
+  const cellW=W/(n+1)
+  items.forEach((item,i)=>{
+    const x=(i+.5)*cellW,y=H/2
+    drawShape(ctx,item.shape,x,y,Math.min(cellW*.8,H*.7),item.color)
+    if(item.count&&item.count>1){
+      ctx.fillStyle=item.color;ctx.font='bold 11px sans-serif';ctx.textAlign='center'
+      ctx.fillText('×'+item.count,x,y+Math.min(cellW*.5,H*.5))
+    }
+  })
+  // question mark
+  const qx=(n+.5)*cellW,qy=H/2
+  ctx.fillStyle='#b0bec5';ctx.font='bold 28px sans-serif';ctx.textAlign='center'
+  ctx.fillText('?',qx,qy+9)
+}
+
+function renderOddone(q,W,H){
+  const items=q.items
+  const cellW=W/4
+  const shapeSize=Math.min(cellW*.68,H*.55)
+  items.forEach((item,i)=>{
+    const x=(i+.5)*cellW
+    const y=H*.45
+    drawShape(ctx,item.shape,x,y,shapeSize,item.color,item.filled!==false)
+    // 底部显示 ABCD 标号，与选项按钮对应
+    ctx.fillStyle='#90a4ae';ctx.font='bold 11px sans-serif';ctx.textAlign='center'
+    ctx.fillText(String.fromCharCode(65+i),x,H-4)
+  })
+}
+
+function renderMatrix(q,W,H){
+  const cellW=W/3,cellH=H/3
+  q.grid.forEach((item,i)=>{
+    const col=i%3,row=Math.floor(i/3)
+    const x=(col+.5)*cellW,y=(row+.5)*cellH
+    if(item===null){ctx.fillStyle='#e0e0e0';ctx.font='20px sans-serif';ctx.textAlign='center';ctx.fillText('?',x,y+7)}
+    else drawShape(ctx,item.shape,x,y,Math.min(cellW*.7,cellH*.7),item.color,item.filled!==false)
+    // grid lines
+    ctx.strokeStyle='#cfd8dc';ctx.lineWidth=1
+    if(col<2){ctx.beginPath();ctx.moveTo((col+1)*cellW,0);ctx.lineTo((col+1)*cellW,H);ctx.stroke()}
+    if(row<2){ctx.beginPath();ctx.moveTo(0,(row+1)*cellH);ctx.lineTo(W,(row+1)*cellH);ctx.stroke()}
+  })
+}
+
+function renderRotate(q,W,H){
+  const halfW=W/2
+  // left: base shape
+  drawShape(ctx,q.base.shape,halfW*.5,H*.45,Math.min(halfW*.6,H*.65),q.base.color)
+  // arrow
+  ctx.fillStyle='#90a4ae';ctx.font='20px sans-serif';ctx.textAlign='center'
+  ctx.fillText('→',halfW,H*.5+7)
+  // right: question
+  ctx.fillStyle='#b0bec5';ctx.font='bold 28px sans-serif'
+  ctx.fillText('?',halfW*1.5,H*.5+9)
+  // label
+  ctx.fillStyle='#78909c';ctx.font='11px sans-serif'
+  ctx.fillText(q.transformLabel,halfW,H-6)
+}
+
+// option rendering
+function renderOption(btn,item,type){
+  if(typeof item==='string'){btn.textContent=item;return}
+  if(item&&item.emoji){btn.textContent=item.emoji;return}
+  // draw a small canvas in the button
+  btn.textContent=''
+  const c=document.createElement('canvas');c.width=80;c.height=56
+  const cx=c.getContext('2d')
+  if(type==='sequence'||type==='rotate'){
+    drawShape(cx,item.shape,40,28,Math.min(60,44),item.color)
+  }else if(type==='oddone'){
+    drawShape(cx,item.shape,40,28,Math.min(60,44),item.color,item.filled!==false)
+  }else if(type==='matrix'){
+    drawShape(cx,item.shape,40,28,Math.min(60,44),item.color,item.filled!==false)
+  }
+  c.style.cssText='display:block;margin:0 auto'
+  btn.appendChild(c)
+}
+
+// ═══════════════════════════════════════════════
+// QUESTION GENERATION — SEQUENCE
+// ═══════════════════════════════════════════════
+function rnd(arr){return arr[Math.floor(Math.random()*arr.length)]}
+function rndInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=rndInt(0,i);[a[i],a[j]]=[a[j],a[i]]};return a}
+
+// ── 续列题四种规律 ─────────────────────────────
+const SEQ_RULES={
+  1:['linear'],
+  2:['linear','linear','alternate'],        // L2 以线性为主
+  3:['linear','alternate','alternate','cycle'],
+  4:['alternate','cycle','cycle','double'],
+  5:['cycle','double','double']
+}
+
+function genSequence(level){
+  const rule=rnd(SEQ_RULES[level]||['linear'])
+  if(rule==='linear')   return _seqLinear(level)
+  if(rule==='alternate')return _seqAlternate(level)
+  if(rule==='cycle')    return _seqCycle(level)
+  if(rule==='double')   return _seqDouble(level)
+  return _seqLinear(level)
+}
+
+// 规律1：线性递推（A B C D → E）
+function _seqLinear(level){
+  const attrs=level<=1?['color']:shuffle(['color','shape']).slice(0,level<=2?1:2)
+  const baseShape=rnd(SHAPES),baseColor=rnd(COLORS)
+  const seq=[]
+  let si=SHAPES.indexOf(baseShape),ci=COLORS.indexOf(baseColor)
+  for(let i=0;i<5;i++){
+    seq.push({shape:SHAPES[si%SHAPES.length],color:COLORS[ci%COLORS.length]})
+    if(attrs.includes('shape'))si++
+    if(attrs.includes('color'))ci++
+  }
+  return _buildSeqResult(seq)
+}
+
+// 规律2：交替（A B A B → A）
+function _seqAlternate(level){
+  const useShape=level>=3&&Math.random()>.5
+  const baseShape=rnd(SHAPES),baseColor=rnd(COLORS)
+  const altShape=rnd(SHAPES.filter(s=>s!==baseShape))
+  const altColor=rnd(COLORS.filter(c=>c!==baseColor))
+  const seq=[]
+  for(let i=0;i<5;i++){
+    const even=i%2===0
+    seq.push({
+      shape:useShape?(even?baseShape:altShape):baseShape,
+      color:useShape?baseColor:(even?baseColor:altColor)
+    })
+  }
+  // seq[4] == seq[0] == seq[2]（even位置）
+  return _buildSeqResult(seq)
+}
+
+// 规律3：周期循环（A B C A B → C）
+function _seqCycle(level){
+  const useShape=level>=4
+  const c3=shuffle([...COLORS]).slice(0,3)
+  const s3=shuffle([...SHAPES]).slice(0,3)
+  const baseShape=rnd(SHAPES)
+  const seq=[]
+  for(let i=0;i<5;i++){
+    seq.push({
+      shape:useShape?s3[i%3]:baseShape,
+      color:c3[i%3]
+    })
+  }
+  // 可见：[A,B,C,A] → 答案 B（seq[4]=seq[1]）
+  return _buildSeqResult(seq)
+}
+
+// 规律4：双步递推（形状+1，颜色+2）
+function _seqDouble(level){
+  const si=rndInt(0,4),ci=rndInt(0,4)
+  const seq=[]
+  for(let i=0;i<5;i++){
+    seq.push({
+      shape:SHAPES[(si+i)%SHAPES.length],
+      color:COLORS[(ci+i*2)%COLORS.length]
+    })
+  }
+  return _buildSeqResult(seq)
+}
+
+function _buildSeqResult(seq){
+  const answer=seq[4]
+  const distractors=[
+    {shape:rnd(SHAPES.filter(s=>s!==answer.shape)),color:answer.color},
+    {shape:answer.shape,color:rnd(COLORS.filter(c=>c!==answer.color))},
+    {shape:rnd(SHAPES.filter(s=>s!==answer.shape)),color:rnd(COLORS.filter(c=>c!==answer.color))}
+  ]
+  const options=shuffle([answer,...distractors])
+  return{type:'sequence',sequence:seq.slice(0,4),options,answer,answerIdx:options.indexOf(answer)}
+}
+
+// ═══════════════════════════════════════════════
+// HARDCODED: ODDONE (15 questions)
+// ═══════════════════════════════════════════════
+function makeItem(shape,color,filled=true){return{shape,color,filled}}
+const ODDONE_BANK=[
+  // L2
+  {type:'oddone',levels:[2,3],
+   items:[makeItem('circle','#ef5350'),makeItem('circle','#42a5f5'),makeItem('square','#ef5350'),makeItem('circle','#66bb6a')],
+   answerIdx:2,rule:'形状不同'},
+  {type:'oddone',levels:[2,3],
+   items:[makeItem('square','#42a5f5'),makeItem('square','#42a5f5'),makeItem('square','#42a5f5'),makeItem('square','#ef5350')],
+   answerIdx:3,rule:'颜色不同'},
+  {type:'oddone',levels:[2,3],
+   items:[makeItem('triangle','#66bb6a'),makeItem('circle','#66bb6a'),makeItem('triangle','#66bb6a'),makeItem('triangle','#66bb6a')],
+   answerIdx:1,rule:'形状不同'},
+  {type:'oddone',levels:[2,3],
+   items:[makeItem('diamond','#ffa726'),makeItem('diamond','#ffa726'),makeItem('diamond','#ab47bc'),makeItem('diamond','#ffa726')],
+   answerIdx:2,rule:'颜色不同'},
+  {type:'oddone',levels:[2,3],
+   items:[makeItem('star','#42a5f5'),makeItem('star','#42a5f5'),makeItem('star','#42a5f5'),makeItem('circle','#42a5f5')],
+   answerIdx:3,rule:'形状不同'},
+  // L3
+  {type:'oddone',levels:[3,4],
+   items:[makeItem('circle','#ef5350',true),makeItem('circle','#ef5350',false),makeItem('circle','#ef5350',true),makeItem('circle','#ef5350',true)],
+   answerIdx:1,rule:'填充不同'},
+  {type:'oddone',levels:[3,4],
+   items:[makeItem('square','#42a5f5'),makeItem('triangle','#ef5350'),makeItem('square','#66bb6a'),makeItem('square','#ffa726')],
+   answerIdx:1,rule:'形状不同'},
+  {type:'oddone',levels:[3,4],
+   items:[makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),makeItem('circle','#42a5f5'),makeItem('square','#ef5350')],
+   answerIdx:3,rule:'形状不同（颜色是陷阱）'},
+  {type:'oddone',levels:[3,4],
+   items:[makeItem('star','#66bb6a'),makeItem('star','#66bb6a',false),makeItem('star','#66bb6a'),makeItem('star','#66bb6a')],
+   answerIdx:1,rule:'轮廓vs填充'},
+  {type:'oddone',levels:[3,4],
+   items:[makeItem('diamond','#ab47bc'),makeItem('diamond','#ab47bc'),makeItem('diamond','#ab47bc'),makeItem('triangle','#ab47bc')],
+   answerIdx:3,rule:'形状不同'},
+  // L4
+  {type:'oddone',levels:[4,5],
+   items:[makeItem('circle','#ef5350',false),makeItem('square','#42a5f5',false),makeItem('triangle','#66bb6a',false),makeItem('star','#ffa726',true)],
+   answerIdx:3,rule:'填充状态不同'},
+  {type:'oddone',levels:[4,5],
+   items:[makeItem('circle','#ef5350'),makeItem('square','#ef5350'),makeItem('triangle','#ef5350'),makeItem('circle','#42a5f5')],
+   answerIdx:3,rule:'颜色不同（形状是陷阱）'},
+  {type:'oddone',levels:[4,5],
+   items:[makeItem('diamond','#42a5f5',true),makeItem('diamond','#42a5f5',true),makeItem('diamond','#ef5350',true),makeItem('diamond','#42a5f5',false)],
+   answerIdx:3,rule:'填充不同（颜色是陷阱）'},
+  {type:'oddone',levels:[4,5],
+   items:[makeItem('star','#ab47bc'),makeItem('circle','#ab47bc'),makeItem('square','#ab47bc'),makeItem('triangle','#ab47bc')],
+   answerIdx:0,rule:'五角星有5顶点，其余4边形类'},
+  {type:'oddone',levels:[4,5],
+   items:[makeItem('square','#66bb6a',false),makeItem('circle','#66bb6a',false),makeItem('triangle','#66bb6a',false),makeItem('diamond','#66bb6a',true)],
+   answerIdx:3,rule:'仅此一个填充'},
+]
+
+// ═══════════════════════════════════════════════
+// HARDCODED: MATRIX (15 questions)
+// ═══════════════════════════════════════════════
+const MATRIX_BANK=[
+  // L3 – single rule: color cycles R/B/G per row
+  {type:'matrix',levels:[3,4],
+   grid:[
+     makeItem('circle','#ef5350'),makeItem('circle','#42a5f5'),makeItem('circle','#66bb6a'),
+     makeItem('circle','#ffa726'),makeItem('circle','#ab47bc'),makeItem('circle','#ef5350'),
+     makeItem('circle','#42a5f5'),makeItem('circle','#66bb6a'),null
+   ],
+   options:[makeItem('circle','#ffa726'),makeItem('circle','#ef5350'),makeItem('square','#ffa726'),makeItem('circle','#ab47bc')],
+   answerIdx:0,rule:'颜色循环'},
+  {type:'matrix',levels:[3,4],
+   grid:[
+     makeItem('circle','#42a5f5'),makeItem('square','#42a5f5'),makeItem('triangle','#42a5f5'),
+     makeItem('circle','#ef5350'),makeItem('square','#ef5350'),makeItem('triangle','#ef5350'),
+     makeItem('circle','#66bb6a'),makeItem('square','#66bb6a'),null
+   ],
+   options:[makeItem('triangle','#66bb6a'),makeItem('circle','#66bb6a'),makeItem('triangle','#42a5f5'),makeItem('diamond','#66bb6a')],
+   answerIdx:0,rule:'每行颜色相同，形状按列'},
+  {type:'matrix',levels:[3,4],
+   grid:[
+     makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),
+     makeItem('square','#42a5f5'),makeItem('square','#42a5f5'),makeItem('square','#42a5f5'),
+     makeItem('triangle','#66bb6a'),makeItem('triangle','#66bb6a'),null
+   ],
+   options:[makeItem('triangle','#66bb6a'),makeItem('circle','#66bb6a'),makeItem('triangle','#ef5350'),makeItem('square','#66bb6a')],
+   answerIdx:0,rule:'每行形状和颜色相同'},
+  {type:'matrix',levels:[3,4],
+   grid:[
+     makeItem('circle','#ef5350'),makeItem('square','#ef5350'),makeItem('diamond','#ef5350'),
+     makeItem('circle','#42a5f5'),makeItem('square','#42a5f5'),makeItem('diamond','#42a5f5'),
+     makeItem('circle','#66bb6a'),makeItem('square','#66bb6a'),null
+   ],
+   options:[makeItem('diamond','#66bb6a'),makeItem('circle','#66bb6a'),makeItem('diamond','#ef5350'),makeItem('star','#66bb6a')],
+   answerIdx:0,rule:'列形状固定，行颜色固定'},
+  {type:'matrix',levels:[3,4],
+   grid:[
+     makeItem('star','#ffa726'),makeItem('star','#ab47bc'),makeItem('star','#42a5f5'),
+     makeItem('circle','#ffa726'),makeItem('circle','#ab47bc'),makeItem('circle','#42a5f5'),
+     makeItem('square','#ffa726'),makeItem('square','#ab47bc'),null
+   ],
+   options:[makeItem('square','#42a5f5'),makeItem('circle','#42a5f5'),makeItem('square','#ffa726'),makeItem('star','#42a5f5')],
+   answerIdx:0,rule:'行形状固定，列颜色固定'},
+  // L4 – compound rules
+  {type:'matrix',levels:[4,5],
+   grid:[
+     makeItem('circle','#ef5350',true),makeItem('circle','#42a5f5',true),makeItem('circle','#66bb6a',true),
+     makeItem('square','#ef5350',true),makeItem('square','#42a5f5',true),makeItem('square','#66bb6a',true),
+     makeItem('triangle','#ef5350',true),makeItem('triangle','#42a5f5',false),null
+   ],
+   options:[makeItem('triangle','#66bb6a',false),makeItem('triangle','#66bb6a',true),makeItem('circle','#66bb6a',false),makeItem('square','#66bb6a',false)],
+   answerIdx:0,rule:'形状/颜色/填充三规律'},
+  {type:'matrix',levels:[4,5],
+   grid:[
+     makeItem('circle','#ef5350'),makeItem('square','#42a5f5'),makeItem('triangle','#66bb6a'),
+     makeItem('square','#66bb6a'),makeItem('triangle','#ef5350'),makeItem('circle','#42a5f5'),
+     makeItem('triangle','#42a5f5'),makeItem('circle','#66bb6a'),null
+   ],
+   options:[makeItem('square','#ef5350'),makeItem('circle','#ef5350'),makeItem('square','#42a5f5'),makeItem('triangle','#ef5350')],
+   answerIdx:0,rule:'每行每列形状颜色都不重复'},
+  {type:'matrix',levels:[4,5],
+   grid:[
+     makeItem('diamond','#ef5350'),makeItem('diamond','#42a5f5'),makeItem('diamond','#66bb6a'),
+     makeItem('star','#42a5f5'),makeItem('star','#66bb6a'),makeItem('star','#ef5350'),
+     makeItem('circle','#66bb6a'),makeItem('circle','#ef5350'),null
+   ],
+   options:[makeItem('circle','#42a5f5'),makeItem('diamond','#42a5f5'),makeItem('circle','#66bb6a'),makeItem('star','#42a5f5')],
+   answerIdx:0,rule:'每行颜色轮换'},
+  {type:'matrix',levels:[4,5],
+   grid:[
+     makeItem('circle','#ef5350',true),makeItem('square','#ef5350',false),makeItem('triangle','#ef5350',true),
+     makeItem('circle','#42a5f5',false),makeItem('square','#42a5f5',true),makeItem('triangle','#42a5f5',false),
+     makeItem('circle','#66bb6a',true),makeItem('square','#66bb6a',false),null
+   ],
+   options:[makeItem('triangle','#66bb6a',true),makeItem('triangle','#66bb6a',false),makeItem('circle','#66bb6a',true),makeItem('triangle','#ef5350',true)],
+   answerIdx:0,rule:'填充按列交替'},
+  {type:'matrix',levels:[4,5],
+   grid:[
+     makeItem('star','#ef5350'),makeItem('circle','#ef5350'),makeItem('square','#ef5350'),
+     makeItem('circle','#42a5f5'),makeItem('square','#42a5f5'),makeItem('star','#42a5f5'),
+     makeItem('square','#66bb6a'),makeItem('star','#66bb6a'),null
+   ],
+   options:[makeItem('circle','#66bb6a'),makeItem('square','#66bb6a'),makeItem('star','#66bb6a'),makeItem('circle','#ef5350')],
+   answerIdx:0,rule:'每行形状全不同，列颜色相同'},
+  // 5 more L3-L4
+  {type:'matrix',levels:[3],
+   grid:[
+     makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),
+     makeItem('square','#42a5f5'),makeItem('square','#42a5f5'),makeItem('square','#42a5f5'),
+     makeItem('star','#ffa726'),makeItem('star','#ffa726'),null
+   ],
+   options:[makeItem('star','#ffa726'),makeItem('circle','#ffa726'),makeItem('star','#42a5f5'),makeItem('diamond','#ffa726')],
+   answerIdx:0,rule:'行内形状颜色相同'},
+  {type:'matrix',levels:[3],
+   grid:[
+     makeItem('triangle','#66bb6a'),makeItem('triangle','#ab47bc'),makeItem('triangle','#ffa726'),
+     makeItem('triangle','#ffa726'),makeItem('triangle','#66bb6a'),makeItem('triangle','#ab47bc'),
+     makeItem('triangle','#ab47bc'),makeItem('triangle','#ffa726'),null
+   ],
+   options:[makeItem('triangle','#66bb6a'),makeItem('triangle','#ab47bc'),makeItem('circle','#66bb6a'),makeItem('triangle','#ffa726')],
+   answerIdx:0,rule:'每行颜色轮换'},
+  {type:'matrix',levels:[4],
+   grid:[
+     makeItem('circle','#ef5350'),makeItem('square','#ef5350'),makeItem('triangle','#ef5350'),
+     makeItem('triangle','#42a5f5'),makeItem('circle','#42a5f5'),makeItem('square','#42a5f5'),
+     makeItem('square','#66bb6a'),makeItem('triangle','#66bb6a'),null
+   ],
+   options:[makeItem('circle','#66bb6a'),makeItem('square','#66bb6a'),makeItem('circle','#ef5350'),makeItem('diamond','#66bb6a')],
+   answerIdx:0,rule:'每行每列形状均不重复'},
+  {type:'matrix',levels:[3,4],
+   grid:[
+     makeItem('circle','#42a5f5'),makeItem('square','#42a5f5'),makeItem('circle','#42a5f5'),
+     makeItem('square','#ef5350'),makeItem('circle','#ef5350'),makeItem('square','#ef5350'),
+     makeItem('circle','#66bb6a'),makeItem('square','#66bb6a'),null
+   ],
+   options:[makeItem('circle','#66bb6a'),makeItem('square','#66bb6a'),makeItem('circle','#ef5350'),makeItem('triangle','#66bb6a')],
+   answerIdx:0,rule:'形状交替，颜色按行'},
+  {type:'matrix',levels:[3],
+   grid:[
+     makeItem('diamond','#42a5f5'),makeItem('diamond','#42a5f5'),makeItem('diamond','#42a5f5'),
+     makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),makeItem('circle','#ef5350'),
+     makeItem('star','#66bb6a'),makeItem('star','#66bb6a'),null
+   ],
+   options:[makeItem('star','#66bb6a'),makeItem('diamond','#66bb6a'),makeItem('star','#ef5350'),makeItem('circle','#66bb6a')],
+   answerIdx:0,rule:'行内一致'},
+]
+
+// ═══════════════════════════════════════════════
+// HARDCODED: ROTATE (10 questions)
+// ═══════════════════════════════════════════════
+function makeRotated(shape,color,deg,flip=''){
+  return{shape,color,rotate:deg,flip,_transform:`${flip}rotate(${deg}deg)`}
+}
+const ROTATE_BANK=[
+  {type:'rotate',levels:[4,5],
+   base:{shape:'triangle',color:'#42a5f5'},
+   transform:'rotate90cw',transformLabel:'顺时针旋转 90°',
+   answerShape:'triangle',answerColor:'#42a5f5',
+   options:[
+     {shape:'triangle',color:'#42a5f5',label:'A'},
+     {shape:'triangle',color:'#ef5350',label:'B'},
+     {shape:'diamond',color:'#42a5f5',label:'C'},
+     {shape:'triangle',color:'#66bb6a',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[4,5],
+   base:{shape:'star',color:'#ef5350'},
+   transform:'flipH',transformLabel:'水平镜像',
+   answerShape:'star',answerColor:'#ef5350',
+   options:[
+     {shape:'star',color:'#ef5350',label:'A'},
+     {shape:'star',color:'#42a5f5',label:'B'},
+     {shape:'circle',color:'#ef5350',label:'C'},
+     {shape:'star',color:'#ffa726',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[4,5],
+   base:{shape:'diamond',color:'#66bb6a'},
+   transform:'rotate180',transformLabel:'旋转 180°',
+   answerShape:'diamond',answerColor:'#66bb6a',
+   options:[
+     {shape:'diamond',color:'#66bb6a',label:'A'},
+     {shape:'diamond',color:'#ab47bc',label:'B'},
+     {shape:'square',color:'#66bb6a',label:'C'},
+     {shape:'triangle',color:'#66bb6a',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[4,5],
+   base:{shape:'triangle',color:'#ffa726'},
+   transform:'flipV',transformLabel:'垂直镜像',
+   answerShape:'triangle',answerColor:'#ffa726',
+   options:[
+     {shape:'triangle',color:'#ffa726',label:'A'},
+     {shape:'triangle',color:'#ef5350',label:'B'},
+     {shape:'circle',color:'#ffa726',label:'C'},
+     {shape:'diamond',color:'#ffa726',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[5],
+   base:{shape:'star',color:'#ab47bc'},
+   transform:'rotate90cw',transformLabel:'顺时针旋转 90°',
+   answerShape:'star',answerColor:'#ab47bc',
+   options:[
+     {shape:'star',color:'#ab47bc',label:'A'},
+     {shape:'star',color:'#42a5f5',label:'B'},
+     {shape:'diamond',color:'#ab47bc',label:'C'},
+     {shape:'circle',color:'#ab47bc',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[4,5],
+   base:{shape:'triangle',color:'#ef5350'},
+   transform:'rotate180',transformLabel:'旋转 180°',
+   answerShape:'triangle',answerColor:'#ef5350',
+   options:[
+     {shape:'triangle',color:'#ef5350',label:'A'},
+     {shape:'triangle',color:'#66bb6a',label:'B'},
+     {shape:'star',color:'#ef5350',label:'C'},
+     {shape:'square',color:'#ef5350',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[4,5],
+   base:{shape:'diamond',color:'#42a5f5'},
+   transform:'flipH',transformLabel:'水平镜像',
+   answerShape:'diamond',answerColor:'#42a5f5',
+   options:[
+     {shape:'diamond',color:'#42a5f5',label:'A'},
+     {shape:'square',color:'#42a5f5',label:'B'},
+     {shape:'diamond',color:'#ef5350',label:'C'},
+     {shape:'circle',color:'#42a5f5',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[5],
+   base:{shape:'star',color:'#66bb6a'},
+   transform:'rotate180',transformLabel:'旋转 180°',
+   answerShape:'star',answerColor:'#66bb6a',
+   options:[
+     {shape:'star',color:'#66bb6a',label:'A'},
+     {shape:'star',color:'#ffa726',label:'B'},
+     {shape:'diamond',color:'#66bb6a',label:'C'},
+     {shape:'triangle',color:'#66bb6a',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[4,5],
+   base:{shape:'triangle',color:'#ab47bc'},
+   transform:'flipV',transformLabel:'垂直镜像',
+   answerShape:'triangle',answerColor:'#ab47bc',
+   options:[
+     {shape:'triangle',color:'#ab47bc',label:'A'},
+     {shape:'triangle',color:'#42a5f5',label:'B'},
+     {shape:'circle',color:'#ab47bc',label:'C'},
+     {shape:'star',color:'#ab47bc',label:'D'}
+   ],answerIdx:0},
+  {type:'rotate',levels:[5],
+   base:{shape:'diamond',color:'#ffa726'},
+   transform:'rotate90cw',transformLabel:'顺时针旋转 90°',
+   answerShape:'diamond',answerColor:'#ffa726',
+   options:[
+     {shape:'diamond',color:'#ffa726',label:'A'},
+     {shape:'diamond',color:'#ef5350',label:'B'},
+     {shape:'star',color:'#ffa726',label:'C'},
+     {shape:'circle',color:'#ffa726',label:'D'}
+   ],answerIdx:0},
+]
+
+// ═══════════════════════════════════════════════
+// QUESTION DRAWING — CANVAS SIZING
+// ═══════════════════════════════════════════════
+function resizeCanvas(type){
+  const panel=document.getElementById('q-card')
+  const W=Math.min(panel.offsetWidth-36,340)
+  let H=type==='matrix'?W*.85:W*.38
+  H=Math.max(H,100)
+  qCanvas.width=W*window.devicePixelRatio
+  qCanvas.height=H*window.devicePixelRatio
+  qCanvas.style.width=W+'px'
+  qCanvas.style.height=H+'px'
+  ctx.scale(window.devicePixelRatio,window.devicePixelRatio)
+  return{W,H}
+}
+
+// ═══════════════════════════════════════════════
+// QUESTION BANK — DRAW + OPTIONS
+// ═══════════════════════════════════════════════
+function sampleN(arr,n){
+  const shuffled=shuffle([...arr])
+  return shuffled.slice(0,Math.min(n,shuffled.length))
+}
+
+// P0+P1 修复：随机化选项顺序，消除"答案永远在第0位"的 bug
+function randomizeOptions(q){
+  if(q.type==='matrix'||q.type==='rotate'){
+    const ans=q.options[q.answerIdx]
+    const opts=shuffle([...q.options])
+    return Object.assign({},q,{options:opts,answerIdx:opts.indexOf(ans)})
+  }
+  if(q.type==='oddone'){
+    const ans=q.items[q.answerIdx]
+    const its=shuffle([...q.items])
+    return Object.assign({},q,{items:its,answerIdx:its.indexOf(ans)})
+  }
+  return q
+}
+
+function drawQuestions(difficulty){
+  const q=QUOTA[difficulty]
+  const seqQs=Array.from({length:q.sequence},()=>genSequence(difficulty))
+  const oddQs=sampleN(ODDONE_BANK.filter(x=>x.levels.includes(difficulty)),q.oddone)
+  const matQs=sampleN(MATRIX_BANK.filter(x=>x.levels.includes(difficulty)),q.matrix)
+  const rotQs=sampleN(ROTATE_BANK.filter(x=>x.levels.includes(difficulty)),q.rotate)
+
+  // P0+P1：随机化每道题的选项顺序
+  const all=[...seqQs,...oddQs,...matQs,...rotQs].map(randomizeOptions)
+
+  // P3：按题型由易到难渐进排列（各组内部仍随机），最后只取10题
+  const typeOrder={sequence:0,oddone:1,matrix:2,rotate:3}
+  const groups={0:[],1:[],2:[],3:[]}
+  all.forEach(q=>groups[typeOrder[q.type]].push(q))
+  Object.values(groups).forEach(g=>shuffle(g))  // 组内随机
+  return[...groups[0],...groups[1],...groups[2],...groups[3]].slice(0,10)
+}
+
+// ═══════════════════════════════════════════════
+// WATER SYSTEM
+// ═══════════════════════════════════════════════
+function setWater(pct,instant=false){
+  G.waterPct=Math.min(100,Math.max(0,pct))
+  const gauge=$('water-gauge-fill')
+  const vignette=$('danger-vignette')
+  if(instant){
+    waterBody.style.transition='none'
+    gauge.style.transition='none'
+    waterBody.style.height=G.waterPct+'%'
+    gauge.style.height=G.waterPct+'%'
+    void waterBody.offsetHeight
+    waterBody.style.transition=''
+    gauge.style.transition=''
+  }else{
+    waterBody.style.height=G.waterPct+'%'
+    gauge.style.height=G.waterPct+'%'
+  }
+  const danger=G.waterPct>75
+  waterBody.classList.toggle('danger',danger)
+  gauge.classList.toggle('danger',danger)
+  vignette.classList.toggle('on',danger)
+}
+
+function startWaterRise(){
+  G.lastTime=null
+  function tick(ts){
+    if(!G.lastTime)G.lastTime=ts
+    const dt=(ts-G.lastTime)/1000
+    G.lastTime=ts
+    const speed=RISE_SPEED[G.difficulty]
+    setWater(G.waterPct+speed*dt)
+    if(G.waterPct>=100){
+      onWaterFull()
+      return
+    }
+    if(G.status==='answering')G.riseRaf=requestAnimationFrame(tick)
+  }
+  G.riseRaf=requestAnimationFrame(tick)
+}
+
+function stopWaterRise(){
+  if(G.riseRaf){cancelAnimationFrame(G.riseRaf);G.riseRaf=null}
+}
+
+function surgeWater(){
+  stopWaterRise()
+  const target=Math.min(100,G.waterPct+SURGE_PCT)
+  waterBody.classList.add('surge')
+  setTimeout(()=>waterBody.classList.remove('surge'),350)
+  // fast transition for surge
+  waterBody.style.transition='height .3s cubic-bezier(.2,.8,.4,1.4)'
+  setWater(target)
+  // 溅射图特效
+  const so=$('surge-overlay')
+  so.classList.remove('show')
+  void so.offsetWidth
+  so.classList.add('show')
+  setTimeout(()=>so.classList.remove('show'),550)
+  setTimeout(()=>{
+    waterBody.style.transition=''
+    if(G.status==='answering'&&!G.answered)startWaterRise()
+  },350)
+}
+
+function drainWater(cb){
+  stopWaterRise()
+  waterBody.style.transition='height .5s ease-in'
+  setWater(0)
+  setTimeout(()=>{waterBody.style.transition='';if(cb)cb()},520)
+}
+
+// ═══════════════════════════════════════════════
+// GAME FLOW
+// ═══════════════════════════════════════════════
+function startGame(){
+  G.bestScore=parseInt(localStorage.getItem('escapeiq_best_'+G.difficulty)||'0')
+  $('hud-best').textContent=G.bestScore
+  G.questions=drawQuestions(G.difficulty)
+  G.questionIndex=0
+  G.score=0
+  G.consecutiveFirst=0
+  G.lucid=false
+  $('hud-score').textContent='0'
+  $('lucid-badge').classList.remove('on')
+  showScreen('game')
+  setTimeout(()=>loadQuestion(),200)
+}
+
+function loadQuestion(){
+  if(G.questionIndex>=G.questions.length){onWin();return}
+  const q=G.questions[G.questionIndex]
+  G.status='answering'
+  G.answered=false
+  G.firstAttempt=true
+  setWater(0,true)
+
+  $('hud-q').textContent=(G.questionIndex+1)+'/10'
+  $('q-label').textContent=TYPE_LABEL[q.type]||q.type
+
+  // resize and draw
+  const {W,H}=resizeCanvas(q.type)
+  renderCanvas(q,W,H)
+
+  // load options
+  // oddone: 用 items 本身作为四个选项（点哪个就是选哪个为异类）
+  const optList = q.type==='oddone' ? q.items : q.options
+  opts.forEach((btn,i)=>{
+    btn.className='opt-btn'
+    btn.textContent=''
+    const item=optList[i]
+    if(q.type==='oddone'){
+      // 找异类：题目卡片上已有带 ABCD 标注的图形，按钮只需字母
+      btn.textContent=String.fromCharCode(65+i)
+      btn.style.fontSize='20px'
+      btn.style.fontWeight='900'
+      btn.style.color='#455a64'
+    }else{
+      // 续列 / 矩阵 / 旋转镜像：按钮内绘制图形让玩家看清选项
+      btn.style.fontSize=''
+      btn.style.fontWeight=''
+      btn.style.color=''
+      renderOption(btn,item,q.type)
+    }
+  })
+
+  disableOptions(false)
+  startWaterRise()
+}
+
+function onAnswer(optIdx){
+  if(G.status!=='answering'||G.answered)return
+  const q=G.questions[G.questionIndex]
+  const isCorrect=optIdx===q.answerIdx
+
+  if(isCorrect){
+    G.answered=true
+    stopWaterRise()
+    opts[optIdx].classList.add('correct')
+    disableOptions(true)
+
+    // score
+    const pts=calcScore(G.firstAttempt,G.waterPct,G.lucid)
+    G.score+=pts
+    $('hud-score').textContent=G.score
+    $('hud-score').classList.remove('anim-pop')
+    void $('hud-score').offsetWidth
+    $('hud-score').classList.add('anim-pop')
+
+    // lucid tracking
+    if(G.firstAttempt){
+      G.consecutiveFirst++
+      if(G.consecutiveFirst>=5&&!G.lucid){G.lucid=true;$('lucid-badge').classList.add('on')}
+    }else{
+      G.consecutiveFirst=0;G.lucid=false;$('lucid-badge').classList.remove('on')
+    }
+
+    // 门开流程：题目 + 选项淡出 → 门展开 + 光晕 → 白光闪 → 下一题
+    G.status='door_open'
+    const qPanel=$('question-panel'), optBar=$('options-bar')
+    qPanel.style.transition='opacity .3s'
+    optBar.style.transition='opacity .3s'
+    qPanel.style.opacity='0'
+    optBar.style.opacity='0'
+    $('door-icon').style.opacity='0'
+
+    setTimeout(()=>{
+      $('door-overlay').classList.add('open')
+    },250)
+
+    // 白光闪烁 + 切换下一题
+    setTimeout(()=>{
+      const fw=$('flash-white')
+      fw.classList.add('on')
+      $('door-overlay').classList.remove('open')
+      setTimeout(()=>{
+        fw.classList.remove('on')
+        qPanel.style.opacity=''
+        optBar.style.opacity=''
+        qPanel.style.transition=''
+        optBar.style.transition=''
+        $('door-icon').style.opacity=''
+        drainWater(()=>{
+          G.questionIndex++
+          loadQuestion()
+        })
+      },320)
+    },1700)
+
+  }else{
+    // wrong
+    G.firstAttempt=false
+    opts[optIdx].classList.add('wrong','shake')
+    setTimeout(()=>opts[optIdx].classList.remove('shake'),450)
+    // 震动：短-停-短-停-长（答错特有节奏）
+    if(navigator.vibrate)navigator.vibrate([40,30,40,30,80])
+    surgeWater()
+  }
+}
+
+function calcScore(first,wPct,lucid){
+  let pts=10
+  if(first)pts+=5
+  if(wPct<30)pts+=3
+  if(lucid)pts=Math.floor(pts*1.5)
+  return pts
+}
+
+function disableOptions(dis){
+  opts.forEach(b=>{if(dis)b.classList.add('disabled');else b.classList.remove('disabled')})
+}
+
+function onWaterFull(){
+  stopWaterRise()
+  G.status='water_full'
+  disableOptions(true)
+  // show full water briefly then result
+  setTimeout(()=>showResult(false),800)
+}
+
+function onWin(){
+  G.status='result'
+  showResult(true)
+}
+
+function showResult(win){
+  const best=parseInt(localStorage.getItem('escapeiq_best_'+G.difficulty)||'0')
+  if(G.score>best)localStorage.setItem('escapeiq_best_'+G.difficulty,G.score)
+  const newBest=Math.max(G.score,best)
+
+  const resultEl=$('screen-result')
+  if(win){
+    resultEl.classList.remove('fail')
+    $('res-icon').textContent='🎉'
+    $('res-title').textContent='密室逃脱成功！'
+    $('res-sub').textContent='完成全部 10 关 · 推理能力出众'
+    $('res-bonus').textContent=''
+    if(navigator.vibrate)navigator.vibrate([50,30,50,30,200])
+  }else{
+    resultEl.classList.add('fail')
+    $('res-icon').textContent='🌊'
+    $('res-title').textContent='逃脱失败'
+    $('res-sub').textContent='已答 '+G.questionIndex+' 题 · 被水淹没了'
+    $('res-bonus').textContent=''
+    if(navigator.vibrate)navigator.vibrate([100,50,100,50,300])
+  }
+  $('res-score').textContent=G.score
+  $('res-best').textContent='历史最高：'+newBest+' 分'
+  showScreen('result')
+}
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))
+  const map={start:'screen-start',intro:'screen-intro',game:'screen-game',result:'screen-result'}
+  if(map[name])$(map[name]).classList.add('active')
+}
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+// Difficulty selection
+$('diff-grid').addEventListener('click',e=>{
+  const btn=e.target.closest('.diff-btn')
+  if(!btn)return
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'))
+  btn.classList.add('selected')
+  G.difficulty=parseInt(btn.dataset.lv)
+})
+
+// 开始逃脱 → 先进故事告知页
+$('btn-start').addEventListener('click',()=>showScreen('intro'))
+// 告知页「进入密室」→ 真正开始游戏
+$('btn-enter').addEventListener('click',startGame)
+
+opts.forEach((btn,i)=>{
+  btn.addEventListener('click',()=>onAnswer(i))
+  btn.addEventListener('touchstart',e=>{e.stopPropagation()},{passive:true})
+})
+
+$('btn-replay').addEventListener('click',startGame)
+$('btn-menu').addEventListener('click',()=>{stopWaterRise();setWater(0,true);showScreen('start')})
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&G.status==='answering')stopWaterRise()
+  if(!document.hidden&&G.status==='answering'&&!G.answered){G.lastTime=null;startWaterRise()}
+})
+
+// init best score display
+G.bestScore=parseInt(localStorage.getItem('escapeiq_best_3')||'0')
+</script>
+</body>
+</html>

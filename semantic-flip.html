@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>语义翻翻乐</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+      background: #FFFBF0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── 屏幕容器 ── */
+    .screen {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      position: relative;
+      background: url('assets/bg-game.png') center/cover no-repeat, #FFFBF0;
+    }
+    .screen.hidden { display: none; }
+
+    /* ── 通用文字 ── */
+    .title {
+      font-size: 30px;
+      font-weight: 900;
+      color: #2C2C2C;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    /* ── 通用按钮 ── */
+    .btn {
+      width: 100%;
+      max-width: 320px;
+      padding: 15px 24px;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: translateY(2px); }
+    .btn-yellow { background: #FFD94A; color: #333; box-shadow: 0 4px 0 #E6C200; }
+    .btn-yellow:active { box-shadow: 0 2px 0 #E6C200; }
+    .btn-white  { background: #fff; color: #555; border: 2px solid #FFD94A; box-shadow: 0 4px 0 #FFE57A; }
+    .btn-white:active { box-shadow: 0 2px 0 #FFE57A; }
+
+    .btn-back {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(255,255,255,0.85);
+      border: none;
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      z-index: 20;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 模式选择 ── */
+    .mode-card {
+      background: #fff;
+      border: 2.5px solid #FFE57A;
+      border-radius: 20px;
+      padding: 18px 20px;
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      margin-bottom: 12px;
+      box-shadow: 0 5px 0 #FFE57A;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mode-card:active { transform: translateY(3px); box-shadow: 0 2px 0 #FFE57A; }
+    .mode-icon { font-size: 34px; line-height: 1; }
+    .mode-label { font-size: 16px; font-weight: 700; color: #333; }
+    .mode-desc  { font-size: 12px; color: #AAA; margin-top: 3px; }
+
+    /* ── 难度选择 ── */
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 24px;
+    }
+    .diff-btn {
+      background: #fff;
+      border: 2.5px solid #FFE57A;
+      border-radius: 16px;
+      padding: 18px 12px;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 5px 0 #FFE57A;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .diff-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #FFE57A; }
+    .diff-name { font-size: 20px; font-weight: 900; color: #333; }
+    .diff-info { font-size: 11px; color: #AAA; margin-top: 5px; line-height: 1.6; }
+    .diff-badge {
+      display: inline-block;
+      font-size: 10px;
+      background: #FFF3CC;
+      color: #B8860B;
+      border-radius: 6px;
+      padding: 2px 7px;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    /* ── 游戏界面 ── */
+    #screen-game {
+      justify-content: flex-start;
+      padding: 12px 12px 24px;
+    }
+
+    .game-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 48px 0 14px;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.9);
+      border-radius: 12px;
+      padding: 7px 18px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      min-width: 72px;
+    }
+    .stat-label { font-size: 10px; color: #AAA; letter-spacing: 0.5px; }
+    .stat-value { font-size: 20px; font-weight: 900; color: #333; line-height: 1.2; }
+
+    /* ── 卡片网格 ── */
+    #card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+      width: 100%;
+    }
+
+    /* ── 单张卡片 ── */
+    .card {
+      aspect-ratio: 3 / 4;
+      cursor: pointer;
+      perspective: 700px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 14px;
+    }
+    .card.flipped .card-inner,
+    .card.matched .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-back, .card-front {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-back {
+      background: url('assets/card-back.png') center/cover no-repeat;
+      background-color: #FFD94A;
+    }
+    .card-front {
+      transform: rotateY(180deg);
+      background: #fff;
+      border: 2.5px solid #FFE57A;
+      flex-direction: column;
+      padding: 6px;
+    }
+    .card.matched .card-front {
+      background: #F0FFF4;
+      border-color: #52C97A;
+    }
+    .card-emoji { font-size: clamp(24px, 7.5vw, 40px); line-height: 1; }
+    .card-text  {
+      font-size: clamp(13px, 3.8vw, 20px);
+      font-weight: 700;
+      color: #333;
+      text-align: center;
+      line-height: 1.3;
+      word-break: break-all;
+    }
+
+    /* ── 卡片动画 ── */
+    @keyframes matched-pop {
+      0%   { transform: rotateY(180deg) scale(1); }
+      40%  { transform: rotateY(180deg) scale(1.12); }
+      100% { transform: rotateY(180deg) scale(1); }
+    }
+    .card.matched.pop .card-inner {
+      animation: matched-pop 0.35s ease forwards;
+    }
+    @keyframes wrong-shake {
+      0%,100% { transform: rotateY(180deg) translateX(0); }
+      25%      { transform: rotateY(180deg) translateX(-5px); }
+      75%      { transform: rotateY(180deg) translateX(5px); }
+    }
+    .card.shaking .card-inner {
+      animation: wrong-shake 0.3s ease;
+    }
+
+    /* ── 结算弹窗 ── */
+    .result-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    .result-panel {
+      background: #fff;
+      border-radius: 28px;
+      padding: 32px 24px 28px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+    }
+    .result-trophy { font-size: 60px; margin-bottom: 8px; }
+    .result-title  { font-size: 22px; font-weight: 900; color: #333; margin-bottom: 20px; }
+    .result-score-box {
+      background: #FFD94A;
+      border-radius: 18px;
+      padding: 14px 12px 10px;
+      margin-bottom: 16px;
+    }
+    .result-score-label { font-size: 11px; color: #9A7B00; letter-spacing: 1px; font-weight: 600; }
+    .result-score-num   { font-size: 54px; font-weight: 900; color: #2C2C2C; line-height: 1.1; }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .result-stat {
+      background: #F8F8F8;
+      border-radius: 12px;
+      padding: 12px 8px 10px;
+    }
+    .result-stat-label { font-size: 10px; color: #BBB; letter-spacing: 0.5px; }
+    .result-stat-value { font-size: 22px; font-weight: 900; color: #333; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     屏幕 1：选择模式
+══════════════════════════════════════════ -->
+<div id="screen-mode" class="screen">
+  <div class="title">语义翻翻乐 🃏</div>
+  <div class="subtitle">选择配对模式开始游戏</div>
+
+  <div class="mode-card" onclick="selectMode('A')">
+    <span class="mode-icon">🀄</span>
+    <div>
+      <div class="mode-label">模式 A · 汉字 ↔ 图片</div>
+      <div class="mode-desc">苹果 &nbsp;配&nbsp; 🍎</div>
+    </div>
+  </div>
+
+  <div class="mode-card" onclick="selectMode('B')">
+    <span class="mode-icon">🔤</span>
+    <div>
+      <div class="mode-label">模式 B · 汉字 ↔ 英文</div>
+      <div class="mode-desc">苹果 &nbsp;配&nbsp; apple</div>
+    </div>
+  </div>
+
+  <div class="mode-card" onclick="selectMode('C')">
+    <span class="mode-icon">🌐</span>
+    <div>
+      <div class="mode-label">模式 C · 英文 ↔ 图片</div>
+      <div class="mode-desc">apple &nbsp;配&nbsp; 🍎</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     屏幕 2：选择难度
+══════════════════════════════════════════ -->
+<div id="screen-difficulty" class="screen hidden">
+  <button class="btn-back" onclick="showScreen('screen-mode')">← 返回</button>
+  <div class="title">选择难度</div>
+  <div class="subtitle" id="diff-mode-hint"></div>
+
+  <div class="diff-grid">
+    <div class="diff-btn" onclick="selectDifficulty('easy')">
+      <div class="diff-name">初级</div>
+      <div class="diff-info">4 对牌</div>
+    </div>
+    <div class="diff-btn" onclick="selectDifficulty('medium')">
+      <div class="diff-name">中级</div>
+      <div class="diff-info">6 对牌</div>
+    </div>
+    <div class="diff-btn" onclick="selectDifficulty('hard')">
+      <div class="diff-name">高级</div>
+      <div class="diff-info">6 对牌</div>
+    </div>
+    <div class="diff-btn" onclick="selectDifficulty('expert')">
+      <div class="diff-name">专家</div>
+      <div class="diff-info">8 对牌</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     屏幕 3：游戏
+══════════════════════════════════════════ -->
+<div id="screen-game" class="screen hidden">
+  <button class="btn-back" onclick="quitGame()">← 退出</button>
+
+  <div class="game-header">
+    <div class="stat-box">
+      <div class="stat-label">时间</div>
+      <div class="stat-value" id="timer-display">0:00</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">配对</div>
+      <div class="stat-value" id="pairs-display">0/0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">正确率</div>
+      <div class="stat-value" id="accuracy-display">—</div>
+    </div>
+  </div>
+
+  <div id="card-grid"></div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     屏幕 4：结算
+══════════════════════════════════════════ -->
+<div id="screen-result" class="screen hidden">
+  <div class="result-wrap">
+    <div class="result-panel">
+      <div class="result-trophy" id="result-trophy">🎉</div>
+      <div class="result-title">配对完成！</div>
+
+      <div class="result-score-box">
+        <div class="result-score-label">总 分</div>
+        <div class="result-score-num" id="result-score">0</div>
+      </div>
+
+      <div class="result-stats">
+        <div class="result-stat">
+          <div class="result-stat-label">用时</div>
+          <div class="result-stat-value" id="result-time">—</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-label">正确率</div>
+          <div class="result-stat-value" id="result-accuracy">—</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-label">尝试次数</div>
+          <div class="result-stat-value" id="result-moves">—</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-label">配对成功</div>
+          <div class="result-stat-value" id="result-pairs">—</div>
+        </div>
+      </div>
+
+      <button class="btn btn-yellow" onclick="restartSame()">再来一局 🔄</button>
+      <button class="btn btn-white" onclick="showScreen('screen-mode')">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ──────────────────────────────────────────────
+// 题库（12 组，覆盖三种模式）
+// ──────────────────────────────────────────────
+const WORDS = [
+  { zh: "苹果",  en: "apple",   emoji: "🍎" },
+  { zh: "香蕉",  en: "banana",  emoji: "🍌" },
+  { zh: "猫",    en: "cat",     emoji: "🐱" },
+  { zh: "狗",    en: "dog",     emoji: "🐶" },
+  { zh: "太阳",  en: "sun",     emoji: "☀️" },
+  { zh: "月亮",  en: "moon",    emoji: "🌙" },
+  { zh: "书",    en: "book",    emoji: "📚" },
+  { zh: "汽车",  en: "car",     emoji: "🚗" },
+  { zh: "房子",  en: "house",   emoji: "🏠" },
+  { zh: "鱼",    en: "fish",    emoji: "🐟" },
+  { zh: "花",    en: "flower",  emoji: "🌸" },
+  { zh: "星星",  en: "star",    emoji: "⭐" }
+];
+
+// ──────────────────────────────────────────────
+// 难度配置
+// ──────────────────────────────────────────────
+const DIFFICULTY = {
+  easy:   { pairs: 4 },
+  medium: { pairs: 6 },
+  hard:   { pairs: 6 },
+  expert: { pairs: 8 }
+};
+
+// ──────────────────────────────────────────────
+// 游戏状态
+// ──────────────────────────────────────────────
+const G = {
+  mode:       null,   // 'A' | 'B' | 'C'
+  difficulty: null,   // 'easy' | 'medium' | 'hard' | 'expert'
+  cards:      [],     // [{ id, pairId, type:'question'|'answer', face, isEmoji }]
+  flipped:    [],     // 当前翻开的牌索引（最多2张）
+  matched:    new Set(),
+  attempts:   0,      // 共尝试配对次数
+  correct:    0,      // 配对成功次数
+  elapsed:    0,      // 已用秒数
+  timer:      null,
+  locked:     false
+};
+
+// ──────────────────────────────────────────────
+// 屏幕切换
+// ──────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ──────────────────────────────────────────────
+// 选择模式 → 进入难度页
+// ──────────────────────────────────────────────
+function selectMode(mode) {
+  G.mode = mode;
+  const hints = { A:'汉字 ↔ 图片', B:'汉字 ↔ 英文', C:'英文 ↔ 图片' };
+  document.getElementById('diff-mode-hint').textContent = '模式 ' + mode + ' · ' + hints[mode];
+  showScreen('screen-difficulty');
+}
+
+// ──────────────────────────────────────────────
+// 选择难度 → 启动游戏
+// ──────────────────────────────────────────────
+function selectDifficulty(diff) {
+  G.difficulty = diff;
+  startGame();
+}
+
+// ──────────────────────────────────────────────
+// 启动 / 重启
+// ──────────────────────────────────────────────
+function startGame() {
+  clearInterval(G.timer);
+  G.flipped   = [];
+  G.matched   = new Set();
+  G.attempts  = 0;
+  G.correct   = 0;
+  G.elapsed   = 0;
+  G.locked    = false;
+  G.timer     = null;
+
+  const cfg   = DIFFICULTY[G.difficulty];
+  const pool  = shuffle(WORDS.slice()).slice(0, cfg.pairs);
+
+  G.cards = shuffle(pool.flatMap((w, i) => {
+    const [qFace, aFace] = getFaces(w, G.mode);
+    return [
+      { id: i*2,   pairId: i, type: 'question', face: qFace, isEmoji: isEmoji(G.mode, 'question') },
+      { id: i*2+1, pairId: i, type: 'answer',   face: aFace, isEmoji: isEmoji(G.mode, 'answer')   }
+    ];
+  }));
+
+  renderGrid();
+  updateHeader();
+  showScreen('screen-game');
+}
+
+function getFaces(w, mode) {
+  if (mode === 'A') return [w.zh,  w.emoji];
+  if (mode === 'B') return [w.zh,  w.en   ];
+                   return [w.en,  w.emoji];
+}
+
+function isEmoji(mode, type) {
+  if (mode === 'B') return false;
+  return type === 'answer';           // A & C: answer side = emoji
+}
+
+// ──────────────────────────────────────────────
+// 渲染卡片网格
+// ──────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = '';
+  G.cards.forEach((card, idx) => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.dataset.idx = idx;
+    el.innerHTML =
+      '<div class="card-inner">' +
+        '<div class="card-back"></div>' +
+        '<div class="card-front">' +
+          (card.isEmoji
+            ? `<span class="card-emoji">${card.face}</span>`
+            : `<span class="card-text">${card.face}</span>`) +
+        '</div>' +
+      '</div>';
+    el.addEventListener('click', () => onCardClick(idx));
+    grid.appendChild(el);
+  });
+}
+
+// ──────────────────────────────────────────────
+// 点击处理
+// ──────────────────────────────────────────────
+function onCardClick(idx) {
+  if (G.locked)               return;
+  if (G.matched.has(idx))     return;
+  if (G.flipped.includes(idx))return;
+  if (isFaceUp(idx))          return;
+
+  // 第一次翻牌：启动计时器
+  if (!G.timer) {
+    G.timer = setInterval(() => { G.elapsed++; updateHeader(); }, 1000);
+  }
+
+  flipCard(idx, true);
+  G.flipped.push(idx);
+
+  if (G.flipped.length === 2) {
+    G.attempts++;
+    G.locked = true;
+    const [i1, i2] = G.flipped;
+    setTimeout(() => resolveMatch(i1, i2), 700);
+  }
+}
+
+// ──────────────────────────────────────────────
+// 判断配对
+// ──────────────────────────────────────────────
+function resolveMatch(i1, i2) {
+  const c1 = G.cards[i1], c2 = G.cards[i2];
+  const ok = c1.pairId === c2.pairId;
+
+  if (ok) {
+    G.correct++;
+    G.matched.add(i1);
+    G.matched.add(i2);
+    cardEl(i1).classList.add('matched', 'pop');
+    cardEl(i2).classList.add('matched', 'pop');
+    setTimeout(() => {
+      cardEl(i1).classList.remove('pop');
+      cardEl(i2).classList.remove('pop');
+    }, 400);
+    G.flipped = [];
+    G.locked  = false;
+    updateHeader();
+    if (G.matched.size === G.cards.length) setTimeout(showResult, 700);
+
+  } else {
+    cardEl(i1).classList.add('shaking');
+    cardEl(i2).classList.add('shaking');
+    setTimeout(() => {
+      cardEl(i1).classList.remove('shaking');
+      cardEl(i2).classList.remove('shaking');
+      flipCard(i1, false);
+      flipCard(i2, false);
+      G.flipped = [];
+      G.locked  = false;
+      updateHeader();
+    }, 400);
+  }
+}
+
+// ──────────────────────────────────────────────
+// 卡片 DOM 操作
+// ──────────────────────────────────────────────
+function flipCard(idx, up) {
+  const el = cardEl(idx);
+  if (up)  el.classList.add('flipped');
+  else     el.classList.remove('flipped');
+}
+
+function isFaceUp(idx) {
+  const el = cardEl(idx);
+  return el.classList.contains('flipped') || el.classList.contains('matched');
+}
+
+function cardEl(idx) {
+  return document.querySelector(`[data-idx="${idx}"]`);
+}
+
+// ──────────────────────────────────────────────
+// 更新顶部统计
+// ──────────────────────────────────────────────
+function updateHeader() {
+  const total  = G.cards.length / 2;
+  const done   = G.matched.size  / 2;
+  const acc    = G.attempts > 0 ? Math.round(G.correct / G.attempts * 100) : null;
+  const m      = Math.floor(G.elapsed / 60);
+  const s      = G.elapsed % 60;
+
+  document.getElementById('timer-display').textContent    = `${m}:${String(s).padStart(2,'0')}`;
+  document.getElementById('pairs-display').textContent    = `${done}/${total}`;
+  document.getElementById('accuracy-display').textContent = acc !== null ? `${acc}%` : '—';
+}
+
+// ──────────────────────────────────────────────
+// 显示结算
+// ──────────────────────────────────────────────
+function showResult() {
+  clearInterval(G.timer);
+  G.timer = null;
+
+  const acc   = G.attempts > 0 ? G.correct / G.attempts : 1;
+  const bonus = Math.max(0, 180 - G.elapsed) * 3;
+  const score = Math.round(acc * 1000) + bonus;
+  const total = G.cards.length / 2;
+  const m     = Math.floor(G.elapsed / 60);
+  const s     = G.elapsed % 60;
+  const pct   = Math.round(acc * 100);
+
+  const trophy = score >= 1400 ? '🏆' : score >= 1000 ? '🎉' : score >= 600 ? '👍' : '😊';
+
+  document.getElementById('result-trophy').textContent    = trophy;
+  document.getElementById('result-score').textContent     = score;
+  document.getElementById('result-time').textContent      = `${m}:${String(s).padStart(2,'0')}`;
+  document.getElementById('result-accuracy').textContent  = `${pct}%`;
+  document.getElementById('result-moves').textContent     = G.attempts;
+  document.getElementById('result-pairs').textContent     = `${G.correct}/${total}`;
+
+  showScreen('screen-result');
+}
+
+// ──────────────────────────────────────────────
+// 再来一局 / 退出
+// ──────────────────────────────────────────────
+function restartSame() { startGame(); }
+
+function quitGame() {
+  clearInterval(G.timer);
+  G.timer = null;
+  showScreen('screen-mode');
+}
+
+// ──────────────────────────────────────────────
+// 工具：随机打乱数组
+// ──────────────────────────────────────────────
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+</script>
+</body>
+</html>

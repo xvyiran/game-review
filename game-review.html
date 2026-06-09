@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>游戏试玩评测</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; background: #f5f5f7; min-height: 100vh; }
+
+.screen { display: none; padding: 1.5rem 1rem 3rem; max-width: 480px; margin: 0 auto; }
+.screen.active { display: block; }
+
+/* Welcome */
+.logo { text-align: center; padding: 2.5rem 0 1.5rem; }
+.logo-icon { width: 64px; height: 64px; background: #AFA9EC; border-radius: 16px; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.logo h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+.logo p { font-size: 14px; color: #888; margin-top: 6px; }
+
+.card { background: white; border-radius: 16px; padding: 1.25rem; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.card label { font-size: 13px; color: #888; display: block; margin-bottom: 8px; }
+.card input[type=text] { width: 100%; font-size: 16px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 10px 12px; outline: none; color: #1a1a1a; }
+.card input[type=text]:focus { border-color: #7F77DD; }
+
+.btn-primary { width: 100%; padding: 14px; background: #7F77DD; border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 12px; letter-spacing: 0.02em; }
+.btn-primary:active { transform: scale(0.98); background: #534AB7; }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* Game list */
+.list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding-top: 0.5rem; }
+.greeting { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.progress-text { font-size: 13px; color: #888; margin-top: 2px; }
+.progress-big { font-size: 28px; font-weight: 700; color: #534AB7; }
+
+.section-label { font-size: 11px; color: #aaa; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+
+.game-card { background: white; border-radius: 16px; padding: 1rem 1.25rem; margin-bottom: 10px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; transition: transform 0.1s; }
+.game-card:active { transform: scale(0.98); }
+.game-thumb { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; background: #f5f5f7; }
+.game-info { flex: 1; min-width: 0; }
+.game-title { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.game-desc { font-size: 13px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; flex-shrink: 0; font-weight: 500; }
+.badge-done { background: #EAF3DE; color: #3B6D11; }
+.badge-todo { background: #f0f0f0; color: #999; }
+.badge-skip { background: #FAEEDA; color: #854F0B; }
+
+/* Game detail */
+.back-btn { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #888; cursor: pointer; margin-bottom: 1.25rem; background: none; border: none; padding: 4px 0; }
+.back-btn::before { content: "←"; font-size: 16px; }
+
+.game-preview { background: white; border-radius: 16px; padding: 2rem 1rem; text-align: center; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.preview-emoji { font-size: 52px; margin-bottom: 8px; }
+.preview-title { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; }
+.preview-desc { font-size: 14px; color: #888; line-height: 1.6; }
+
+.btn-play { width: 100%; padding: 13px; background: #534AB7; border: none; border-radius: 12px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-play::before { content: "▶"; font-size: 13px; }
+.btn-play:active { transform: scale(0.98); }
+
+.rating-card { background: white; border-radius: 16px; padding: 1.25rem; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.rating-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #1a1a1a; }
+.score-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 6px; }
+.score-btn { padding: 11px 4px; background: #f5f5f7; border: 1.5px solid transparent; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; color: #444; transition: all 0.1s; }
+.score-btn:hover { border-color: #AFA9EC; color: #534AB7; background: #EEEDFE; }
+.score-btn.selected { background: #7F77DD; border-color: #7F77DD; color: white; }
+.score-hint { font-size: 11px; color: #aaa; display: flex; justify-content: space-between; margin-bottom: 12px; }
+.comment-box { width: 100%; min-height: 80px; font-size: 14px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 10px 12px; resize: none; outline: none; font-family: inherit; color: #1a1a1a; line-height: 1.6; }
+.comment-box:focus { border-color: #7F77DD; }
+
+.skip-btn { width: 100%; padding: 11px; background: none; border: none; color: #aaa; font-size: 13px; cursor: pointer; margin-top: 8px; }
+
+/* Done */
+.done-screen { text-align: center; padding: 4rem 1rem 2rem; }
+.done-circle { width: 72px; height: 72px; background: #EAF3DE; border-radius: 50%; margin: 0 auto 1.25rem; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+.done-screen h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; color: #1a1a1a; }
+.done-screen p { font-size: 14px; color: #888; line-height: 1.7; }
+.btn-continue { margin-top: 2rem; padding: 13px 32px; background: #7F77DD; border: none; border-radius: 12px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+/* Admin */
+.admin-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; padding-top: 0.5rem; }
+.admin-bar h2 { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+.admin-exit { font-size: 13px; color: #7F77DD; background: none; border: none; cursor: pointer; padding: 6px 0; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+.stat-card { background: white; border-radius: 14px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.stat-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+.stat-val { font-size: 24px; font-weight: 700; color: #1a1a1a; }
+
+.tab-bar { display: flex; gap: 6px; margin-bottom: 1.25rem; }
+.tab { flex: 1; padding: 9px 4px; background: white; border: 1.5px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; text-align: center; color: #888; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.tab.active { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+
+.review-item { background: white; border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.review-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.reviewer { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+.score-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.score-high { background: #EAF3DE; color: #3B6D11; }
+.score-mid { background: #FAEEDA; color: #854F0B; }
+.score-low { background: #FAECE7; color: #993C1D; }
+.review-meta { font-size: 12px; color: #aaa; margin-bottom: 6px; }
+.review-comment { font-size: 13px; color: #444; line-height: 1.6; }
+.review-time { font-size: 11px; color: #ccc; margin-top: 6px; }
+.empty { text-align: center; padding: 2.5rem 1rem; color: #bbb; font-size: 14px; }
+
+.game-stat-card { background: white; border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.game-stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.game-stat-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.game-comments { border-top: 1px solid #f0f0f0; padding-top: 10px; margin-top: 8px; }
+.game-comment-row { font-size: 13px; color: #444; padding: 5px 0; line-height: 1.6; }
+.game-comment-row span { font-weight: 600; color: #1a1a1a; }
+
+.loading { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
+.error-msg { background: #FAECE7; color: #993C1D; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; display: none; }
+</style>
+</head>
+<body>
+
+<!-- 欢迎页 -->
+<div id="screen-welcome" class="screen active">
+  <div class="logo">
+    <div class="logo-icon">🎮</div>
+    <h1>游戏试玩评测</h1>
+    <p>体验每个游戏，留下你的真实感受</p>
+  </div>
+  <div class="card">
+    <label>你的名字</label>
+    <input type="text" id="reviewer-name" placeholder="输入名字开始体验" oninput="checkName()" maxlength="20" />
+    <div class="error-msg" id="start-error"></div>
+    <button class="btn-primary" id="start-btn" onclick="startReview()" disabled>开始体验 →</button>
+  </div>
+  <p style="text-align:center; font-size:12px; color:#bbb; margin-top:1rem;">共 <span id="game-count-welcome"></span> 款游戏等你体验</p>
+</div>
+
+<!-- 游戏列表 -->
+<div id="screen-list" class="screen">
+  <div class="list-header">
+    <div>
+      <div class="greeting" id="greeting"></div>
+      <div class="progress-text" id="progress-text"></div>
+    </div>
+    <div class="progress-big" id="progress-big"></div>
+  </div>
+  <div class="section-label">游戏列表</div>
+  <div id="game-list"></div>
+</div>
+
+<!-- 游戏详情 + 评分 -->
+<div id="screen-game" class="screen">
+  <button class="back-btn" onclick="goBack()">返回列表</button>
+  <div class="game-preview">
+    <div class="preview-emoji" id="detail-emoji"></div>
+    <div class="preview-title" id="detail-title"></div>
+    <div class="preview-desc" id="detail-desc"></div>
+  </div>
+  <button class="btn-play" id="play-btn" onclick="playGame()">试玩游戏</button>
+  <div class="rating-card">
+    <h3>给这个游戏打分</h3>
+    <div class="score-grid" id="score-grid"></div>
+    <div class="score-hint"><span>不好玩</span><span>非常好玩</span></div>
+    <textarea class="comment-box" id="comment-input" placeholder="说说你的感受，比如：难度、趣味性、适合年龄……（可选）"></textarea>
+  </div>
+  <div class="error-msg" id="submit-error"></div>
+  <button class="btn-primary" id="submit-btn" onclick="submitReview()" disabled>提交评价</button>
+  <button class="skip-btn" onclick="skipGame()">跳过这个游戏</button>
+</div>
+
+<!-- 提交成功 -->
+<div id="screen-done" class="screen">
+  <div class="done-screen">
+    <div class="done-circle">✓</div>
+    <h2>感谢你的评价！</h2>
+    <p>你的反馈对我们非常有帮助，<br>可以继续体验其他游戏。</p>
+    <button class="btn-continue" onclick="goToList()">继续体验</button>
+  </div>
+</div>
+
+<!-- 管理员视图 -->
+<div id="screen-admin" class="screen">
+  <div class="admin-bar">
+    <h2>评测汇总</h2>
+    <button class="admin-exit" onclick="showScreen('screen-list')">退出管理 ×</button>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">评测人数</div><div class="stat-val" id="stat-reviewers">—</div></div>
+    <div class="stat-card"><div class="stat-label">评测条数</div><div class="stat-val" id="stat-reviews">—</div></div>
+    <div class="stat-card"><div class="stat-label">平均分</div><div class="stat-val" id="stat-avg">—</div></div>
+    <div class="stat-card"><div class="stat-label">最高分游戏</div><div class="stat-val" style="font-size:14px;padding-top:6px;" id="stat-top">—</div></div>
+  </div>
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('by-game')" id="tab-game">按游戏</div>
+    <div class="tab" onclick="switchTab('by-person')" id="tab-person">按人员</div>
+    <div class="tab" onclick="switchTab('all')" id="tab-all">全部评论</div>
+  </div>
+  <div id="admin-content"><div class="loading">加载中…</div></div>
+</div>
+
+<script>
+// ============================================================
+// ★ 配置区 — 每次新建项目只改这里 ★
+// ============================================================
+const SUPABASE_URL = "https://pesggempkjavquyxntip.supabase.co";
+const SUPABASE_KEY = "sb_publishable_3pP03AFu9mu5ApP5ATbXCA_XxBWIXLX";
+
+// ============================================================
+// ★ 游戏列表 — 每次新增游戏在这里加一行 ★
+// ============================================================
+const GAMES = [
+  { id: 1, emoji: "✖️", title: "乘法消消乐",   desc: "通过消除方块练习乘法口诀",   url: "game1.html" },
+  { id: 2, emoji: "🔤", title: "单词拼写闯关", desc: "拼写单词解锁下一关卡",       url: "game2.html" },
+  { id: 3, emoji: "🔢", title: "数字华容道",   desc: "滑动数字还原正确顺序",       url: "game3.html" },
+  { id: 4, emoji: "🀄", title: "成语接龙",     desc: "用成语最后一字开始下一个",   url: "game4.html" },
+  { id: 5, emoji: "⚡", title: "口算冲冲冲",   desc: "限时答题挑战口算极限",       url: "game5.html" },
+  // { id: 6, emoji: "🧩", title: "新游戏名", desc: "游戏描述", url: "game6.html" },
+];
+
+// ============================================================
+// ★ 管理员密码 — 连点logo 5次后输入 ★
+// ============================================================
+const ADMIN_PASSWORD = "admin888";
+
+// ============================================================
+// 以下代码无需修改
+// ============================================================
+
+let currentUser = "";
+let currentGameId = null;
+let selectedScore = null;
+let localReviews = [];
+let logoTapCount = 0;
+
+document.getElementById("game-count-welcome").textContent = GAMES.length;
+
+// Supabase REST helpers
+async function dbInsert(data) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify(data)
+  });
+  return res.ok;
+}
+
+async function dbSelect(filter) {
+  let url = `${SUPABASE_URL}/rest/v1/reviews?order=created_at.asc`;
+  if (filter) url += "&" + filter;
+  const res = await fetch(url, {
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`
+    }
+  });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+// Screens
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(() => el.style.display = "none", 4000);
+}
+
+// Welcome
+function checkName() {
+  const v = document.getElementById("reviewer-name").value.trim();
+  document.getElementById("start-btn").disabled = v.length < 1;
+}
+
+async function startReview() {
+  currentUser = document.getElementById("reviewer-name").value.trim();
+  document.getElementById("greeting").textContent = "你好，" + currentUser + " 👋";
+  // 拉取该用户已有评价
+  localReviews = await dbSelect(`reviewer_name=eq.${encodeURIComponent(currentUser)}`);
+  updateList();
+  showScreen("screen-list");
+}
+
+// Game list
+function updateList() {
+  const scoredIds = localReviews.filter(r => r.score !== null).map(r => r.game_id);
+  const skippedIds = localReviews.filter(r => r.score === null).map(r => r.game_id);
+  const scoredCount = scoredIds.length;
+
+  document.getElementById("progress-text").textContent = scoredCount + " / " + GAMES.length + " 已评价";
+  document.getElementById("progress-big").textContent = scoredCount + "/" + GAMES.length;
+
+  const list = document.getElementById("game-list");
+  list.innerHTML = "";
+  GAMES.forEach(g => {
+    const rev = localReviews.find(r => r.game_id === g.id);
+    let badge = `<span class="badge badge-todo">待体验</span>`;
+    if (rev && rev.score !== null) badge = `<span class="badge badge-done">已评 ${rev.score} 分</span>`;
+    else if (rev && rev.score === null) badge = `<span class="badge badge-skip">已跳过</span>`;
+    const card = document.createElement("div");
+    card.className = "game-card";
+    card.innerHTML = `<div class="game-thumb">${g.emoji}</div><div class="game-info"><div class="game-title">${g.title}</div><div class="game-desc">${g.desc}</div></div>${badge}`;
+    card.onclick = () => openGame(g.id);
+    list.appendChild(card);
+  });
+}
+
+// Game detail
+function openGame(id) {
+  currentGameId = id;
+  selectedScore = null;
+  const g = GAMES.find(x => x.id === id);
+  document.getElementById("detail-emoji").textContent = g.emoji;
+  document.getElementById("detail-title").textContent = g.title;
+  document.getElementById("detail-desc").textContent = g.desc;
+  document.getElementById("play-btn").textContent = "▶ 试玩：" + g.title;
+  renderScoreGrid();
+  document.getElementById("comment-input").value = "";
+  document.getElementById("submit-btn").disabled = true;
+  showScreen("screen-game");
+}
+
+function renderScoreGrid() {
+  const grid = document.getElementById("score-grid");
+  grid.innerHTML = "";
+  for (let i = 1; i <= 10; i++) {
+    const btn = document.createElement("button");
+    btn.className = "score-btn" + (selectedScore === i ? " selected" : "");
+    btn.textContent = i;
+    btn.onclick = () => selectScore(i);
+    grid.appendChild(btn);
+  }
+}
+
+function selectScore(n) {
+  selectedScore = n;
+  renderScoreGrid();
+  document.getElementById("submit-btn").disabled = false;
+}
+
+function playGame() {
+  const g = GAMES.find(x => x.id === currentGameId);
+  window.open(g.url, "_blank");
+}
+
+async function submitReview() {
+  if (!selectedScore) return;
+  const comment = document.getElementById("comment-input").value.trim();
+  const g = GAMES.find(x => x.id === currentGameId);
+  document.getElementById("submit-btn").disabled = true;
+  document.getElementById("submit-btn").textContent = "提交中…";
+
+  const ok = await dbInsert({
+    reviewer_name: currentUser,
+    game_id: currentGameId,
+    game_title: g.title,
+    score: selectedScore,
+    comment: comment
+  });
+
+  if (ok) {
+    localReviews = localReviews.filter(r => r.game_id !== currentGameId);
+    localReviews.push({ game_id: currentGameId, score: selectedScore, comment });
+    showScreen("screen-done");
+  } else {
+    showError("submit-error", "提交失败，请检查网络后重试");
+  }
+  document.getElementById("submit-btn").disabled = false;
+  document.getElementById("submit-btn").textContent = "提交评价";
+}
+
+async function skipGame() {
+  const g = GAMES.find(x => x.id === currentGameId);
+  await dbInsert({
+    reviewer_name: currentUser,
+    game_id: currentGameId,
+    game_title: g.title,
+    score: null,
+    comment: "【已跳过】"
+  });
+  localReviews = localReviews.filter(r => r.game_id !== currentGameId);
+  localReviews.push({ game_id: currentGameId, score: null });
+  updateList();
+  showScreen("screen-list");
+}
+
+function goBack() { updateList(); showScreen("screen-list"); }
+function goToList() { updateList(); showScreen("screen-list"); }
+
+// Admin — logo连点5次触发
+document.querySelector(".logo").addEventListener("click", () => {
+  logoTapCount++;
+  if (logoTapCount >= 5) {
+    logoTapCount = 0;
+    const pwd = prompt("请输入管理员密码：");
+    if (pwd === ADMIN_PASSWORD) {
+      loadAdmin("by-game");
+      showScreen("screen-admin");
+    } else if (pwd !== null) {
+      alert("密码错误");
+    }
+  }
+});
+
+async function loadAdmin(tab) {
+  document.getElementById("admin-content").innerHTML = '<div class="loading">加载中…</div>';
+  const all = await dbSelect();
+  const scored = all.filter(r => r.score !== null);
+
+  const reviewers = [...new Set(all.map(r => r.reviewer_name))];
+  document.getElementById("stat-reviewers").textContent = reviewers.length;
+  document.getElementById("stat-reviews").textContent = scored.length;
+
+  const avg = scored.length ? (scored.reduce((s, r) => s + r.score, 0) / scored.length).toFixed(1) : "—";
+  document.getElementById("stat-avg").textContent = avg;
+
+  if (scored.length) {
+    const gameAvgs = GAMES.map(g => {
+      const gs = scored.filter(r => r.game_id === g.id);
+      return { title: g.title, avg: gs.length ? gs.reduce((s, r) => s + r.score, 0) / gs.length : 0, count: gs.length };
+    }).filter(x => x.count > 0).sort((a, b) => b.avg - a.avg);
+    document.getElementById("stat-top").textContent = gameAvgs[0] ? gameAvgs[0].title : "—";
+  }
+
+  renderAdminContent(tab, scored, all);
+}
+
+function switchTab(tab) {
+  ["game","person","all"].forEach(t => document.getElementById("tab-"+t).classList.remove("active"));
+  document.getElementById("tab-"+tab.replace("by-","").replace("all","all").replace("by-game","game").replace("by-person","person")).classList.add("active");
+  const tabMap = { "by-game":"game", "by-person":"person", "all":"all" };
+  document.getElementById("tab-" + (tabMap[tab] || tab)).classList.add("active");
+  loadAdmin(tab);
+}
+
+function scorePillClass(s) {
+  if (s >= 8) return "score-high";
+  if (s >= 5) return "score-mid";
+  return "score-low";
+}
+
+function renderAdminContent(tab, scored, all) {
+  const content = document.getElementById("admin-content");
+  content.innerHTML = "";
+
+  if (tab === "by-game") {
+    GAMES.forEach(g => {
+      const gs = scored.filter(r => r.game_id === g.id);
+      const avg = gs.length ? (gs.reduce((s, r) => s + r.score, 0) / gs.length).toFixed(1) : null;
+      const div = document.createElement("div");
+      div.className = "game-stat-card";
+      const comments = gs.filter(r => r.comment && r.comment !== "【已跳过】");
+      div.innerHTML = `<div class="game-stat-header">
+        <span style="font-size:16px">${g.emoji} ${g.title}</span>
+        ${avg ? `<span class="score-pill ${scorePillClass(parseFloat(avg))}">${avg} 分</span>` : `<span style="font-size:12px;color:#bbb">暂无</span>`}
+      </div>
+      <div style="font-size:12px;color:#aaa;margin-bottom:${comments.length?'8px':'0'}">${gs.length} 条评价${gs.length ? "，来自：" + gs.map(r=>r.reviewer_name).join("、") : ""}</div>
+      ${comments.length ? `<div class="game-comments">${comments.map(r=>`<div class="game-comment-row"><span>${r.reviewer_name}</span>：${r.comment}</div>`).join("")}</div>` : ""}`;
+      content.appendChild(div);
+    });
+
+  } else if (tab === "by-person") {
+    const reviewers = [...new Set(all.map(r => r.reviewer_name))];
+    if (!reviewers.length) { content.innerHTML = '<div class="empty">还没有评测数据</div>'; return; }
+    reviewers.forEach(name => {
+      const pr = scored.filter(r => r.reviewer_name === name);
+      const avg = pr.length ? (pr.reduce((s, r) => s + r.score, 0) / pr.length).toFixed(1) : null;
+      const div = document.createElement("div");
+      div.className = "review-item";
+      div.innerHTML = `<div class="review-top"><span class="reviewer">${name}</span>${avg ? `<span class="score-pill ${scorePillClass(parseFloat(avg))}">均分 ${avg}</span>` : ""}</div>
+      <div class="review-meta">评了 ${pr.length} 款游戏</div>
+      ${pr.map(r => {
+        const g = GAMES.find(x => x.id === r.game_id) || { emoji:"🎮", title: r.game_title };
+        return `<div style="border-top:1px solid #f5f5f7;padding:8px 0;font-size:13px;color:#444">${g.emoji} <strong>${g.title}</strong> <span class="score-pill ${scorePillClass(r.score)}" style="margin-left:6px">${r.score}分</span>${r.comment ? `<br><span style="color:#888">${r.comment}</span>` : ""}</div>`;
+      }).join("")}`;
+      content.appendChild(div);
+    });
+
+  } else {
+    if (!scored.length) { content.innerHTML = '<div class="empty">还没有评测数据</div>'; return; }
+    [...scored].reverse().forEach(r => {
+      const g = GAMES.find(x => x.id === r.game_id) || { emoji:"🎮", title: r.game_title };
+      const div = document.createElement("div");
+      div.className = "review-item";
+      div.innerHTML = `<div class="review-top"><span class="reviewer">${r.reviewer_name}</span><span class="score-pill ${scorePillClass(r.score)}">${r.score} 分</span></div>
+      <div class="review-meta">${g.emoji} ${g.title}</div>
+      <div class="review-comment">${r.comment || '<span style="color:#ccc">无文字评价</span>'}</div>
+      <div class="review-time">${new Date(r.created_at).toLocaleString("zh-CN")}</div>`;
+      content.appendChild(div);
+    });
+  }
+}
+</script>
+</body>
+</html>

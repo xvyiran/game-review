@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>豆豆独 BeanDoku</title>
+  <style>
+    :root {
+      --bg:        #F5F0EB;
+      --bg-card:   #FFFFFF;
+      --text-dark: #2D2417;
+      --text-mid:  #7A6A55;
+      --text-dim:  #B5A898;
+      --success:   #4DC96A;
+      --danger:    #FF5252;
+      --warning:   #FFA940;
+      --radius:    16px;
+      --radius-sm: 10px;
+
+      /* IP 配色 */
+      --ip1-bg: #E4F0FF; --ip1-border: #5B9BF5;
+      --ip2-bg: #FFE4E4; --ip2-border: #FF6B6B;
+      --ip3-bg: #E4FFE9; --ip3-border: #4DC96A;
+      --ip4-bg: #FFF5E4; --ip4-border: #FFA940;
+      --ip5-bg: #F3E4FF; --ip5-border: #B36BE5;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      color: var(--text-dark);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── 屏幕管理 ─────────────────────────── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ══════════════════════════════════════
+       开始屏
+    ══════════════════════════════════════ */
+    #screen-start {
+      justify-content: center;
+      gap: 32px;
+      padding: 40px 24px;
+      background: var(--bg);
+    }
+
+    .start-title {
+      text-align: center;
+    }
+    .start-title h1 {
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--text-dark);
+      letter-spacing: 2px;
+    }
+    .start-title p {
+      font-size: 14px;
+      color: var(--text-mid);
+      margin-top: 6px;
+    }
+
+    /* 难度选择 */
+    .difficulty-section { width: 100%; max-width: 320px; }
+    .difficulty-label {
+      font-size: 13px;
+      color: var(--text-mid);
+      margin-bottom: 12px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    .difficulty-cards {
+      display: flex;
+      gap: 10px;
+    }
+    .diff-card {
+      flex: 1;
+      border: 2px solid transparent;
+      border-radius: var(--radius);
+      padding: 14px 8px;
+      background: var(--bg-card);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.1s, box-shadow 0.2s;
+      position: relative;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .diff-card:active:not(.locked) { transform: scale(0.96); }
+    .diff-card.selected {
+      border-color: var(--ip2-border);
+      box-shadow: 0 4px 16px rgba(91,155,245,0.25);
+    }
+    .diff-card.locked {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .diff-card .diff-icon { font-size: 22px; margin-bottom: 4px; }
+    .diff-card .diff-name { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+    .diff-card .diff-desc { font-size: 11px; color: var(--text-mid); margin-top: 3px; }
+    .diff-card .lock-badge {
+      position: absolute;
+      top: 6px; right: 6px;
+      font-size: 13px;
+    }
+
+    /* 开始按钮 */
+    .btn-start {
+      width: 100%;
+      max-width: 320px;
+      padding: 16px;
+      border: none;
+      border-radius: 999px;
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, #5B9BF5 0%, #B36BE5 100%);
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(91,155,245,0.35);
+      transition: transform 0.1s, box-shadow 0.1s;
+      letter-spacing: 2px;
+    }
+    .btn-start:active { transform: scale(0.97); box-shadow: 0 3px 10px rgba(91,155,245,0.25); }
+
+    /* ══════════════════════════════════════
+       游戏屏
+    ══════════════════════════════════════ */
+    #screen-playing {
+      justify-content: flex-start;
+      background: var(--bg);
+      padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px);
+      gap: 0;
+    }
+
+    /* 顶部 header */
+    .game-header {
+      width: 100%;
+      max-width: 420px;
+      padding: 14px 4px 10px;
+    }
+    .header-row1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .header-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-dark);
+      letter-spacing: 1px;
+    }
+
+    /* 错误计数 */
+    .error-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .error-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #E0D5C8;
+      transition: background 0.2s;
+    }
+    .error-dot.active { background: var(--danger); }
+    .error-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-right: 4px;
+    }
+
+    /* 得分 + 计时 */
+    .header-row2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .score-wrap .score-val {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--text-dark);
+      transition: transform 0.15s;
+    }
+    .score-wrap .score-unit {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-left: 2px;
+    }
+    .timer-wrap {
+      text-align: right;
+    }
+    .timer-val {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-mid);
+      transition: color 0.3s;
+    }
+    .timer-val.warn { color: var(--danger); }
+    .timer-unit { font-size: 11px; color: var(--text-dim); }
+
+    /* 进度条 */
+    .countdown-bar {
+      width: 100%;
+      height: 5px;
+      background: rgba(0,0,0,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .countdown-fill {
+      height: 100%;
+      background: var(--ip1-border);   /* 蓝色 #5B9BF5 */
+      border-radius: 3px;
+      transition: width 1s linear, background 0.3s;
+    }
+    .countdown-fill.warn { background: var(--danger); }
+
+    /* 游戏提示三行 */
+    .game-hints {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 6px 4px 2px;
+      flex-wrap: wrap;
+    }
+    .game-hints span {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .game-hints span + span::before {
+      content: '·';
+      margin-right: 10px;
+      color: var(--text-dim);
+    }
+
+    /* 棋盘区 */
+    .board-wrap {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── 棋盘 Grid（JS 动态注入 --n） ────── */
+    #board {
+      display: grid;
+      gap: 3px;
+      grid-template-columns: repeat(var(--n, 4), var(--cell-size, 72px));
+    }
+
+    .cell {
+      width: var(--cell-size, 72px);
+      height: var(--cell-size, 72px);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, background 0.15s;
+      overflow: hidden;
+    }
+
+    /* 区域底色由 JS 通过 inline style 设置 */
+    .cell img {
+      width: 70%;
+      height: 70%;
+      object-fit: contain;
+      position: absolute;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+    /* 排除状态：显示 ✕，隐藏头像 */
+    .cell.excluded img { opacity: 0; }
+    .cell.excluded::before {
+      content: '✕';
+      font-size: calc(var(--cell-size, 72px) * 0.38);
+      font-weight: 900;
+      color: rgba(0,0,0,0.22);
+      pointer-events: none;
+      position: relative;
+      z-index: 1;
+    }
+    .cell.confirmed img { opacity: 1; transform: scale(1); }
+
+    /* 确认绿圈动效 */
+    .cell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      border: 3px solid transparent;
+      transition: border-color 0.1s, transform 0.3s, opacity 0.3s;
+      pointer-events: none;
+    }
+    .cell.confirm-flash::after {
+      border-color: var(--success);
+      transform: scale(1.15);
+      opacity: 0;
+    }
+
+    /* 区域分隔线（thicker border on different-region edge） */
+    /* 由 JS 动态添加 class: border-t border-r border-b border-l */
+    .cell.region-border-t { border-top-color:    #9E8E78 !important; border-top-width: 3px; }
+    .cell.region-border-r { border-right-color:  #9E8E78 !important; border-right-width: 3px; }
+    .cell.region-border-b { border-bottom-color: #9E8E78 !important; border-bottom-width: 3px; }
+    .cell.region-border-l { border-left-color:   #9E8E78 !important; border-left-width: 3px; }
+
+    /* 错误抖动 */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-6px); }
+      50%      { transform: translateX(6px); }
+      80%      { transform: translateX(-3px); }
+    }
+    .cell.shake { animation: shake 0.4s ease; }
+
+    /* ══════════════════════════════════════
+       结果弹窗
+    ══════════════════════════════════════ */
+    #modal-result {
+      position: absolute;
+      inset: 0;
+      background: rgba(45,36,23,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #modal-result.visible { opacity: 1; pointer-events: all; }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 24px;
+      padding: 36px 28px 28px;
+      width: min(300px, 82vw);
+      text-align: center;
+      transform: scale(0.82);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+    }
+    #modal-result.visible .modal-box { transform: scale(1); }
+
+    .modal-emoji  { font-size: 48px; margin-bottom: 8px; }
+    .modal-title  { font-size: 22px; font-weight: 900; color: var(--text-dark); margin-bottom: 16px; }
+    .modal-score  { font-size: 56px; font-weight: 900; color: #5B9BF5; line-height: 1; }
+    .modal-unit   { font-size: 14px; color: var(--text-mid); margin: 4px 0 4px; }
+    .modal-best   { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .modal-reason { font-size: 13px; color: var(--danger); margin-bottom: 20px; font-weight: 600; }
+
+    .modal-actions { display: flex; gap: 10px; }
+    .btn-modal {
+      flex: 1;
+      padding: 13px 8px;
+      border: none;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .btn-modal:active { transform: scale(0.96); }
+    .btn-primary-modal {
+      background: linear-gradient(135deg, #5B9BF5 0%, #B36BE5 100%);
+      color: #fff;
+    }
+    .btn-secondary-modal {
+      background: #F0EAE2;
+      color: var(--text-mid);
+    }
+
+    /* ── pop 动画 ─────────────────────────── */
+    @keyframes pop-in {
+      0%   { transform: scale(0.6); opacity: 0; }
+      60%  { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .cell.confirmed img { animation: pop-in 0.3s ease; }
+
+    /* 胜利时棋盘弹跳 */
+    @keyframes board-bounce {
+      0%,100% { transform: scale(1); }
+      40%     { transform: scale(1.04); }
+      70%     { transform: scale(0.97); }
+    }
+    #board.win-bounce { animation: board-bounce 0.5s ease; }
+
+    /* ══════════════════════════════════════
+       怎么玩 说明屏
+    ══════════════════════════════════════ */
+    #screen-howtoplay {
+      justify-content: flex-start;
+      background: var(--bg);
+      padding: env(safe-area-inset-top, 16px) 0 env(safe-area-inset-bottom, 16px);
+    }
+
+    .howto-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      padding: 14px 16px 10px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .howto-back-btn {
+      background: none;
+      border: none;
+      font-size: 15px;
+      color: var(--text-mid);
+      cursor: pointer;
+      padding: 4px 0;
+      min-width: 60px;
+    }
+    .howto-title {
+      flex: 1;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-right: 60px;
+    }
+
+    .howto-body {
+      flex: 1;
+      width: 100%;
+      overflow-y: auto;
+      padding: 4px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .rule-card {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .rule-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rule-tag {
+      background: var(--bg);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-mid);
+      letter-spacing: 0.5px;
+    }
+    .rule-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-dark);
+    }
+    .rule-desc {
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+    .rule-visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      padding: 4px 0;
+    }
+
+    /* 迷你棋盘 */
+    .mini-board {
+      display: grid;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .mini-board-3 { grid-template-columns: repeat(3, 40px); }
+    .mini-board-4 { grid-template-columns: repeat(4, 36px); }
+    .mini-cell {
+      width: 40px;
+      height: 40px;
+      border-radius: 7px;
+      border: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      font-size: 18px;
+    }
+    .mini-board-4 .mini-cell { width: 36px; height: 36px; font-size: 16px; }
+
+    /* IP 小圆点 */
+    .mini-cell .ip-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .mini-board-4 .mini-cell .ip-dot { width: 20px; height: 20px; }
+    .mini-cell .ip-dot.faded { opacity: 0.35; transform: scale(0.85); }
+
+    /* 冲突边框 */
+    .mini-cell.conflict { border-color: var(--danger) !important; }
+    /* 分隔线 */
+    .mini-cell.sep-r { border-right-color: #9E8E78 !important; border-right-width: 3px; }
+    .mini-cell.sep-b { border-bottom-color: #9E8E78 !important; border-bottom-width: 3px; }
+
+    /* 冲突行背景 */
+    .conflict-row {
+      background: rgba(255,82,82,0.08);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    /* 示例标签 */
+    .eg-label {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .eg-label.ok  { color: var(--success); }
+    .eg-label.bad { color: var(--danger); }
+
+    /* 操作三态示例 */
+    .tap-states {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tap-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+    .tap-step .mini-cell { width: 52px; height: 52px; border-radius: 10px; font-size: 22px; }
+    .tap-step .mini-cell .ip-dot { width: 28px; height: 28px; }
+    .tap-label {
+      font-size: 10px;
+      color: var(--text-mid);
+      text-align: center;
+      line-height: 1.4;
+    }
+    .tap-arrow { font-size: 16px; color: var(--text-dim); margin-top: -14px; }
+
+    /* 失败条件行 */
+    .fail-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+    .fail-icon { font-size: 22px; flex-shrink: 0; }
+    .fail-text { font-size: 13px; color: var(--text-dark); font-weight: 600; line-height: 1.4; }
+    .fail-sub  { font-size: 11px; color: var(--text-mid); font-weight: 400; }
+
+    /* 错误点演示 */
+    .err-dots-demo {
+      display: flex;
+      gap: 6px;
+    }
+    .err-dot-demo {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+
+    /* 底部按钮 */
+    .howto-footer {
+      width: 100%;
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+    .btn-got-it {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 999px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, #5B9BF5 0%, #B36BE5 100%);
+      cursor: pointer;
+      letter-spacing: 1px;
+      box-shadow: 0 6px 20px rgba(91,155,245,0.3);
+      transition: transform 0.1s;
+    }
+    .btn-got-it:active { transform: scale(0.97); }
+
+    /* 怎么玩 入口按钮 */
+    .btn-howto {
+      background: none;
+      border: none;
+      font-size: 14px;
+      color: var(--text-mid);
+      text-decoration: underline;
+      text-decoration-color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <!-- ① 开始屏 -->
+  <div id="screen-start" class="screen active">
+    <div class="start-title">
+      <h1>豆豆独</h1>
+      <p>BeanDoku · 每行每列每区各一个豆</p>
+    </div>
+
+    <div class="difficulty-section">
+      <div class="difficulty-label">选择难度</div>
+      <div class="difficulty-cards">
+
+        <div class="diff-card selected" data-diff="easy">
+          <div class="diff-icon">🟢</div>
+          <div class="diff-name">初级</div>
+          <div class="diff-desc">4×4 · 90s</div>
+        </div>
+
+        <div class="diff-card" data-diff="medium">
+          <div class="diff-icon">🟡</div>
+          <div class="diff-name">中级</div>
+          <div class="diff-desc">5×5 · 120s</div>
+        </div>
+
+        <div class="diff-card" data-diff="hard">
+          <div class="diff-icon">🔴</div>
+          <div class="diff-name">高级</div>
+          <div class="diff-desc">6×6 · 150s</div>
+        </div>
+
+      </div>
+    </div>
+
+    <button class="btn-start" id="btn-start">开始游戏</button>
+    <button class="btn-howto" id="btn-howto">❓ 怎么玩？</button>
+  </div>
+
+  <!-- ② 说明屏 -->
+  <div id="screen-howtoplay" class="screen">
+    <div class="howto-header">
+      <button class="howto-back-btn" id="btn-howto-back">← 返回</button>
+      <div class="howto-title">怎么玩？</div>
+    </div>
+
+    <div class="howto-body">
+
+      <!-- 卡片1：目标 -->
+      <div class="rule-card">
+        <div class="rule-card-header">
+          <span class="rule-tag">目标</span>
+          <span class="rule-title">每个颜色区域放 1 个豆豆</span>
+        </div>
+        <div class="rule-desc">棋盘被划分为若干颜色区域，每个颜色区域里，<strong>恰好放入 1 个豆豆</strong>。</div>
+        <div class="rule-visual">
+          <!-- 3×3 示例：3个色区，各放1个豆豆 (IP1=蓝,IP2=粉,IP3=绿) -->
+          <div>
+            <div class="mini-board mini-board-3">
+              <div class="mini-cell sep-r sep-b" style="background:#E4F0FF"><span class="ip-dot" style="background:#5B9BF5"></span></div>
+              <div class="mini-cell sep-b" style="background:#E4F0FF"></div>
+              <div class="mini-cell sep-b" style="background:#FFE4E4"></div>
+              <div class="mini-cell sep-r" style="background:#E4F0FF"></div>
+              <div class="mini-cell sep-r" style="background:#E4FFE9"></div>
+              <div class="mini-cell" style="background:#FFE4E4"><span class="ip-dot" style="background:#FF6B6B"></span></div>
+              <div class="mini-cell sep-r" style="background:#E4FFE9"></div>
+              <div class="mini-cell" style="background:#E4FFE9"><span class="ip-dot" style="background:#4DC96A"></span></div>
+              <div class="mini-cell" style="background:#FFE4E4"></div>
+            </div>
+            <div class="eg-label ok">✓ 每区各 1 个</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片2：行列规则 -->
+      <div class="rule-card">
+        <div class="rule-card-header">
+          <span class="rule-tag">规则</span>
+          <span class="rule-title">同行同列不能重复</span>
+        </div>
+        <div class="rule-desc">每一行、每一列，<strong>最多只能有 1 个豆豆</strong>。</div>
+        <div class="rule-visual">
+          <!-- ❌ 示例：同行两个豆豆 -->
+          <div>
+            <div class="mini-board mini-board-3">
+              <div class="mini-cell conflict sep-r sep-b" style="background:#E4F0FF"><span class="ip-dot" style="background:#5B9BF5"></span></div>
+              <div class="mini-cell conflict sep-b" style="background:#FFE4E4"><span class="ip-dot" style="background:#FF6B6B"></span></div>
+              <div class="mini-cell sep-b" style="background:#E4FFE9"></div>
+              <div class="mini-cell sep-r" style="background:#E4F0FF"></div>
+              <div class="mini-cell sep-r" style="background:#FFE4E4"></div>
+              <div class="mini-cell" style="background:#E4FFE9"></div>
+              <div class="mini-cell sep-r" style="background:#E4F0FF"></div>
+              <div class="mini-cell" style="background:#FFE4E4"></div>
+              <div class="mini-cell" style="background:#E4FFE9"><span class="ip-dot" style="background:#4DC96A"></span></div>
+            </div>
+            <div class="eg-label bad">✗ 同行两个豆豆</div>
+          </div>
+          <!-- ✓ 示例：分散 -->
+          <div>
+            <div class="mini-board mini-board-3">
+              <div class="mini-cell sep-r sep-b" style="background:#E4F0FF"><span class="ip-dot" style="background:#5B9BF5"></span></div>
+              <div class="mini-cell sep-b" style="background:#FFE4E4"></div>
+              <div class="mini-cell sep-b" style="background:#E4FFE9"></div>
+              <div class="mini-cell sep-r" style="background:#E4F0FF"></div>
+              <div class="mini-cell sep-r" style="background:#FFE4E4"></div>
+              <div class="mini-cell" style="background:#E4FFE9"><span class="ip-dot" style="background:#4DC96A"></span></div>
+              <div class="mini-cell sep-r" style="background:#E4F0FF"></div>
+              <div class="mini-cell" style="background:#FFE4E4"><span class="ip-dot" style="background:#FF6B6B"></span></div>
+              <div class="mini-cell" style="background:#E4FFE9"></div>
+            </div>
+            <div class="eg-label ok">✓ 各行各列各 1 个</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片3：操作方式 -->
+      <div class="rule-card">
+        <div class="rule-card-header">
+          <span class="rule-tag">操作</span>
+          <span class="rule-title">单击排除 · 双击放置 · 滑动连排</span>
+        </div>
+        <div class="rule-visual">
+          <div class="tap-states">
+            <!-- 空格 -->
+            <div class="tap-step">
+              <div class="mini-cell" style="background:#E4F0FF; width:52px;height:52px;border-radius:10px;"></div>
+              <div class="tap-label">空格</div>
+            </div>
+            <div class="tap-arrow">👆</div>
+            <!-- 排除 ✕ -->
+            <div class="tap-step">
+              <div class="mini-cell excluded" style="background:#E4F0FF; width:52px;height:52px;border-radius:10px;--cell-size:52px;display:flex;align-items:center;justify-content:center;">
+              </div>
+              <div class="tap-label">单击<br>排除 ✕</div>
+            </div>
+            <div class="tap-arrow" style="font-size:12px">👆👆</div>
+            <!-- 放置 -->
+            <div class="tap-step">
+              <div class="mini-cell" style="background:#E4F0FF; width:52px;height:52px;border-radius:10px;border:2px solid #5B9BF5;display:flex;align-items:center;justify-content:center;">
+                <span class="ip-dot" style="background:#5B9BF5;width:28px;height:28px;border-radius:50%;display:block;"></span>
+              </div>
+              <div class="tap-label">双击<br>放置豆豆</div>
+            </div>
+          </div>
+        </div>
+        <div class="rule-desc" style="margin-top:6px">
+          💡 先单击<strong>排除</strong>不可能的格子缩小范围，推理清楚后再<strong>双击确认</strong>放置。<br>
+          手指滑动可以<strong>连续排除</strong>多个格子。
+        </div>
+      </div>
+
+      <!-- 卡片4：失败条件 -->
+      <div class="rule-card">
+        <div class="rule-card-header">
+          <span class="rule-tag">失败</span>
+          <span class="rule-title">两种情况会结束游戏</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="fail-row">
+            <div>
+              <div class="err-dots-demo">
+                <div class="err-dot-demo"></div>
+                <div class="err-dot-demo"></div>
+                <div class="err-dot-demo"></div>
+              </div>
+            </div>
+            <div class="fail-text">累计 3 次放错<span class="fail-sub"><br>每次放错 -100 分，扣完基础分为止</span></div>
+          </div>
+          <div class="fail-row">
+            <div class="fail-icon">⏰</div>
+            <div class="fail-text">倒计时归零<span class="fail-sub"><br>初级 90s · 中级 120s · 剩余时间越多得分越高</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.howto-body -->
+
+    <div class="howto-footer">
+      <button class="btn-got-it" id="btn-got-it">明白了，开始游戏！</button>
+    </div>
+  </div>
+
+  <!-- ③ 游戏屏 -->
+  <div id="screen-playing" class="screen">
+    <div class="game-header">
+      <div class="header-row1">
+        <div class="header-title">豆豆独</div>
+        <div class="error-dots">
+          <span class="error-label">错误</span>
+          <div class="error-dot" id="dot0"></div>
+          <div class="error-dot" id="dot1"></div>
+          <div class="error-dot" id="dot2"></div>
+        </div>
+      </div>
+      <div class="header-row2">
+        <div class="score-wrap">
+          <span class="score-val" id="score">0</span>
+          <span class="score-unit">分</span>
+        </div>
+        <div class="timer-wrap">
+          <span class="timer-val" id="timer">90</span>
+          <span class="timer-unit">s</span>
+        </div>
+      </div>
+      <div class="countdown-bar">
+        <div class="countdown-fill" id="countdown-fill" style="width:100%"></div>
+      </div>
+    </div>
+
+    <div class="game-hints">
+      <span>一种颜色一只豆</span>
+      <span>同行同列仅一只</span>
+      <span>单击标记、双击放豆</span>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board"></div>
+    </div>
+  </div>
+
+  <!-- ③ 结果弹窗 -->
+  <div id="modal-result">
+    <div class="modal-box">
+      <div class="modal-emoji" id="result-emoji">🎉</div>
+      <div class="modal-title" id="result-title">完成！</div>
+      <div class="modal-score" id="result-score">0</div>
+      <div class="modal-unit">分</div>
+      <div class="modal-best" id="result-best">历史最高：0 分</div>
+      <div class="modal-reason" id="result-reason"></div>
+      <div class="modal-actions">
+        <button class="btn-modal btn-primary-modal" id="btn-restart">再来一局</button>
+        <button class="btn-modal btn-secondary-modal" id="btn-home">返回</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// 配置
+// ══════════════════════════════════════════════════════════
+const DIFFICULTY = {
+  easy:   { n: 4, timeLimit: 90,  multiplier: 1.0, label: '初级' },
+  medium: { n: 5, timeLimit: 120, multiplier: 1.5, label: '中级' },
+  hard:   { n: 6, timeLimit: 150, multiplier: 2.0, label: '高级' },
+}
+
+const IP_COLORS = [
+  { bg: '#E4F0FF', border: '#5B9BF5' },  // IP1 → 蓝
+  { bg: '#FFE4E4', border: '#FF6B6B' },  // IP2 → 粉
+  { bg: '#E4FFE9', border: '#4DC96A' },  // IP3 → 绿
+  { bg: '#FFF5E4', border: '#FFA940' },  // IP4 → 橙
+  { bg: '#F3E4FF', border: '#B36BE5' },  // IP5 → 紫
+  { bg: '#FFFDE0', border: '#F0C000' },  // IP6 → 黄
+]
+
+// ══════════════════════════════════════════════════════════
+// 求解器
+// 返回唯一解的 cell-index 数组（长度 n，按 region 0..n-1 排序）
+// 若无解或多解返回 null
+// ══════════════════════════════════════════════════════════
+function findUniqueSolution(regions, n) {
+  const found = []
+  const usedRow = new Array(n).fill(false)
+  const usedCol = new Array(n).fill(false)
+  const sol = new Array(n).fill(-1)
+
+  function bt(region) {
+    if (found.length > 1) return
+    if (region === n) { found.push([...sol]); return }
+    for (let i = 0; i < n * n; i++) {
+      if (regions[i] !== region) continue
+      const r = Math.floor(i / n), c = i % n
+      if (usedRow[r] || usedCol[c]) continue
+      usedRow[r] = usedCol[c] = true
+      sol[region] = i
+      bt(region + 1)
+      usedRow[r] = usedCol[c] = false
+      sol[region] = -1
+    }
+  }
+  bt(0)
+  return found.length === 1 ? found[0] : null
+}
+
+// ══════════════════════════════════════════════════════════
+// 预设谜题（regions: 颜色区划分；solution 由求解器运行时填入）
+// 保证每道谜题有且仅有一个合法解（由 findUniqueSolution 在
+// startGame 时验证，若校验失败则跳过该谜题）
+// ══════════════════════════════════════════════════════════
+// 以下谜题均经求解器验证有且仅有 1 个合法解（运行时再次确认）
+// 使用"先定解、反向构造区域"算法，保证解的排列多样化
+const PUZZLES = {
+  easy: [
+    // 解列排列: 3,2,1,0
+    { regions: [2,0,0,0, 2,2,1,0, 2,2,2,0, 3,2,2,2] },
+    // 解列排列: 0,3,1,2
+    { regions: [0,1,1,1, 1,1,1,1, 1,2,1,1, 3,3,3,1] },
+    // 解列排列: 2,0,3,1
+    { regions: [0,0,0,2, 1,0,2,2, 3,2,2,2, 3,3,2,2] },
+    // 解列排列: 1,3,0,2
+    { regions: [0,0,0,0, 0,0,0,1, 2,0,0,1, 2,2,3,3] },
+    // 解列排列: 0,1,2,3
+    { regions: [0,1,1,1, 1,1,1,1, 1,1,2,2, 1,1,2,3] },
+    // 解列排列: 0,2,3,1
+    { regions: [0,1,1,1, 1,1,1,1, 1,1,1,2, 3,3,1,1] },
+    // 解列排列: 2,1,3,0
+    { regions: [0,0,0,0, 1,1,0,0, 1,1,1,2, 3,1,1,2] },
+    // 解列排列: 3,1,0,2
+    { regions: [2,1,1,0, 2,1,1,1, 2,2,2,2, 2,2,3,3] },
+  ],
+  medium: [
+    // 解列排列: 0,1,2,3,4
+    { regions: [0,1,1,1,2, 1,1,1,1,2, 1,1,2,2,2, 1,1,2,3,3, 1,1,1,3,4] },
+    // 解列排列: 4,3,0,2,1
+    { regions: [4,4,0,0,0, 4,4,0,1,0, 2,4,4,1,0, 4,4,3,3,0, 4,4,4,4,4] },
+    // 解列排列: 1,0,3,4,2
+    { regions: [0,0,4,4,3, 1,4,4,4,3, 4,4,4,2,3, 4,4,4,3,3, 4,4,4,4,4] },
+    // 解列排列: 1,0,4,2,3
+    { regions: [0,0,3,3,3, 1,0,3,3,3, 1,3,3,3,2, 3,3,3,3,3, 3,3,3,4,4] },
+    // 解列排列: 3,1,4,2,0
+    { regions: [1,1,3,0,0, 1,1,3,3,0, 1,1,3,3,2, 1,3,3,3,3, 4,3,3,3,3] },
+    // 解列排列: 0,2,4,3,1
+    { regions: [0,1,1,2,2, 1,1,1,2,2, 1,3,3,2,2, 3,3,3,3,2, 4,4,3,3,2] },
+  ],
+  hard: [
+    // 解列排列: 3,4,2,5,1,0
+    { regions: [0,0,0,0,1,1, 0,0,0,1,1,1, 2,2,2,1,1,1, 2,2,2,1,1,3, 4,4,2,1,1,3, 5,2,2,1,1,3] },
+    // 解列排列: 0,1,2,3,5,4
+    { regions: [0,0,1,1,2,2, 0,1,1,1,2,2, 1,1,2,2,2,2, 1,1,2,3,2,2, 1,1,3,3,2,4, 1,1,3,5,5,5] },
+    // 解列排列: 0,2,4,3,5,1
+    { regions: [0,1,1,1,1,4, 1,1,1,1,1,4, 1,1,1,2,2,4, 1,1,1,3,2,4, 5,4,4,4,4,4, 5,5,4,4,4,4] },
+    // 解列排列: 0,2,1,3,5,4
+    { regions: [0,0,0,1,1,1, 0,1,1,1,1,1, 0,2,1,1,3,1, 0,2,1,3,3,3, 0,3,3,3,5,4, 0,3,3,3,5,5] },
+    // 解列排列: 0,2,1,5,4,3
+    { regions: [0,0,0,4,4,4, 0,2,1,4,4,4, 0,2,4,4,3,3, 4,4,4,4,4,3, 4,4,4,5,4,4, 4,5,5,5,5,4] },
+    // 解列排列: 0,1,4,2,5,3
+    { regions: [0,1,1,1,2,2, 3,1,3,1,2,2, 3,3,3,3,2,2, 3,3,3,3,3,2, 3,3,3,3,5,4, 3,3,3,5,5,4] },
+  ],
+}
+
+// ══════════════════════════════════════════════════════════
+// 状态
+// ══════════════════════════════════════════════════════════
+const state = {
+  status: 'start',
+  difficulty: 'easy',
+  n: 4,
+  timeLimit: 90,
+  multiplier: 1.0,
+  timeLeft: 90,
+  errorCount: 0,
+  score: 0,
+  bestScore: {
+    easy:   parseInt(localStorage.getItem('bd_best_easy')   || '0'),
+    medium: parseInt(localStorage.getItem('bd_best_medium') || '0'),
+    hard:   parseInt(localStorage.getItem('bd_best_hard')   || '0'),
+  },
+  puzzle: null,
+  cells: [],   // 0=空 1=排除(✕) 2=已放置
+}
+
+let timerInterval = null
+
+// ══════════════════════════════════════════════════════════
+// IP 图片预处理：非正方形图片居中裁切后缓存为 dataURL
+// ══════════════════════════════════════════════════════════
+const ipSrcCache = {}   // { 'assets/char_ip6.png': dataURL }
+
+function getIPSrc(ipNum) {
+  const src = `assets/char_ip${ipNum}.png`
+  return ipSrcCache[src] || src
+}
+
+// 各 IP 裁切窗口缩放比（1.0 = 全图居中裁切；< 1.0 = 放大 zoom in）
+// 若 IP 角色在原图中占比偏小，减小此值放大显示
+const IP_CROP_SCALE = [1, 1, 1, 1, 1, 0.45]
+
+function preloadIPs(ipCount) {
+  return Promise.all(
+    Array.from({ length: ipCount }, (_, i) => {
+      const src = `assets/char_ip${i + 1}.png`
+      const cropScale = IP_CROP_SCALE[i] || 1
+      return new Promise(resolve => {
+        const img = new Image()
+        img.onload = () => {
+          const needsCrop = img.naturalWidth !== img.naturalHeight || cropScale !== 1
+          if (needsCrop) {
+            // 以短边为基准，再按 cropScale 缩小裁切窗口（= 放大角色）
+            const base = Math.min(img.naturalWidth, img.naturalHeight)
+            const size = base * cropScale
+            const sx = (img.naturalWidth  - size) / 2
+            const sy = (img.naturalHeight - size) / 2
+            const canvas = document.createElement('canvas')
+            canvas.width = canvas.height = 300
+            canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, 300, 300)
+            ipSrcCache[src] = canvas.toDataURL('image/png')
+          }
+          resolve()
+        }
+        img.onerror = () => resolve()
+        img.src = src
+      })
+    })
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+// DOM 引用
+// ══════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id)
+const screenStart     = $('screen-start')
+const screenHowtoplay = $('screen-howtoplay')
+const screenPlaying   = $('screen-playing')
+const boardEl         = $('board')
+const modalResult     = $('modal-result')
+
+// ══════════════════════════════════════════════════════════
+// 屏幕切换
+// ══════════════════════════════════════════════════════════
+function showScreen(name) {
+  screenStart.classList.toggle('active',     name === 'start')
+  screenHowtoplay.classList.toggle('active', name === 'howtoplay')
+  screenPlaying.classList.toggle('active',   name === 'playing')
+}
+
+// ══════════════════════════════════════════════════════════
+// 难度选择
+// ══════════════════════════════════════════════════════════
+document.querySelectorAll('.diff-card').forEach(card => {
+  card.addEventListener('click', () => {
+    if (card.classList.contains('locked')) return
+    document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'))
+    card.classList.add('selected')
+    state.difficulty = card.dataset.diff
+  })
+})
+
+function pickPuzzle(difficulty) {
+  const pool = PUZZLES[difficulty]
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+// ══════════════════════════════════════════════════════════
+// 棋盘构建
+// ══════════════════════════════════════════════════════════
+function buildBoard(puzzle, n) {
+  boardEl.innerHTML = ''
+  const cellSize = Math.floor(Math.min(
+    (window.innerWidth  * 0.88) / n,
+    (window.innerHeight * 0.62) / n
+  ))
+  boardEl.style.setProperty('--n', n)
+  boardEl.style.setProperty('--cell-size', cellSize + 'px')
+  boardEl.style.gap = '3px'
+  boardEl.style.gridTemplateColumns = `repeat(${n}, ${cellSize}px)`
+
+  state.cells = new Array(n * n).fill(0)
+
+  for (let i = 0; i < n * n; i++) {
+    const cell = document.createElement('div')
+    cell.className = 'cell'
+    cell.dataset.index = i
+
+    const regionIdx = puzzle.regions[i]
+    const color = IP_COLORS[regionIdx]
+    cell.style.background = color.bg
+
+    // 区域分隔线
+    const row = Math.floor(i / n), col = i % n
+    if (row > 0 && puzzle.regions[i - n] !== regionIdx) cell.classList.add('region-border-t')
+    if (col < n-1 && puzzle.regions[i + 1] !== regionIdx) cell.classList.add('region-border-r')
+    if (row < n-1 && puzzle.regions[i + n] !== regionIdx) cell.classList.add('region-border-b')
+    if (col > 0 && puzzle.regions[i - 1] !== regionIdx)  cell.classList.add('region-border-l')
+
+    // IP 头像
+    const img = document.createElement('img')
+    const ipNum = regionIdx + 1
+    img.src = getIPSrc(ipNum)
+    img.alt = `IP${ipNum}`
+    img.draggable = false
+    cell.appendChild(img)
+
+    boardEl.appendChild(cell)
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 交互：单击排除(✕)、双击放置、滑动连续排除
+// ══════════════════════════════════════════════════════════
+const tapTimers = {}   // { idx: setTimeout handle }
+const tapCounts = {}   // { idx: tap count }
+let sweeping    = false
+const sweptIdxs = new Set()
+
+function setCellClass(idx, cls) {
+  const cell = boardEl.children[idx]
+  cell.classList.remove('excluded', 'confirmed', 'confirm-flash', 'shake')
+  if (cls) cell.classList.add(cls)
+}
+
+function onCellSingleTap(idx) {
+  if (state.status !== 'playing') return
+  const cur = state.cells[idx]
+  if (cur === 0) {
+    state.cells[idx] = 1
+    setCellClass(idx, 'excluded')
+    checkWin()
+  } else {
+    // 排除(1) 或 已放置(2) → 清除回空
+    state.cells[idx] = 0
+    setCellClass(idx, '')
+  }
+}
+
+function onCellDoubleTap(idx) {
+  if (state.status !== 'playing') return
+  const cur = state.cells[idx]
+  if (cur === 2) {
+    state.cells[idx] = 0
+    setCellClass(idx, '')
+  } else {
+    tryConfirmPlace(idx)
+  }
+}
+
+function onCellInteract(idx) {
+  if (!tapCounts[idx]) tapCounts[idx] = 0
+  clearTimeout(tapTimers[idx])
+  tapCounts[idx]++
+  if (tapCounts[idx] >= 2) {
+    tapCounts[idx] = 0
+    onCellDoubleTap(idx)
+  } else {
+    tapTimers[idx] = setTimeout(() => {
+      tapCounts[idx] = 0
+      onCellSingleTap(idx)
+    }, 280)
+  }
+}
+
+// 棋盘事件委托（只绑一次，buildBoard 后不重复绑）
+boardEl.addEventListener('touchstart', () => {
+  sweeping = false; sweptIdxs.clear()
+}, { passive: true })
+
+boardEl.addEventListener('touchmove', e => {
+  e.preventDefault()
+  if (state.status !== 'playing') return
+  sweeping = true
+  const touch = e.touches[0]
+  const el = document.elementFromPoint(touch.clientX, touch.clientY)
+  const cellEl = el?.closest?.('.cell')
+  if (!cellEl) return
+  const idx = +cellEl.dataset.index
+  if (!sweptIdxs.has(idx) && state.cells[idx] === 0) {
+    sweptIdxs.add(idx)
+    state.cells[idx] = 1
+    cellEl.classList.remove('excluded','confirmed','confirm-flash','shake')
+    cellEl.classList.add('excluded')
+    checkWin()
+  }
+}, { passive: false })
+
+boardEl.addEventListener('touchend', e => {
+  if (sweeping) { sweeping = false; e.preventDefault(); return }
+  e.preventDefault()
+  const touch = e.changedTouches[0]
+  const el = document.elementFromPoint(touch.clientX, touch.clientY)
+  const cellEl = el?.closest?.('.cell')
+  if (!cellEl || !cellEl.dataset.index) return
+  onCellInteract(+cellEl.dataset.index)
+}, { passive: false })
+
+boardEl.addEventListener('dblclick', e => {
+  const cellEl = e.target.closest('.cell')
+  if (!cellEl) return
+  const idx = +cellEl.dataset.index
+  clearTimeout(tapTimers[idx]); tapCounts[idx] = 0
+  onCellDoubleTap(idx)
+})
+
+boardEl.addEventListener('click', e => {
+  if (e.detail > 1) return   // dblclick 时 click 也触发，忽略第 2 次
+  const cellEl = e.target.closest('.cell')
+  if (!cellEl) return
+  onCellInteract(+cellEl.dataset.index)
+})
+
+// ══════════════════════════════════════════════════════════
+// 规则校验
+// ══════════════════════════════════════════════════════════
+function tryConfirmPlace(idx) {
+  const n = state.n
+  const puzzle = state.puzzle
+  const regionIdx = puzzle.regions[idx]
+  const row = Math.floor(idx / n)
+  const col = idx % n
+
+  // 检查同行/同列/同区是否已有确认的同色 IP
+  let conflict = false
+  for (let i = 0; i < n * n; i++) {
+    if (i === idx || state.cells[i] !== 2) continue
+    const r = Math.floor(i / n), c = i % n
+    if (puzzle.regions[i] === regionIdx) { conflict = true; break }
+    if (r === row && puzzle.regions[i] === regionIdx) { conflict = true; break }
+    if (c === col && puzzle.regions[i] === regionIdx) { conflict = true; break }
+    // 同行或同列已有任意确认 IP（同行同列不能重复任何颜色）
+    if (r === row || c === col) { conflict = true; break }
+  }
+
+  if (conflict) {
+    // 错误
+    state.errorCount++
+    updateErrorDots()
+    const cell = boardEl.children[idx]
+    cell.classList.remove('shake')
+    void cell.offsetWidth
+    cell.classList.add('shake')
+    cell.style.borderColor = 'var(--danger)'
+    setTimeout(() => { cell.style.borderColor = ''; cell.classList.remove('shake') }, 500)
+    if (state.errorCount >= 3) { endGame('error') }
+  } else {
+    // 正确确认
+    state.cells[idx] = 2
+    setCellClass(idx, 'confirmed')
+    // 绿圈动效
+    const cell = boardEl.children[idx]
+    cell.classList.add('confirm-flash')
+    setTimeout(() => cell.classList.remove('confirm-flash'), 400)
+    checkWin()
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 胜利检测（双条件）
+// 条件1：所有正确格已放置（state=2，共 n 个）
+// 条件2：所有错误格已排除（state=1，共 n*(n-1) 个，且正确格未被排除）
+// ══════════════════════════════════════════════════════════
+function checkWin() {
+  const sol = state.puzzle.solution
+  const n   = state.n
+
+  // 条件1：n 个正确格全部放置
+  if (sol && sol.every(i => state.cells[i] === 2)) { endGame('win'); return }
+  if (!sol && state.cells.filter(c => c === 2).length === n) { endGame('win'); return }
+
+  // 条件2：n*(n-1) 个错误格全部排除（且正确格未被排除）
+  if (sol) {
+    const solSet = new Set(sol)
+    const noSolExcluded = sol.every(i => state.cells[i] !== 1)
+    const wrongExcluded = state.cells.filter((c, i) => c === 1 && !solSet.has(i)).length
+    if (noSolExcluded && wrongExcluded === n * n - n) { endGame('win') }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 倒计时
+// ══════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval)
+  updateTimerUI()
+  timerInterval = setInterval(() => {
+    state.timeLeft--
+    updateTimerUI()
+    if (state.timeLeft <= 0) {
+      clearInterval(timerInterval)
+      endGame('timeout')
+    }
+  }, 1000)
+}
+
+function stopTimer() {
+  clearInterval(timerInterval)
+  timerInterval = null
+}
+
+function updateTimerUI() {
+  const fill    = $('countdown-fill')
+  const timerEl = $('timer')
+  const pct = (state.timeLeft / state.timeLimit) * 100
+  fill.style.width = pct + '%'
+  timerEl.textContent = state.timeLeft
+  const warn = state.timeLeft <= 15
+  fill.classList.toggle('warn', warn)
+  timerEl.classList.toggle('warn', warn)
+}
+
+// ══════════════════════════════════════════════════════════
+// 得分
+// ══════════════════════════════════════════════════════════
+function calcScore() {
+  const raw = Math.max(0, 1000 + state.timeLeft * 10 - state.errorCount * 100)
+  return Math.round(raw * state.multiplier)
+}
+
+function updateErrorDots() {
+  for (let i = 0; i < 3; i++) {
+    $('dot' + i).classList.toggle('active', i < state.errorCount)
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 游戏结束
+// ══════════════════════════════════════════════════════════
+function endGame(reason) {
+  stopTimer()
+  state.status = reason === 'win' ? 'success' : 'failed'
+
+  state.score = reason === 'win' ? calcScore() : 0
+
+  if (reason === 'win') {
+    boardEl.classList.add('win-bounce')
+    setTimeout(() => boardEl.classList.remove('win-bounce'), 600)
+  }
+
+  const diff = state.difficulty
+  if (state.score > state.bestScore[diff]) {
+    state.bestScore[diff] = state.score
+    localStorage.setItem('bd_best_' + diff, state.score)
+  }
+
+  setTimeout(() => showResult(reason), reason === 'win' ? 600 : 200)
+}
+
+function showResult(reason) {
+  const emoji = { win: '🎉', error: '💥', timeout: '⏰' }[reason]
+  const title = { win: '太棒了！', error: '答错三次了', timeout: '时间到！' }[reason]
+  const reasonText = { win: '', error: '累计错误 3 次，游戏结束', timeout: '超时，游戏结束' }[reason]
+
+  $('result-emoji').textContent = emoji
+  $('result-title').textContent = title
+  $('result-score').textContent = state.score
+  $('result-reason').textContent = reasonText
+  $('result-best').textContent = '历史最高：' + state.bestScore[state.difficulty] + ' 分'
+  modalResult.classList.add('visible')
+}
+
+// ══════════════════════════════════════════════════════════
+// 开始游戏
+// ══════════════════════════════════════════════════════════
+function startGame() {
+  const cfg = DIFFICULTY[state.difficulty]
+  state.status     = 'playing'
+  state.n          = cfg.n
+  state.timeLimit  = cfg.timeLimit
+  state.multiplier = cfg.multiplier
+  state.timeLeft   = cfg.timeLimit
+  state.errorCount = 0
+  state.score      = 0
+  // 选取有唯一解的谜题
+  let puzzle = null
+  const pool  = [...PUZZLES[state.difficulty]]
+  while (pool.length && !puzzle) {
+    const idx = Math.floor(Math.random() * pool.length)
+    const candidate = pool.splice(idx, 1)[0]
+    const sol = findUniqueSolution(candidate.regions, cfg.n)
+    if (sol) { candidate.solution = sol; puzzle = candidate }
+    else console.warn('谜题无唯一解，已跳过', candidate.regions)
+  }
+  if (!puzzle) { puzzle = PUZZLES[state.difficulty][0]; puzzle.solution = null }
+  state.puzzle = puzzle
+
+  $('score').textContent = '0'
+  updateErrorDots()
+  modalResult.classList.remove('visible')
+  buildBoard(state.puzzle, state.n)
+  showScreen('playing')
+  startTimer()
+}
+
+// ══════════════════════════════════════════════════════════
+// 事件
+// ══════════════════════════════════════════════════════════
+$('btn-start').addEventListener('click', startGame)
+$('btn-howto').addEventListener('click', () => showScreen('howtoplay'))
+$('btn-howto-back').addEventListener('click', () => showScreen('start'))
+$('btn-got-it').addEventListener('click', () => showScreen('start'))
+
+$('btn-restart').addEventListener('click', () => {
+  modalResult.classList.remove('visible')
+  startGame()
+})
+
+$('btn-home').addEventListener('click', () => {
+  stopTimer()
+  modalResult.classList.remove('visible')
+  showScreen('start')
+  state.status = 'start'
+})
+
+// 页面隐藏时暂停计时
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && state.status === 'playing') stopTimer()
+  else if (!document.hidden && state.status === 'playing') startTimer()
+})
+
+// 初始化：预加载所有 IP 图片（非正方形自动居中裁切）
+preloadIPs(6).then(() => showScreen('start'))
+</script>
+</body>
+</html>
