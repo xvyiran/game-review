@@ -29,7 +29,7 @@ button{border:none;outline:none;cursor:pointer;background:none}
 }
 .intro-bg{
   position:absolute;inset:0;
-  background:url('assets/bg_main2.png') center 60%/cover no-repeat;
+  background:url('rhythm-table-assets/bg_main2.png') center 60%/cover no-repeat;
   opacity:.12;pointer-events:none;
 }
 .intro-title-wrap{position:relative;z-index:1;text-align:center}
@@ -289,7 +289,7 @@ button{border:none;outline:none;cursor:pointer;background:none}
     </div>
 
     <div class="intro-char">
-      <img src="assets/char_dance.png" alt="🥁"
+      <img src="rhythm-table-assets/char_dance.png" alt="🥁"
         onerror="this.outerHTML='<div style=\'font-size:14vw\'>🥁</div>'">
     </div>
 
@@ -317,15 +317,15 @@ button{border:none;outline:none;cursor:pointer;background:none}
       <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
 
       <div id="bg-layer">
-        <img class="bg-normal" src="assets/bg_main2.png" alt=""
+        <img class="bg-normal" src="rhythm-table-assets/bg_main2.png" alt=""
           onerror="this.style.cssText='position:absolute;inset:0;width:100%;height:100%;background:linear-gradient(180deg,#1a0a00,#0d0000)'">
-        <img class="bg-fever-img" src="assets/bg_fever.png" alt=""
+        <img class="bg-fever-img" src="rhythm-table-assets/bg_fever.png" alt=""
           onerror="this.style.display='none'">
         <div class="mult-bg" aria-hidden="true">一一得一 一二得二 一三得三 一四得四 一五得五 一六得六 一七得七 一八得八 一九得九 二二得四 二三得六 二四得八 二五一十 二六十二 二七十四 二八十六 二九十八 三三得九 三四十二 三五十五 三六十八 三七二十一 三八二十四 三九二十七 四四十六 四五二十 四六二十四 四七二十八 四八三十二 四九三十六 五五二十五 五六三十 五七三十五 五八四十 五九四十五 六六三十六 六七四十二 六八四十八 六九五十四 七七四十九 七八五十六 七九六十三 八八六十四 八九七十二 九九八十一</div>
       </div>
 
       <div id="char-layer">
-        <img id="char-img" src="assets/char_dance.png" alt="🥁"
+        <img id="char-img" src="rhythm-table-assets/char_dance.png" alt="🥁"
           onerror="this.outerHTML='<div id=\'char-img\' style=\'font-size:12vw;text-align:center\'>🥁</div>'">
       </div>
 
@@ -965,14 +965,14 @@ function charDance(){
   const el=document.getElementById('char-img');if(!el)return
   el.classList.remove('dance','fall');void el.offsetWidth
   el.classList.add('dance')
-  if(el.tagName==='IMG')el.src='assets/char_dance.png'
+  if(el.tagName==='IMG')el.src='rhythm-table-assets/char_dance.png'
 }
 function charFall(){
   const el=document.getElementById('char-img');if(!el)return
   el.classList.remove('dance','fall');void el.offsetWidth
   el.classList.add('fall')
-  if(el.tagName==='IMG')el.src='assets/char_fall.png'
-  setTimeout(()=>{if(el&&el.tagName==='IMG')el.src='assets/char_dance.png'},1400)
+  if(el.tagName==='IMG')el.src='rhythm-table-assets/char_fall.png'
+  setTimeout(()=>{if(el&&el.tagName==='IMG')el.src='rhythm-table-assets/char_dance.png'},1400)
 }
 
 /* ══════════════════════════════════════

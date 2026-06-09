@@ -32,7 +32,7 @@ button{border:none;outline:none;cursor:pointer;background:none}
 }
 .intro-bg{
   position:absolute;inset:0;
-  background:url('assets/bg_main2.png') center bottom/cover no-repeat;
+  background:url('rhythm-table-assets/bg_main2.png') center bottom/cover no-repeat;
   opacity:.15;pointer-events:none;
 }
 .intro-body{position:relative;z-index:1;width:100%;text-align:center}
@@ -83,7 +83,7 @@ button{border:none;outline:none;cursor:pointer;background:none}
 /* 角色预览区 */
 .select-chars{
   width:92%;height:20vh;
-  background:url('assets/bg_main2.png') center/cover no-repeat;
+  background:url('rhythm-table-assets/bg_main2.png') center/cover no-repeat;
   border-radius:14px;overflow:hidden;
   border:2px solid rgba(255,255,255,.25);
   box-shadow:0 4px 20px rgba(0,0,0,.35);
@@ -426,15 +426,15 @@ button{border:none;outline:none;cursor:pointer;background:none}
 
       <!-- Background -->
       <div id="bg-layer">
-        <img class="bg-normal" src="assets/bg_main2.png" alt=""
+        <img class="bg-normal" src="rhythm-table-assets/bg_main2.png" alt=""
           onerror="this.style.cssText='position:absolute;inset:0;width:100%;height:100%;background:linear-gradient(180deg,#ff8c00,#cc5500)';this.removeAttribute('src')">
-        <img class="bg-fever-img" src="assets/bg_fever.png" alt=""
+        <img class="bg-fever-img" src="rhythm-table-assets/bg_fever.png" alt=""
           onerror="this.style.display='none'">
       </div>
 
       <!-- Character -->
       <div id="char-layer">
-        <img id="char-img" src="assets/char_dance.png" alt=""
+        <img id="char-img" src="rhythm-table-assets/char_dance.png" alt=""
           onerror="this.outerHTML='<div id=\'char-img\' style=\'font-size:12vw;text-align:center;line-height:1\'>🥁</div>'">
       </div>
 
@@ -1055,15 +1055,15 @@ function charDance() {
   if (!el) return
   el.classList.remove('dance','fall'); void el.offsetWidth
   el.classList.add('dance')
-  if (el.tagName === 'IMG') el.src = 'assets/char_dance.png'
+  if (el.tagName === 'IMG') el.src = 'rhythm-table-assets/char_dance.png'
 }
 function charFall() {
   const el = document.getElementById('char-img')
   if (!el) return
   el.classList.remove('dance','fall'); void el.offsetWidth
   el.classList.add('fall')
-  if (el.tagName === 'IMG') el.src = 'assets/char_fall.png'
-  setTimeout(() => { if (el && el.tagName === 'IMG') el.src = 'assets/char_dance.png' }, 1400)
+  if (el.tagName === 'IMG') el.src = 'rhythm-table-assets/char_fall.png'
+  setTimeout(() => { if (el && el.tagName === 'IMG') el.src = 'rhythm-table-assets/char_dance.png' }, 1400)
 }
 
 /* ══════════════════════════════════════════════
