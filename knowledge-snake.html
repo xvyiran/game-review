@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>挑食蛇大作战</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --green: #22c55e;
+      --green-bright: #4ade80;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* ── Screens ── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.25s;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Menu ── */
+    #screen-menu { gap: 28px; padding: 32px 24px; }
+    .menu-logo { font-size: 52px; line-height: 1; }
+    .menu-title {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--green-bright), var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .menu-subtitle { font-size: 13px; color: var(--text-muted); margin-top: -20px; }
+    .diff-grid { display: flex; gap: 10px; width: 100%; max-width: 360px; }
+    .btn-diff {
+      flex: 1; padding: 18px 8px 14px;
+      border: 2px solid var(--border); border-radius: 16px;
+      background: var(--surface); color: var(--text);
+      cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .btn-diff:active { transform: scale(0.94); }
+    .btn-diff .d-icon { font-size: 26px; line-height: 1; }
+    .btn-diff .d-name { font-size: 15px; font-weight: 700; }
+    .btn-diff .d-hint { font-size: 11px; opacity: 0.65; }
+    .btn-diff.easy   { border-color: var(--green); color: var(--green); }
+    .btn-diff.medium { border-color: var(--amber); color: var(--amber); }
+    .btn-diff.hard   { border-color: var(--red);   color: var(--red);   }
+    .menu-rules {
+      width: 100%; max-width: 360px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .menu-rule {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--text-muted);
+    }
+    .menu-rule-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+    .menu-rule strong { color: var(--text); font-weight: 600; }
+    .menu-best { font-size: 13px; color: var(--text-muted); }
+    .menu-best span { color: var(--green-bright); font-weight: 700; }
+
+    /* ── Playing ── */
+    #screen-playing { justify-content: flex-start; padding: 0; }
+
+    .hud {
+      width: 100%; height: 52px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .hud-score-wrap { text-align: center; line-height: 1.2; }
+    .hud-score-label { font-size: 10px; color: var(--text-muted); }
+    .hud-score-value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .hud-timer { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+    .hud-timer.urgent { color: var(--red); animation: pulse 0.6s ease-in-out infinite; }
+    .boost-badge {
+      font-size: 12px; font-weight: 700;
+      color: var(--amber); opacity: 0;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .boost-badge.show { opacity: 1; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── Condition bar ── */
+    .cond-bar {
+      width: 100%; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 8px 16px 10px; gap: 4px;
+      background: var(--surface);
+      border-bottom: 2px solid rgba(34,197,94,0.25);
+    }
+    .cond-main { display: flex; align-items: baseline; gap: 8px; }
+    .cond-label { font-size: 15px; color: var(--text-muted); font-weight: 500; }
+    .cond-num {
+      font-size: 40px; font-weight: 900; color: var(--green-bright);
+      line-height: 1; font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 20px rgba(74,222,128,0.4);
+    }
+    .cond-bar.warn1 { border-bottom-color: rgba(245,158,11,0.4); }
+    .cond-bar.warn1 .cond-num { color: var(--amber); text-shadow: 0 0 20px rgba(245,158,11,0.4); }
+    .cond-bar.warn2 { border-bottom-color: rgba(239,68,68,0.5); }
+    .cond-bar.warn2 .cond-num { color: var(--red); text-shadow: 0 0 20px rgba(239,68,68,0.4); }
+    .cond-warning-text { font-size: 12px; font-weight: 700; height: 16px; line-height: 16px; }
+    .cond-bar.warn1 .cond-warning-text { color: var(--amber); }
+    .cond-bar.warn2 .cond-warning-text { color: var(--red); }
+
+    /* ── Food refresh strip ── */
+    .refresh-strip {
+      width: 100%; flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px;
+      height: 26px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .refresh-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+    .refresh-track {
+      flex: 1; height: 6px;
+      background: #1c2128; border-radius: 3px; overflow: hidden;
+    }
+    .refresh-fill {
+      height: 100%; width: 100%; border-radius: 3px;
+      background: var(--green);
+      transform-origin: left;
+    }
+    .refresh-fill.flash { animation: refreshFlash 0.3s ease-out; }
+    @keyframes refreshFlash {
+      0%   { background: #fff; }
+      100% { background: var(--green); }
+    }
+    .refresh-cd { font-size: 11px; color: var(--text-muted); min-width: 18px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ── Canvas ── */
+    .canvas-wrapper {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 8px; min-height: 0;
+    }
+    #game-canvas { border-radius: 8px; border: 2px solid var(--border); display: block; }
+    #game-canvas.warn-flash { animation: warnFlash 0.35s ease-out; }
+    @keyframes warnFlash {
+      0%   { border-color: var(--red); box-shadow: 0 0 20px rgba(239,68,68,0.5); }
+      100% { border-color: var(--border); box-shadow: none; }
+    }
+
+    /* ── D-pad ── */
+    .dpad { flex-shrink: 0; padding: 4px 0 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .dpad-row { display: flex; gap: 4px; }
+    .btn-dir {
+      width: 56px; height: 46px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s, border-color 0.1s, color 0.1s;
+      color: var(--text-muted);
+    }
+    .btn-dir:active { background: var(--border); }
+    /* Long-press boost active state */
+    .btn-dir.boosting {
+      background: rgba(245,158,11,0.15);
+      border-color: var(--amber);
+      color: var(--amber);
+      box-shadow: 0 0 10px rgba(245,158,11,0.3);
+    }
+    .btn-dir.spacer { background: transparent; border-color: transparent; pointer-events: none; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; top: 145px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-size: 13px; font-weight: 700;
+      padding: 8px 18px; border-radius: 20px; white-space: nowrap;
+      pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 100;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── Game Over ── */
+    #screen-gameover { gap: 16px; padding: 32px 24px; text-align: center; }
+    .go-emoji { font-size: 60px; line-height: 1; }
+    .go-title { font-size: 26px; font-weight: 800; }
+    .go-badge { font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 20px; }
+    .go-badge.fail    { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .go-badge.success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+    .go-score-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .go-score { font-size: 64px; font-weight: 800; line-height: 1; color: var(--green-bright); }
+    .go-score-label { font-size: 12px; color: var(--text-muted); }
+    .go-score.fail-color { color: var(--red); }
+    .go-meta { font-size: 13px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+    .go-meta strong { color: var(--text); }
+    .go-new-record { font-size: 14px; font-weight: 700; color: var(--yellow); display: none; }
+    .go-new-record.show { display: block; }
+    .go-buttons { display: flex; gap: 10px; width: 100%; max-width: 320px; margin-top: 8px; }
+    .btn-go {
+      flex: 1; padding: 14px 8px; border-radius: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer; border: none;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .btn-go:active { transform: scale(0.94); }
+    .btn-go.primary { background: var(--green); color: #000; }
+    .btn-go.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<!-- ── Menu ── -->
+<div class="screen" id="screen-menu">
+  <div class="menu-logo">🐍</div>
+  <div class="menu-title">挑食蛇大作战</div>
+  <div class="menu-subtitle">挑食得很，不合适的食物（答案）一口都不吃！</div>
+  <div class="menu-rules">
+    <div class="menu-rule"><span class="menu-rule-icon">🕹️</span><span><strong>方向键</strong>控制蛇前进</span></div>
+    <div class="menu-rule"><span class="menu-rule-icon">⚡</span><span><strong>长按</strong>方向键可加速</span></div>
+    <div class="menu-rule"><span class="menu-rule-icon">🔄</span><span>食物每 <strong>8 秒</strong>统一刷新位置</span></div>
+  </div>
+  <div class="diff-grid">
+    <button class="btn-diff easy"   id="btn-easy">  <span class="d-icon">🌱</span><span class="d-name">初级</span><span class="d-hint">慢速 · 4格食物</span></button>
+    <button class="btn-diff medium" id="btn-medium"><span class="d-icon">⚡</span><span class="d-name">中级</span><span class="d-hint">中速 · 5格食物</span></button>
+    <button class="btn-diff hard"   id="btn-hard">  <span class="d-icon">🔥</span><span class="d-name">高级</span><span class="d-hint">快速 · 6格食物</span></button>
+  </div>
+  <div class="menu-best">历史最高分：<span id="menu-best-val">0</span> 分</div>
+</div>
+
+<!-- ── Playing ── -->
+<div class="screen hidden" id="screen-playing">
+  <div class="hud">
+    <div class="hud-score-wrap">
+      <div class="hud-score-label">得分</div>
+      <div class="hud-score-value" id="hud-score">0</div>
+    </div>
+    <div class="boost-badge" id="boost-badge">⚡ 加速中</div>
+    <div class="hud-timer" id="hud-timer">60</div>
+  </div>
+
+  <div class="cond-bar" id="cond-bar">
+    <div class="cond-main">
+      <span class="cond-label">吃掉</span>
+      <span class="cond-num" id="cond-num">?</span>
+      <span class="cond-label">的倍数</span>
+    </div>
+    <div class="cond-warning-text" id="cond-warn"></div>
+  </div>
+
+  <!-- Food refresh countdown strip -->
+  <div class="refresh-strip">
+    <span class="refresh-label">🔄 食物刷新</span>
+    <div class="refresh-track">
+      <div class="refresh-fill" id="refresh-fill"></div>
+    </div>
+    <span class="refresh-cd" id="refresh-cd">8</span>
+  </div>
+
+  <div class="canvas-wrapper">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <div class="dpad">
+    <div class="dpad-row">
+      <div class="btn-dir spacer"></div>
+      <div class="btn-dir" id="btn-up">↑</div>
+      <div class="btn-dir spacer"></div>
+    </div>
+    <div class="dpad-row">
+      <div class="btn-dir" id="btn-left">←</div>
+      <div class="btn-dir" id="btn-down">↓</div>
+      <div class="btn-dir" id="btn-right">→</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Game Over ── -->
+<div class="screen hidden" id="screen-gameover">
+  <div class="go-emoji" id="go-emoji">💥</div>
+  <div class="go-title" id="go-title">游戏结束</div>
+  <div class="go-badge fail" id="go-badge">撞墙了</div>
+  <div class="go-score-wrap">
+    <div class="go-score" id="go-score">0</div>
+    <div class="go-score-label">本次得分</div>
+  </div>
+  <div class="go-meta">
+    <div>历史最高：<strong id="go-best">0</strong> 分</div>
+    <div>本局乘数：<strong id="go-multiplier">?</strong> 的倍数</div>
+  </div>
+  <div class="go-new-record" id="go-new-record">🏆 新纪录！</div>
+  <div class="go-buttons">
+    <button class="btn-go secondary" id="btn-menu">换难度</button>
+    <button class="btn-go primary"   id="btn-replay">再来一局</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── Constants ─────────────────────────────────────────────────────────────
+  const GRID              = 20;
+  const BEST_KEY          = 'knowledge_snake_best';
+  const FOOD_REFRESH_MS   = 8000;
+  const BOOST_DELAY_MS    = 200;   // hold duration before boost activates
+  const BOOST_SPEEDS      = { easy: 110, medium: 80, hard: 55 };  // ms per step
+
+  const DIFF_CFG = {
+    easy:   { stepMs: 300, totalFood: 4, correctFood: 2 },
+    medium: { stepMs: 200, totalFood: 5, correctFood: 2 },
+    hard:   { stepMs: 130, totalFood: 6, correctFood: 2 },
+  };
+
+  // ── DOM ───────────────────────────────────────────────────────────────────
+  const canvas      = document.getElementById('game-canvas');
+  const ctx         = canvas.getContext('2d');
+  const hudScore    = document.getElementById('hud-score');
+  const hudTimer    = document.getElementById('hud-timer');
+  const boostBadge  = document.getElementById('boost-badge');
+  const condBar     = document.getElementById('cond-bar');
+  const condNum     = document.getElementById('cond-num');
+  const condWarn    = document.getElementById('cond-warn');
+  const refreshFill = document.getElementById('refresh-fill');
+  const refreshCd   = document.getElementById('refresh-cd');
+  const toast       = document.getElementById('toast');
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let difficulty    = 'easy';
+  let multiplier    = 3;
+  let snake         = [];
+  let direction     = { x: 1, y: 0 };
+  let nextDir       = { x: 1, y: 0 };
+  let foods         = [];
+  let score         = 0;
+  let timeLeft      = 60;
+  let warningCount  = 0;
+  let gameStatus    = 'idle';
+
+  let gameInterval  = null;
+  let timerInterval = null;
+  let foodInterval  = null;   // 100ms ticker for refresh bar + food refresh
+  let toastTimer    = null;
+  let boostTimer    = null;
+  let isBoost       = false;
+  let heldKeys      = new Set();
+  let foodElapsedMs = 0;      // ms since last food refresh
+
+  let cellSize          = 0;
+  let canvasLogicalSize = 0;
+  let wasPausedByHide   = false;
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    updateMenuBest();
+    setupControls();
+    setupKeyboard();
+    setupVisibility();
+  });
+  window.addEventListener('resize', () => {
+    setupCanvas();
+    if (gameStatus === 'playing') drawFrame();
+  });
+
+  // ── Canvas sizing ─────────────────────────────────────────────────────────
+  function setupCanvas() {
+    const els   = ['.hud', '.cond-bar', '.refresh-strip', '.dpad'];
+    const fixed = els.reduce((h, sel) => {
+      const el = document.querySelector(sel);
+      return h + (el ? el.offsetHeight : 0);
+    }, 16);
+
+    const maxW = window.innerWidth  - 16;
+    const maxH = window.innerHeight - fixed;
+    const size = Math.max(Math.min(maxW, maxH), 200);
+
+    canvasLogicalSize = size;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    canvas.style.width  = size + 'px';
+    canvas.style.height = size + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    cellSize = size / GRID;
+  }
+
+  // ── Screens ───────────────────────────────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+  }
+  function updateMenuBest() {
+    document.getElementById('menu-best-val').textContent = getBest();
+  }
+  function getBest() {
+    return parseInt(localStorage.getItem(BEST_KEY) || '0');
+  }
+
+  // ── Game start ────────────────────────────────────────────────────────────
+  function startGame(diff) {
+    difficulty = diff;
+    multiplier = Math.floor(Math.random() * 8) + 2;
+    showScreen('screen-playing');
+    setTimeout(() => { setupCanvas(); initAndRun(); }, 50);
+  }
+  function replayGame() {
+    multiplier = Math.floor(Math.random() * 8) + 2;
+    showScreen('screen-playing');
+    setTimeout(() => { setupCanvas(); initAndRun(); }, 50);
+  }
+  function goMenu() {
+    clearAllIntervals();
+    deactivateBoost();
+    gameStatus = 'idle';
+    showScreen('screen-menu');
+    updateMenuBest();
+  }
+
+  function initAndRun() {
+    clearAllIntervals();
+    deactivateBoost();
+
+    const mid = Math.floor(GRID / 2);
+    snake        = [{ x: mid, y: mid }, { x: mid-1, y: mid }, { x: mid-2, y: mid }];
+    direction    = { x: 1, y: 0 };
+    nextDir      = { x: 1, y: 0 };
+    score        = 0;
+    timeLeft     = 60;
+    warningCount = 0;
+    gameStatus   = 'playing';
+    foodElapsedMs = 0;
+
+    condNum.textContent  = multiplier;
+    condWarn.textContent = '';
+    condBar.className    = 'cond-bar';
+    hudScore.textContent = '0';
+    hudTimer.textContent = '60';
+    hudTimer.classList.remove('urgent');
+    hideToast();
+    updateRefreshBar();
+
+    foods = generateFoods();
+    drawFrame();
+
+    const cfg = DIFF_CFG[difficulty];
+    gameInterval  = setInterval(gameStep,        cfg.stepMs);
+    timerInterval = setInterval(tickTimer,        1000);
+    foodInterval  = setInterval(tickFoodRefresh,  100);
+  }
+
+  function clearAllIntervals() {
+    clearInterval(gameInterval);
+    clearInterval(timerInterval);
+    clearInterval(foodInterval);
+    gameInterval = timerInterval = foodInterval = null;
+  }
+
+  // ── Game step ─────────────────────────────────────────────────────────────
+  function gameStep() {
+    if (gameStatus !== 'playing') return;
+
+    direction = { ...nextDir };
+    const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+    // Wall collision
+    if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+      snake.unshift(head); snake.pop();
+      drawFrame(); endGame('wall'); return;
+    }
+    // Self collision
+    for (let i = 0; i < snake.length - 1; i++) {
+      if (snake[i].x === head.x && snake[i].y === head.y) {
+        snake.unshift(head); snake.pop();
+        drawFrame(); endGame('self'); return;
+      }
+    }
+
+    // Food collision
+    const fi = foods.findIndex(f => f.x === head.x && f.y === head.y);
+    if (fi >= 0) {
+      const food = foods.splice(fi, 1)[0];
+      if (food.correct) {
+        score += 10;
+        warningCount = 0;
+        snake.unshift(head);           // grow
+        updateConditionWarning();
+      } else {
+        score = Math.max(0, score - 5);
+        warningCount++;
+        snake.unshift(head); snake.pop();
+        if (warningCount >= 3) {
+          hudScore.textContent = score;
+          drawFrame(); endGame('wrong'); return;
+        }
+        updateConditionWarning();
+        showToast();
+        flashCanvas();
+      }
+      hudScore.textContent = score;
+      addOneFood(food.correct);
+    } else {
+      snake.unshift(head); snake.pop();
+    }
+
+    drawFrame();
+  }
+
+  function tickTimer() {
+    timeLeft--;
+    hudTimer.textContent = timeLeft;
+    if (timeLeft <= 10) hudTimer.classList.add('urgent');
+    if (timeLeft <= 0) endGame('timeout');
+  }
+
+  // ── Food refresh ticker (100ms) ───────────────────────────────────────────
+  function tickFoodRefresh() {
+    if (gameStatus !== 'playing') return;
+    foodElapsedMs += 100;
+
+    if (foodElapsedMs >= FOOD_REFRESH_MS) {
+      foodElapsedMs = 0;
+      foods = generateFoods();
+      drawFrame();
+      // Flash the bar white briefly on refresh
+      refreshFill.classList.remove('flash');
+      void refreshFill.offsetWidth;
+      refreshFill.classList.add('flash');
+    }
+
+    updateRefreshBar();
+  }
+
+  function updateRefreshBar() {
+    const remaining = FOOD_REFRESH_MS - foodElapsedMs;
+    const ratio = remaining / FOOD_REFRESH_MS;
+    const secs  = Math.ceil(remaining / 1000);
+
+    refreshFill.style.transform = `scaleX(${ratio})`;
+    refreshCd.textContent = secs;
+
+    // Color: green → amber → red
+    if (ratio > 0.5)       refreshFill.style.background = 'var(--green)';
+    else if (ratio > 0.25) refreshFill.style.background = 'var(--amber)';
+    else                   refreshFill.style.background = 'var(--red)';
+  }
+
+  // ── End game ──────────────────────────────────────────────────────────────
+  function endGame(reason) {
+    if (gameStatus !== 'playing') return;
+    gameStatus = reason === 'timeout' ? 'timeout' : 'gameover';
+    clearAllIntervals();
+    deactivateBoost();
+    hideToast();
+
+    const prevBest = getBest();
+    if (score > prevBest) localStorage.setItem(BEST_KEY, score);
+    const newBest = Math.max(prevBest, score);
+    setTimeout(() => showResultScreen(reason, newBest), 600);
+  }
+
+  function showResultScreen(reason, best) {
+    const MAP = {
+      wall:    { emoji: '💥', title: '撞墙了！',     badge: '撞墙结束', win: false },
+      self:    { emoji: '🌀', title: '咬到自己！',   badge: '撞自身结束', win: false },
+      wrong:   { emoji: '❌', title: '连吃三次错！',  badge: '失误三次', win: false },
+      timeout: {
+        emoji: score > 0 ? '🎉' : '⏰',
+        title: score > 0 ? '时间到！挑战成功！' : '时间到',
+        badge: '时间结束', win: score > 0,
+      },
+    };
+    const r = MAP[reason] || MAP.wall;
+
+    document.getElementById('go-emoji').textContent = r.emoji;
+    document.getElementById('go-title').textContent = r.title;
+    const badge = document.getElementById('go-badge');
+    badge.textContent = r.badge;
+    badge.className   = 'go-badge ' + (r.win ? 'success' : 'fail');
+
+    const scoreEl = document.getElementById('go-score');
+    scoreEl.textContent = score;
+    scoreEl.className   = 'go-score' + (score === 0 ? ' fail-color' : '');
+
+    document.getElementById('go-best').textContent       = best;
+    document.getElementById('go-multiplier').textContent = multiplier;
+    document.getElementById('go-new-record').className   =
+      'go-new-record' + (score > 0 && score >= best ? ' show' : '');
+
+    showScreen('screen-gameover');
+  }
+
+  // ── Condition warning ─────────────────────────────────────────────────────
+  function updateConditionWarning() {
+    if (warningCount === 0) {
+      condBar.className = 'cond-bar';
+      condWarn.textContent = '';
+    } else if (warningCount === 1) {
+      condBar.className = 'cond-bar warn1';
+      condWarn.textContent = '⚠️ 第1次失误，还有2次机会';
+    } else {
+      condBar.className = 'cond-bar warn2';
+      condWarn.textContent = '🚨 第2次失误，再错即结束！';
+    }
+  }
+
+  // ── Food system ───────────────────────────────────────────────────────────
+  function generateFoods() {
+    const cfg        = DIFF_CFG[difficulty];
+    const wrongCount = cfg.totalFood - cfg.correctFood;
+    const multiples  = Array.from({ length: 9 }, (_, i) => (i+1) * multiplier);
+    const nonMults   = [];
+    for (let n = 1; n <= 9 * multiplier; n++) {
+      if (n % multiplier !== 0) nonMults.push(n);
+    }
+    return shuffle([
+      ...shuffle(multiples).slice(0, cfg.correctFood).map(n => ({ n, correct: true  })),
+      ...shuffle(nonMults).slice(0, wrongCount).map(n        => ({ n, correct: false })),
+    ]).map(f => ({ ...f, ...getEmptyPos() }));
+  }
+
+  function addOneFood(wasCorrect) {
+    const used = new Set(foods.map(f => f.n));
+    let pool;
+    if (wasCorrect) {
+      pool = Array.from({ length: 9 }, (_, i) => (i+1) * multiplier).filter(n => !used.has(n));
+    } else {
+      pool = [];
+      for (let n = 1; n <= 9 * multiplier; n++) {
+        if (n % multiplier !== 0 && !used.has(n)) pool.push(n);
+      }
+    }
+    if (!pool.length) return;
+    const n = pool[Math.floor(Math.random() * pool.length)];
+    foods.push({ n, correct: wasCorrect, ...getEmptyPos() });
+  }
+
+  function getEmptyPos() {
+    const occ = new Set([
+      ...snake.map(s => `${s.x},${s.y}`),
+      ...foods.map(f => `${f.x},${f.y}`),
+    ]);
+    let pos, tries = 0;
+    do { pos = { x: Math.floor(Math.random()*GRID), y: Math.floor(Math.random()*GRID) }; }
+    while (occ.has(`${pos.x},${pos.y}`) && ++tries < 300);
+    return pos;
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length-1; i > 0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ── Drawing ───────────────────────────────────────────────────────────────
+  function drawFrame() {
+    const S = canvasLogicalSize;
+    if (!S) return;
+
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, S, S);
+
+    ctx.strokeStyle = '#1c2128';
+    ctx.lineWidth   = 0.5;
+    for (let i = 0; i <= GRID; i++) {
+      ctx.beginPath(); ctx.moveTo(i*cellSize, 0);       ctx.lineTo(i*cellSize, S); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i*cellSize);       ctx.lineTo(S, i*cellSize); ctx.stroke();
+    }
+
+    foods.forEach(drawFood);
+    drawSnake();
+  }
+
+  function drawFood(f) {
+    const cx = f.x * cellSize + cellSize/2;
+    const cy = f.y * cellSize + cellSize/2;
+    const r  = cellSize * 0.43;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = f.correct ? '#14532d' : '#450a0a';
+    ctx.fill();
+    ctx.strokeStyle = f.correct ? '#22c55e' : '#ef4444';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+
+    const fs = f.n >= 10 ? cellSize*0.36 : cellSize*0.44;
+    ctx.fillStyle    = f.correct ? '#86efac' : '#fca5a5';
+    ctx.font         = `bold ${fs}px -apple-system, sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f.n, cx, cy + 0.5);
+  }
+
+  function drawSnake() {
+    const isDead = (gameStatus === 'gameover' || gameStatus === 'timeout');
+    let headColor, bodyFill, bodyLine;
+    if (isDead)           { headColor='#ef4444'; bodyFill='#7f1d1d'; bodyLine='#ef4444'; }
+    else if (warningCount>=2) { headColor='#ef4444'; bodyFill='#7f1d1d'; bodyLine='#f87171'; }
+    else if (warningCount===1){ headColor='#f59e0b'; bodyFill='#78350f'; bodyLine='#fbbf24'; }
+    else                  { headColor='#4ade80'; bodyFill='#14532d'; bodyLine='#22c55e'; }
+
+    snake.forEach((seg, i) => {
+      const x=seg.x*cellSize, y=seg.y*cellSize, pd=2, sz=cellSize-4, br=sz*0.28;
+      if (i === 0) {
+        ctx.save();
+        ctx.shadowColor = headColor; ctx.shadowBlur = 14;
+        ctx.fillStyle   = headColor;
+        rrect(x+pd, y+pd, sz, sz, br); ctx.fill();
+        ctx.restore();
+        const es = sz*0.11;
+        ctx.fillStyle = '#000c';
+        const [ex1,ey1,ex2,ey2] = eyePos(x+pd, y+pd, sz);
+        ctx.beginPath(); ctx.arc(ex1,ey1,es,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex2,ey2,es,0,Math.PI*2); ctx.fill();
+      } else {
+        const alpha = Math.max(0.35, 1-(i/snake.length)*0.65);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle   = bodyFill;
+        rrect(x+pd,y+pd,sz,sz,br); ctx.fill();
+        ctx.strokeStyle = bodyLine; ctx.lineWidth = 1.5;
+        rrect(x+pd,y+pd,sz,sz,br); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    });
+  }
+
+  function eyePos(x, y, sz) {
+    if (direction.x===1)  return [x+sz*.72, y+sz*.28, x+sz*.72, y+sz*.72];
+    if (direction.x===-1) return [x+sz*.28, y+sz*.28, x+sz*.28, y+sz*.72];
+    if (direction.y===-1) return [x+sz*.28, y+sz*.28, x+sz*.72, y+sz*.28];
+    return                       [x+sz*.28, y+sz*.72, x+sz*.72, y+sz*.72];
+  }
+
+  function rrect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r);  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);    ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);      ctx.arcTo(x,y,x+r,y,r);
+    ctx.closePath();
+  }
+
+  // ── Speed boost ───────────────────────────────────────────────────────────
+  function pressDir(dx, dy) {
+    changeDir(dx, dy);
+    clearTimeout(boostTimer);
+    if (!isBoost) {
+      boostTimer = setTimeout(activateBoost, BOOST_DELAY_MS);
+    }
+  }
+
+  function releaseDir() {
+    clearTimeout(boostTimer);
+    if (isBoost) deactivateBoost();
+  }
+
+  function activateBoost() {
+    if (gameStatus !== 'playing' || isBoost) return;
+    isBoost = true;
+    clearInterval(gameInterval);
+    gameInterval = setInterval(gameStep, BOOST_SPEEDS[difficulty]);
+    document.querySelectorAll('.btn-dir:not(.spacer)').forEach(el => el.classList.add('boosting'));
+    boostBadge.classList.add('show');
+  }
+
+  function deactivateBoost() {
+    clearTimeout(boostTimer);
+    if (!isBoost) return;
+    isBoost = false;
+    clearInterval(gameInterval);
+    if (gameStatus === 'playing') {
+      gameInterval = setInterval(gameStep, DIFF_CFG[difficulty].stepMs);
+    }
+    document.querySelectorAll('.btn-dir').forEach(el => el.classList.remove('boosting'));
+    boostBadge.classList.remove('show');
+  }
+
+  // ── Direction ─────────────────────────────────────────────────────────────
+  function changeDir(dx, dy) {
+    if (dx !== 0 && dx === -direction.x) return;
+    if (dy !== 0 && dy === -direction.y) return;
+    nextDir = { x: dx, y: dy };
+  }
+
+  // ── Controls setup ────────────────────────────────────────────────────────
+  function setupControls() {
+    const dirs = { 'btn-up':[0,-1], 'btn-down':[0,1], 'btn-left':[-1,0], 'btn-right':[1,0] };
+    Object.entries(dirs).forEach(([id, [dx, dy]]) => {
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', e => { e.preventDefault(); pressDir(dx, dy); }, { passive: false });
+      el.addEventListener('mousedown',  ()  => pressDir(dx, dy));
+    });
+
+    // Release on ANY touchend/mouseup on the playing screen
+    document.getElementById('screen-playing').addEventListener('touchend',  releaseDir, { passive: true });
+    document.getElementById('screen-playing').addEventListener('touchcancel', releaseDir, { passive: true });
+    document.addEventListener('mouseup', releaseDir);
+
+    document.getElementById('btn-easy').addEventListener('click',   () => startGame('easy'));
+    document.getElementById('btn-medium').addEventListener('click', () => startGame('medium'));
+    document.getElementById('btn-hard').addEventListener('click',   () => startGame('hard'));
+    document.getElementById('btn-menu').addEventListener('click',   goMenu);
+    document.getElementById('btn-replay').addEventListener('click', replayGame);
+
+    // Swipe detection
+    let tx=0, ty=0;
+    const ps = document.getElementById('screen-playing');
+    ps.addEventListener('touchstart', e => { tx=e.touches[0].clientX; ty=e.touches[0].clientY; }, { passive: true });
+    ps.addEventListener('touchend', e => {
+      if (e.target.closest('.btn-dir')) return;
+      const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+      if (Math.abs(dx)<20 && Math.abs(dy)<20) return;
+      if (Math.abs(dx)>Math.abs(dy)) changeDir(dx>0?1:-1, 0);
+      else changeDir(0, dy>0?1:-1);
+    }, { passive: true });
+  }
+
+  function setupKeyboard() {
+    const KEY_MAP = {
+      ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+      w:[0,-1], s:[0,1], a:[-1,0], d:[1,0],
+    };
+    document.addEventListener('keydown', e => {
+      if (gameStatus !== 'playing') return;
+      const d = KEY_MAP[e.key];
+      if (!d) return;
+      e.preventDefault();
+      if (!heldKeys.has(e.key)) {
+        heldKeys.add(e.key);
+        pressDir(...d);
+      }
+    });
+    document.addEventListener('keyup', e => {
+      if (!heldKeys.has(e.key)) return;
+      heldKeys.delete(e.key);
+      if (heldKeys.size === 0) releaseDir();
+    });
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  function showToast() {
+    clearTimeout(toastTimer);
+    if (warningCount === 1) {
+      toast.textContent = '⚠️ 第1次失误，还有2次机会';
+      toast.style.background = 'rgba(245,158,11,0.92)';
+    } else {
+      toast.textContent = '🚨 第2次失误！再错即结束！';
+      toast.style.background = 'rgba(239,68,68,0.95)';
+    }
+    toast.classList.add('show');
+    toastTimer = setTimeout(hideToast, 2500);
+  }
+  function hideToast() { toast.classList.remove('show'); }
+
+  function flashCanvas() {
+    canvas.classList.remove('warn-flash');
+    void canvas.offsetWidth;
+    canvas.classList.add('warn-flash');
+    setTimeout(() => canvas.classList.remove('warn-flash'), 400);
+  }
+
+  // ── Visibility (pause on hide) ────────────────────────────────────────────
+  function setupVisibility() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && gameStatus === 'playing') {
+        wasPausedByHide = true;
+        clearAllIntervals();
+        deactivateBoost();
+      } else if (!document.hidden && wasPausedByHide && gameStatus === 'playing') {
+        wasPausedByHide = false;
+        const cfg = DIFF_CFG[difficulty];
+        gameInterval  = setInterval(gameStep,       cfg.stepMs);
+        timerInterval = setInterval(tickTimer,       1000);
+        foodInterval  = setInterval(tickFoodRefresh, 100);
+      }
+    });
+  }
+</script>
+</body>
+</html>

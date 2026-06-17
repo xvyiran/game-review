@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>脑力快闪大作战</title>
+  <style>
+    /* ── CSS Variables ──────────────────────────────── */
+    :root {
+      --c-yellow:  #FFD600;
+      --c-purple:  #7C3AED;
+      --c-danger:  #EF4444;
+      --c-success: #22C55E;
+      --c-white:   #FFFFFF;
+      --c-dark:    #1A1A2E;
+      --c-card:    #FFFFFF;
+      --radius-card: 22px;
+      --radius-btn:  14px;
+      --card-w: min(360px, 92vw);
+    }
+
+    /* ── Reset ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    /* ── Container ──────────────────────────────────── */
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      position: relative;
+      overflow: hidden;
+      background: #FF6B6B;
+      transition: background 0.2s ease;
+    }
+
+    /* ── Screen management ──────────────────────────── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ── Start Screen ───────────────────────────────── */
+    #screen-start {
+      gap: 0;
+      padding: 40px 24px;
+      background: rgba(0,0,0,0.08);
+    }
+
+    .start-emoji {
+      font-size: clamp(56px, 18vw, 80px);
+      line-height: 1;
+      margin-bottom: 10px;
+      animation: float 2.5s ease-in-out infinite;
+    }
+
+    .start-title {
+      font-size: clamp(26px, 7vw, 36px);
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.25);
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .start-subtitle {
+      font-size: clamp(13px, 3.5vw, 16px);
+      color: rgba(255,255,255,0.85);
+      text-align: center;
+      margin: 8px 0 28px;
+    }
+
+    .diff-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+    }
+
+    .diff-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .diff-btn {
+      padding: 10px 20px;
+      border: 2.5px solid rgba(255,255,255,0.5);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.85);
+      font-size: clamp(14px, 3.5vw, 16px);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .diff-btn.selected {
+      background: #fff;
+      color: var(--c-purple);
+      border-color: #fff;
+      transform: scale(1.06);
+    }
+    .diff-btn:active { transform: scale(0.95); }
+
+    #btn-start {
+      padding: 16px 52px;
+      background: var(--c-yellow);
+      color: var(--c-dark);
+      border: none;
+      border-radius: 999px;
+      font-size: clamp(18px, 4.5vw, 22px);
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+      transition: transform 0.1s, box-shadow 0.1s;
+      letter-spacing: 1px;
+    }
+    #btn-start:active {
+      transform: translateY(3px);
+      box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+    }
+
+    /* ── Playing Screen ─────────────────────────────── */
+    #screen-playing {
+      justify-content: flex-start;
+      align-items: stretch;
+    }
+
+    /* HUD */
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: max(env(safe-area-inset-top, 12px), 12px) 18px 10px;
+      flex-shrink: 0;
+    }
+
+    #hud-timer {
+      font-size: clamp(22px, 6vw, 30px);
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+      min-width: 72px;
+    }
+    #hud-timer.danger { color: var(--c-danger); animation: pulse 0.5s ease-in-out infinite; }
+
+    #hud-challenge-num {
+      font-size: clamp(13px, 3.5vw, 16px);
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      background: rgba(0,0,0,0.18);
+      border-radius: 999px;
+      padding: 3px 12px;
+    }
+
+    #hud-score {
+      font-size: clamp(18px, 4.5vw, 22px);
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+    }
+
+    /* Combo badge */
+    #combo-badge {
+      position: absolute;
+      top: max(env(safe-area-inset-top, 12px), 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--c-yellow);
+      color: var(--c-dark);
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: clamp(13px, 3.5vw, 15px);
+      font-weight: 900;
+      display: none;
+      white-space: nowrap;
+      box-shadow: 0 3px 0 rgba(0,0,0,0.15);
+      z-index: 10;
+    }
+    #combo-badge.visible { display: block; }
+
+    /* Challenge card */
+    #challenge-card {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: var(--card-w);
+      background: var(--c-card);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    }
+
+    #answer-progress-bar {
+      height: 7px;
+      background: var(--c-purple);
+      width: 100%;
+      border-radius: 0;
+      transform-origin: left center;
+    }
+
+    .card-inner {
+      padding: 16px 18px 20px;
+    }
+
+    #challenge-type-badge {
+      display: inline-block;
+      background: var(--c-purple);
+      color: #fff;
+      font-size: clamp(11px, 2.8vw, 13px);
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+
+    #challenge-instruction {
+      font-size: clamp(22px, 6.5vw, 32px);
+      font-weight: 900;
+      color: var(--c-dark);
+      text-align: center;
+      margin-bottom: 16px;
+      line-height: 1.3;
+      min-height: 44px;
+    }
+
+    /* Options container */
+    #options-container {
+      display: grid;
+      gap: 10px;
+    }
+    #options-container.layout-4choice { grid-template-columns: 1fr 1fr; }
+    #options-container.layout-2choice { grid-template-columns: 1fr 1fr; }
+    #options-container.layout-sort3   { grid-template-columns: 1fr 1fr 1fr; }
+    /* spam-tap: single giant button */
+    #options-container.layout-spam    { grid-template-columns: 1fr; }
+    #options-container.layout-spam .option-btn {
+      font-size: clamp(28px, 9vw, 48px);
+      min-height: clamp(110px, 28vw, 160px);
+      border-radius: 24px;
+      border-width: 4px;
+      background: #EDE9FE;
+      border-color: var(--c-purple);
+      letter-spacing: 2px;
+    }
+    /* whack-mole: 2×2 grid with mole holes */
+    #options-container.layout-grid4 { grid-template-columns: 1fr 1fr; }
+    #options-container.layout-grid4 .option-btn {
+      font-size: clamp(30px, 9vw, 50px);
+      min-height: clamp(80px, 22vw, 120px);
+      border-radius: 50%;
+      border-width: 4px;
+      background: #4a3728;
+      border-color: #2a1a0e;
+      color: #4a3728;
+      transition: transform 0.08s, background 0.15s;
+    }
+    #options-container.layout-grid4 .option-btn.mole-up {
+      background: #8B5E3C;
+      border-color: var(--c-purple);
+      color: #fff;
+      animation: mole-pop 0.2s ease;
+    }
+    #options-container.layout-grid4 .option-btn.mole-hit {
+      background: #DCFCE7;
+      border-color: var(--c-success);
+    }
+    #options-container.layout-grid4 .option-btn.mole-miss {
+      background: #FEE2E2;
+      border-color: var(--c-danger);
+    }
+    @keyframes mole-pop {
+      0%   { transform: scale(0.6); }
+      70%  { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    /* avoid-red: 4 buttons, one is red */
+    #options-container.layout-avoid { grid-template-columns: 1fr 1fr; }
+    #options-container.layout-avoid .option-btn.is-red {
+      background: #FEE2E2;
+      border-color: var(--c-danger);
+      color: var(--c-danger);
+    }
+    /* freeze: full-area don't-touch zone */
+    #options-container.layout-freeze { grid-template-columns: 1fr; }
+    #options-container.layout-freeze .option-btn {
+      min-height: clamp(100px, 26vw, 140px);
+      font-size: clamp(36px, 11vw, 56px);
+      border-radius: 20px;
+      background: #EFF6FF;
+      border-color: #93C5FD;
+      border-width: 3px;
+      cursor: default;
+      letter-spacing: 3px;
+    }
+
+    .option-btn {
+      padding: clamp(12px, 3.5vw, 16px) 8px;
+      background: #F5F3FF;
+      border: 2.5px solid #E5E1FF;
+      border-radius: var(--radius-btn);
+      font-size: clamp(18px, 5.5vw, 26px);
+      font-weight: 800;
+      color: var(--c-dark);
+      cursor: pointer;
+      text-align: center;
+      transition: transform 0.1s, background 0.15s, border-color 0.15s;
+      position: relative;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .option-btn:active { transform: scale(0.94); }
+
+    .option-btn.correct {
+      background: #DCFCE7;
+      border-color: var(--c-success);
+      color: #15803D;
+    }
+    .option-btn.wrong {
+      background: #FEE2E2;
+      border-color: var(--c-danger);
+      color: #B91C1C;
+    }
+    .option-btn.tapped {
+      background: #EDE9FE;
+      border-color: var(--c-purple);
+    }
+    .option-btn .tap-order {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--c-purple);
+      background: #EDE9FE;
+      border-radius: 999px;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Revive Overlay ─────────────────────────────── */
+    #overlay-revive {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 50;
+    }
+    #overlay-revive.visible { opacity: 1; pointer-events: all; }
+
+    .revive-box {
+      background: #fff;
+      border-radius: 24px;
+      padding: 32px 28px;
+      width: min(320px, 88vw);
+      text-align: center;
+      animation: revive-in 0.3s ease;
+    }
+
+    .revive-emoji { font-size: 52px; margin-bottom: 8px; }
+    .revive-title {
+      font-size: clamp(18px, 5vw, 22px);
+      font-weight: 900;
+      color: var(--c-dark);
+      margin-bottom: 6px;
+    }
+    .revive-desc {
+      font-size: 14px;
+      color: #6B7280;
+      margin-bottom: 20px;
+    }
+
+    #btn-mock-share {
+      width: 100%;
+      padding: 15px;
+      background: var(--c-purple);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    #btn-mock-share:active { transform: scale(0.96); }
+
+    .revive-skip {
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    /* ── Result Screen ───────────────────────────────── */
+    #screen-result {
+      gap: 0;
+      padding: 32px 24px;
+    }
+
+    .result-box {
+      background: rgba(255,255,255,0.95);
+      border-radius: 28px;
+      padding: 32px 28px;
+      width: min(340px, 90vw);
+      text-align: center;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+
+    .result-rank-badge {
+      display: inline-block;
+      font-size: clamp(17px, 5vw, 22px);
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--c-purple), #A855F7);
+      color: #fff;
+      border-radius: 999px;
+      padding: 6px 20px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+    .result-rank-badge.rank-legend {
+      background: linear-gradient(135deg, #F59E0B, #EF4444);
+      animation: rank-pulse 1s ease infinite;
+    }
+    @keyframes rank-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+      50%      { box-shadow: 0 0 0 10px rgba(245,158,11,0); }
+    }
+    .result-rank-desc {
+      font-size: 13px;
+      color: #9CA3AF;
+      margin-bottom: 12px;
+    }
+    #result-score {
+      font-size: clamp(56px, 16vw, 72px);
+      font-weight: 900;
+      color: var(--c-purple);
+      line-height: 1;
+    }
+    #result-score.new-record-score { color: #F59E0B; }
+    .result-score-unit {
+      font-size: 18px;
+      color: #6B7280;
+      margin: 4px 0 8px;
+    }
+    #result-best {
+      font-size: 14px;
+      color: #9CA3AF;
+      margin-bottom: 16px;
+    }
+    #result-best.new-record { color: #F59E0B; font-weight: 700; }
+    .result-compare {
+      font-size: 13px;
+      color: #6B7280;
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+    .result-fail-card {
+      background: #FFF1F2;
+      border: 1.5px solid #FECDD3;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .result-fail-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--c-danger);
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .result-fail-type {
+      font-size: 11px;
+      color: #9CA3AF;
+      margin-bottom: 4px;
+    }
+    .result-fail-instruction {
+      font-size: clamp(15px, 4vw, 18px);
+      font-weight: 800;
+      color: #1F2937;
+      margin-bottom: 8px;
+    }
+    .result-fail-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .fail-opt {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      background: #fff;
+      border: 1.5px solid #E5E7EB;
+      color: #374151;
+    }
+    .fail-opt.correct-ans {
+      background: #DCFCE7;
+      border-color: var(--c-success);
+      color: #15803D;
+    }
+    .fail-opt.wrong-ans {
+      background: #FEE2E2;
+      border-color: var(--c-danger);
+      color: #B91C1C;
+    }
+
+    .result-stats {
+      display: flex;
+      gap: 0;
+      justify-content: center;
+      margin-bottom: 16px;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .stat-item {
+      flex: 1;
+      text-align: center;
+      padding: 12px 8px;
+      border-right: 1.5px solid #E5E7EB;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-val {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--c-dark);
+    }
+    .stat-lbl {
+      font-size: 11px;
+      color: #9CA3AF;
+      margin-top: 2px;
+    }
+
+    #btn-retry {
+      width: 100%;
+      padding: 16px;
+      background: var(--c-purple);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #5B21B6;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #btn-retry:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #5B21B6;
+    }
+
+    /* ── Flash Overlay ───────────────────────────────── */
+    #flash-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: rgba(239,68,68,0);
+      z-index: 100;
+    }
+
+    /* ── Animations ─────────────────────────────────── */
+    @keyframes card-pop-in {
+      0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0; }
+      70%  { transform: translate(-50%,-50%) scale(1.05); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translate(-50%,-50%) translateX(0); }
+      15%     { transform: translate(-50%,-50%) translateX(-10px); }
+      35%     { transform: translate(-50%,-50%) translateX(10px); }
+      55%     { transform: translate(-50%,-50%) translateX(-8px); }
+      75%     { transform: translate(-50%,-50%) translateX(6px); }
+    }
+
+    @keyframes flash-red {
+      0%,100% { background: rgba(239,68,68,0); }
+      20%     { background: rgba(239,68,68,0.65); }
+      60%     { background: rgba(239,68,68,0.4); }
+    }
+    @keyframes penalty-float {
+      0%   { transform: translateY(0);    opacity: 1; }
+      100% { transform: translateY(-60px); opacity: 0; }
+    }
+    .penalty-float {
+      position: absolute;
+      top: 12px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--c-danger);
+      pointer-events: none;
+      z-index: 200;
+      animation: penalty-float 0.7s ease-out forwards;
+    }
+
+    @keyframes combo-pop {
+      0%   { transform: translateX(-50%) scale(1); }
+      40%  { transform: translateX(-50%) scale(1.35); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(-12px); }
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%     { opacity: 0.5; }
+    }
+
+    @keyframes revive-in {
+      from { transform: translateY(24px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+
+    .anim-card-pop  { animation: card-pop-in 0.22s ease-out forwards; }
+    .anim-shake     { animation: shake 0.45s ease; }
+    .anim-flash-red { animation: flash-red 0.4s ease; }
+    .anim-combo-pop { animation: combo-pop 0.35s ease; }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <!-- ── Start Screen ── -->
+  <div id="screen-start" class="screen active">
+    <div class="start-emoji">🧠</div>
+    <div class="start-title">脑力快闪大作战</div>
+    <div class="start-subtitle">根据要求，快速答题，一错就完<br>你能坚持多久？</div>
+    <div class="diff-label">选择难度</div>
+    <div class="diff-row">
+      <button class="diff-btn" data-diff="easy">初级</button>
+      <button class="diff-btn selected" data-diff="mid">中级</button>
+      <button class="diff-btn" data-diff="hard">高级</button>
+    </div>
+    <button id="btn-start">开始挑战 ⚡</button>
+  </div>
+
+  <!-- ── Playing Screen ── -->
+  <div id="screen-playing" class="screen">
+    <div class="hud">
+      <div id="hud-timer">0s</div>
+      <div id="hud-challenge-num">第 1 题</div>
+      <div id="hud-score">0分</div>
+    </div>
+    <div id="combo-badge">⚡ COMBO ×1.5</div>
+
+    <div id="challenge-card">
+      <div id="answer-progress-bar"></div>
+      <div class="card-inner">
+        <div id="challenge-type-badge">口算</div>
+        <div id="challenge-instruction">准备好了吗？</div>
+        <div id="options-container" class="layout-4choice"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Result Screen ── -->
+  <div id="screen-result" class="screen">
+    <div class="result-box">
+      <div class="result-rank-badge" id="result-rank-badge">👤 路人甲</div>
+      <div class="result-rank-desc" id="result-rank-desc">普通人水平</div>
+      <div id="result-score">0</div>
+      <div class="result-score-unit">分</div>
+      <div id="result-best">历史最高：0 分</div>
+      <div class="result-stats">
+        <div class="stat-item">
+          <div class="stat-val" id="result-passed">0</div>
+          <div class="stat-lbl">闯过关卡</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="result-time">0s</div>
+          <div class="stat-lbl">坚持时间</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="result-diff-label">中级</div>
+          <div class="stat-lbl">难度</div>
+        </div>
+      </div>
+      <div class="result-compare" id="result-compare"></div>
+      <!-- Failed challenge replay -->
+      <div class="result-fail-card" id="result-fail-card">
+        <div class="result-fail-label">❌ 就败在这道题</div>
+        <div class="result-fail-type" id="result-fail-type">类型</div>
+        <div class="result-fail-instruction" id="result-fail-instruction">题目</div>
+        <div class="result-fail-options" id="result-fail-options"></div>
+      </div>
+      <button id="btn-retry">再来一局 🔥</button>
+    </div>
+  </div>
+
+  <!-- ── Revive Overlay ── -->
+  <div id="overlay-revive">
+    <div class="revive-box">
+      <div class="revive-emoji">😱</div>
+      <div class="revive-title">时间快到了！</div>
+      <div class="revive-desc">分享给好友，复活 +10 秒（仅限一次）</div>
+      <button id="btn-mock-share">📤 分享复活！</button>
+    </div>
+    <div class="revive-skip" id="btn-revive-skip">放弃，继续游戏</div>
+  </div>
+
+  <!-- ── Red Flash Overlay ── -->
+  <div id="flash-overlay"></div>
+
+</div><!-- #game-container -->
+
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────
+   CONFIG
+───────────────────────────────────────────────────────── */
+const CONFIG = {
+  easy: { answerWindow: 4 },
+  mid:  { answerWindow: 3 },
+  hard: { answerWindow: 2 },
+};
+const SPAWN_GAP = 0.45; // seconds fixed gap between challenges (fast-paced)
+
+const BG_COLORS = ['#FF6B6B','#FF9F43','#FFD93D','#6BCB77','#4D96FF','#C77DFF','#FF6FB3'];
+
+/* ─────────────────────────────────────────────────────────
+   QUESTION BANK  (Chinese language types — static data)
+   Math types are generated dynamically below.
+───────────────────────────────────────────────────────── */
+const QB = {
+
+  /* 看拼音选汉字 */
+  'pinyin-to-char': [
+    { instruction:'māo（喵喵叫）', speakText:'māo，喵喵叫，选汉字', options:['猫','毛','冒','茂'], answer:'猫' },
+    { instruction:'shū（看书）', speakText:'shū，看书，选汉字', options:['书','树','鼠','暑'], answer:'书' },
+    { instruction:'yú（水中游）', speakText:'yú，水中游，选汉字', options:['鱼','语','雨','予'], answer:'鱼' },
+    { instruction:'huā（五颜六色）', speakText:'huā，五颜六色，选汉字', options:['花','话','化','划'], answer:'花' },
+    { instruction:'niǎo（会飞）', speakText:'niǎo，会飞，选汉字', options:['鸟','脑','老','恼'], answer:'鸟' },
+    { instruction:'shān（高山）', speakText:'shān，高山，选汉字', options:['山','伞','散','三'], answer:'山' },
+    { instruction:'hé（河流）', speakText:'hé，河流，选汉字', options:['河','核','合','何'], answer:'河' },
+    { instruction:'tài（太阳）', speakText:'tài，太阳，选汉字', options:['太','台','抬','态'], answer:'太' },
+    { instruction:'xuě（冬天下～）', speakText:'xuě，冬天下雪，选汉字', options:['雪','学','血','削'], answer:'雪' },
+  ],
+
+  /* 看汉字选拼音 */
+  'char-to-pinyin': [
+    { instruction:'草', speakText:'草，选拼音', options:['cǎo','gǎo','nǎo','táo'], answer:'cǎo' },
+    { instruction:'虎', speakText:'虎，选拼音', options:['hǔ','fǔ','bǔ','pǔ'], answer:'hǔ' },
+    { instruction:'球', speakText:'球，选拼音', options:['qiú','jiǔ','liǔ','niú'], answer:'qiú' },
+    { instruction:'笑', speakText:'笑，选拼音', options:['xiào','xiāo','qiào','jiào'], answer:'xiào' },
+    { instruction:'跑', speakText:'跑，选拼音', options:['pǎo','bǎo','māo','dǎo'], answer:'pǎo' },
+    { instruction:'蓝', speakText:'蓝，选拼音', options:['lán','nán','mán','gān'], answer:'lán' },
+    { instruction:'冰', speakText:'冰，选拼音', options:['bīng','pīng','dīng','líng'], answer:'bīng' },
+    { instruction:'爸', speakText:'爸，选拼音', options:['bà','pà','mā','dā'], answer:'bà' },
+    { instruction:'云', speakText:'云，选拼音', options:['yún','lún','jūn','qún'], answer:'yún' },
+  ],
+
+  /* 找错别字 */
+  'find-typo': [
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['苹果','香蕉','西爪','草莓'], answer:'西爪' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['春天','夏天','秋天','东天'], answer:'东天' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['太阳','月亮','彩红','星星'], answer:'彩红' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['半叶','早晨','中午','傍晚'], answer:'半叶' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['图书官','学校','医院','银行'], answer:'图书官' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['笔记本','钢比','橡皮','尺子'], answer:'钢比' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['爸爸','妈妈','哥哥','弟第'], answer:'弟第' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['白云','蓝天','绿地','红日'], answer:'绿地' },
+    { instruction:'哪个词语写错了？', speakText:'哪个词语写错了，找错别字', options:['小猫','大象','小鸡','狐里'], answer:'狐里' },
+  ],
+
+  /* 笔画数判断——点击笔画更多的字 */
+  'stroke-more': [
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['人','草'], answer:'草' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['口','明'], answer:'明' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['山','猫'], answer:'猫' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['日','笑'], answer:'笑' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['水','朋'], answer:'朋' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['手','星'], answer:'星' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['土','家'], answer:'家' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['大','读'], answer:'读' },
+    { instruction:'点击笔画更多的字', speakText:'点击笔画更多的字', options:['火','篮'], answer:'篮' },
+  ],
+
+  /* 词语补全——填空选字 */
+  'fill-word': [
+    { instruction:'一目了___', speakText:'一目了什么，选字', options:['然','当','知','空'], answer:'然' },
+    { instruction:'半途而___', speakText:'半途而什么，选字', options:['废','弃','止','休'], answer:'废' },
+    { instruction:'马到成___', speakText:'马到成什么，选字', options:['工','攻','功','共'], answer:'功' },
+    { instruction:'亡羊补___', speakText:'亡羊补什么，选字', options:['劳','老','牢','捞'], answer:'牢' },
+    { instruction:'守株待___', speakText:'守株待什么，选字', options:['鸡','兔','鼠','鱼'], answer:'兔' },
+    { instruction:'画蛇添___', speakText:'画蛇添什么，选字', options:['腿','尾','足','爪'], answer:'足' },
+    { instruction:'一石二___', speakText:'一石二什么，选字', options:['鸟','鸡','鸭','鹅'], answer:'鸟' },
+    { instruction:'三心二___', speakText:'三心二什么，选字', options:['意','语','义','易'], answer:'意' },
+    { instruction:'对___如流', speakText:'对什么如流，选字', options:['答','话','语','声'], answer:'答' },
+  ],
+
+  /* 反义词 */
+  'antonym': [
+    { instruction:'"大"的反义词', speakText:'大的反义词是', options:['小','少','低','短'], answer:'小' },
+    { instruction:'"快"的反义词', speakText:'快的反义词是', options:['慢','忙','懒','弱'], answer:'慢' },
+    { instruction:'"热"的反义词', speakText:'热的反义词是', options:['冷','凉','寒','暖'], answer:'冷' },
+    { instruction:'"高"的反义词', speakText:'高的反义词是', options:['低','短','矮','小'], answer:'矮' },
+    { instruction:'"白"的反义词', speakText:'白的反义词是', options:['黑','灰','暗','深'], answer:'黑' },
+    { instruction:'"进"的反义词', speakText:'进的反义词是', options:['退','出','离','走'], answer:'退' },
+    { instruction:'"爱"的反义词', speakText:'爱的反义词是', options:['恨','怕','讨','厌'], answer:'恨' },
+    { instruction:'"胖"的反义词', speakText:'胖的反义词是', options:['瘦','细','小','薄'], answer:'瘦' },
+    { instruction:'"哭"的反义词', speakText:'哭的反义词是', options:['笑','闹','跳','唱'], answer:'笑' },
+  ],
+
+  /* 看图猜字——Emoji */
+  'emoji-char': [
+    { instruction:'🐶 是什么？', speakText:'这个表情是什么动物，选汉字', options:['狗','猫','熊','狼'], answer:'狗' },
+    { instruction:'🌙 是什么？', speakText:'这个表情是什么，选汉字', options:['月','星','日','云'], answer:'月' },
+    { instruction:'🐟 是什么？', speakText:'这个表情是什么，选汉字', options:['鱼','虾','蟹','贝'], answer:'鱼' },
+    { instruction:'⛰️ 是什么？', speakText:'这个表情是什么，选汉字', options:['山','岭','峰','丘'], answer:'山' },
+    { instruction:'🌊 是什么？', speakText:'这个表情是什么，选汉字', options:['海','湖','河','池'], answer:'海' },
+    { instruction:'🌸 是什么？', speakText:'这个表情是什么，选汉字', options:['花','草','树','叶'], answer:'花' },
+    { instruction:'📚 是什么？', speakText:'这个表情是什么，选汉字', options:['书','本','册','卷'], answer:'书' },
+    { instruction:'🍎 是什么？', speakText:'这个表情是什么水果，选汉字', options:['苹果','香蕉','西瓜','草莓'], answer:'苹果' },
+    { instruction:'🐼 是什么？', speakText:'这个表情是什么动物，选汉字', options:['熊猫','大象','长颈鹿','老虎'], answer:'熊猫' },
+  ],
+
+  /* 偏旁归类 */
+  'radical-match': [
+    { instruction:'与【河】同偏旁的字', speakText:'找与河同偏旁的字', options:['湖','树','草','火'], answer:'湖' },
+    { instruction:'与【松】同偏旁的字', speakText:'找与松同偏旁的字', options:['柳','海','鸟','草'], answer:'柳' },
+    { instruction:'与【猫】同偏旁的字', speakText:'找与猫同偏旁的字', options:['狗','鱼','鸟','虫'], answer:'狗' },
+    { instruction:'与【跑】同偏旁的字', speakText:'找与跑同偏旁的字', options:['跳','手','走','飞'], answer:'跳' },
+    { instruction:'与【晴】同偏旁的字', speakText:'找与晴同偏旁的字', options:['明','清','请','情'], answer:'明' },
+    { instruction:'与【铁】同偏旁的字', speakText:'找与铁同偏旁的字', options:['钢','木','竹','土'], answer:'钢' },
+    { instruction:'与【妈】同偏旁的字', speakText:'找与妈同偏旁的字', options:['姐','哥','父','子'], answer:'姐' },
+    { instruction:'与【草】同偏旁的字', speakText:'找与草同偏旁的字', options:['花','水','火','土'], answer:'花' },
+    { instruction:'与【说】同偏旁的字', speakText:'找与说同偏旁的字', options:['话','鱼','木','山'], answer:'话' },
+  ],
+
+  /* 成语补全 */
+  'chengyu-end': [
+    { instruction:'一目了___', speakText:'一目了，填最后一字', options:['然','当','知','空'], answer:'然' },
+    { instruction:'马到成___', speakText:'马到成，填最后一字', options:['攻','功','公','共'], answer:'功' },
+    { instruction:'亡羊补___', speakText:'亡羊补，填最后一字', options:['劳','牢','涝','捞'], answer:'牢' },
+    { instruction:'守株待___', speakText:'守株待，填最后一字', options:['鸡','兔','鱼','鸟'], answer:'兔' },
+    { instruction:'画蛇添___', speakText:'画蛇添，填最后一字', options:['腿','尾','足','爪'], answer:'足' },
+    { instruction:'一石二___', speakText:'一石二，填最后一字', options:['鸟','鸡','鸭','鹅'], answer:'鸟' },
+    { instruction:'三心二___', speakText:'三心二，填最后一字', options:['意','语','义','易'], answer:'意' },
+    { instruction:'半途而___', speakText:'半途而，填最后一字', options:['废','弃','止','休'], answer:'废' },
+    { instruction:'对答如___', speakText:'对答如，填最后一字', options:['流','雨','水','潮'], answer:'流' },
+  ],
+};
+
+/* Type badge labels */
+const TYPE_LABELS = {
+  'math-add':       '口算 · 加法',
+  'math-sub':       '口算 · 减法',
+  'math-mul':       '口算 · 乘法',
+  'bigger':         '大小比较',
+  'smaller':        '大小比较',
+  'odd':            '奇偶判断',
+  'even':           '奇偶判断',
+  'sort-asc':       '数字排序',
+  'sort-desc':      '数字排序',
+  'pinyin-to-char': '看拼音选字',
+  'char-to-pinyin': '看字选拼音',
+  'find-typo':      '找错别字',
+  'stroke-more':    '笔画比较',
+  'fill-word':      '词语补全',
+  'antonym':        '反义词',
+  'emoji-char':     '看图猜字',
+  'radical-match':  '偏旁归类',
+  'chengyu-end':    '成语填空',
+  'spam-tap':       '疯狂连击',
+  'whack-mole':     '打地鼠',
+  'avoid-red':      '别碰红色',
+  'freeze':         '忍住别动',
+};
+
+/* All challenge types — OP_TYPES are weighted 2x for variety */
+const MATH_TYPES = ['math-add','math-sub','math-mul','bigger','smaller','odd','even','sort-asc','sort-desc'];
+const LANG_TYPES = ['pinyin-to-char','char-to-pinyin','find-typo','stroke-more','fill-word','antonym','emoji-char','radical-match','chengyu-end'];
+const OP_TYPES   = ['spam-tap','whack-mole','avoid-red','freeze'];
+/* Interleave: every 3rd challenge is an operation challenge */
+const ALL_TYPES  = [...MATH_TYPES, ...LANG_TYPES, ...OP_TYPES, ...OP_TYPES];
+
+/* ─────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────── */
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = randInt(0, i);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pickRandom(arr) {
+  return arr[randInt(0, arr.length - 1)];
+}
+
+function numToZh(n) {
+  const map = ['零','一','二','三','四','五','六','七','八','九'];
+  if (n < 10) return map[n];
+  if (n < 20) return '十' + (n % 10 === 0 ? '' : map[n % 10]);
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return map[tens] + '十' + (ones === 0 ? '' : map[ones]);
+}
+
+function genMathOptions(answer, count) {
+  const opts = new Set([String(answer)]);
+  const deltas = shuffle([-3,-2,-1,1,2,3,-5,5,-4,4,-7,7]);
+  for (const d of deltas) {
+    if (opts.size >= count) break;
+    const w = answer + d;
+    if (w > 0 && w !== answer) opts.add(String(w));
+  }
+  while (opts.size < count) {
+    const w = answer + opts.size * 3 + 1;
+    if (w > 0) opts.add(String(w));
+  }
+  return shuffle(Array.from(opts));
+}
+
+/* ─────────────────────────────────────────────────────────
+   DYNAMIC MATH QUESTION GENERATORS
+───────────────────────────────────────────────────────── */
+function genMathQuestion(type, difficulty) {
+  const maxN = { easy: 20, mid: 50, hard: 100 }[difficulty];
+
+  if (type === 'math-add') {
+    const a = randInt(1, Math.floor(maxN / 2));
+    const b = randInt(1, Math.floor(maxN / 2));
+    const ans = a + b;
+    return {
+      type, layout: '4choice',
+      instruction: `${a} + ${b} = ?`,
+      speakText: `${numToZh(a)}加${numToZh(b)}等于几`,
+      options: genMathOptions(ans, 4), answer: String(ans),
+    };
+  }
+
+  if (type === 'math-sub') {
+    const a = randInt(2, maxN);
+    const b = randInt(1, a);
+    const ans = a - b;
+    return {
+      type, layout: '4choice',
+      instruction: `${a} - ${b} = ?`,
+      speakText: `${numToZh(a)}减${numToZh(b)}等于几`,
+      options: genMathOptions(ans, 4), answer: String(ans),
+    };
+  }
+
+  if (type === 'math-mul') {
+    const maxF = difficulty === 'easy' ? 5 : difficulty === 'mid' ? 9 : 12;
+    const a = randInt(1, maxF);
+    const b = randInt(1, maxF);
+    const ans = a * b;
+    return {
+      type, layout: '4choice',
+      instruction: `${a} × ${b} = ?`,
+      speakText: `${numToZh(a)}乘${numToZh(b)}等于几`,
+      options: genMathOptions(ans, 4), answer: String(ans),
+    };
+  }
+
+  if (type === 'bigger' || type === 'smaller') {
+    let a = randInt(1, maxN), b = randInt(1, maxN);
+    while (a === b) b = randInt(1, maxN);
+    const answer = type === 'bigger' ? String(Math.max(a, b)) : String(Math.min(a, b));
+    return {
+      type, layout: '2choice',
+      instruction: type === 'bigger' ? '点击较大的数' : '点击较小的数',
+      speakText: type === 'bigger' ? '点击较大的数' : '点击较小的数',
+      options: shuffle([String(a), String(b)]), answer,
+    };
+  }
+
+  if (type === 'odd' || type === 'even') {
+    // generate one odd and one even
+    let odd  = randInt(1, maxN); if (odd  % 2 === 0) odd  += 1; if (odd  > maxN) odd  -= 2;
+    let even = randInt(1, maxN); if (even % 2 !== 0) even += 1; if (even > maxN) even -= 2;
+    const answer = type === 'odd' ? String(odd) : String(even);
+    return {
+      type, layout: '2choice',
+      instruction: type === 'odd' ? '点击奇数' : '点击偶数',
+      speakText: type === 'odd' ? '点击奇数' : '点击偶数',
+      options: shuffle([String(odd), String(even)]), answer,
+    };
+  }
+
+  if (type === 'sort-asc' || type === 'sort-desc') {
+    const nums = new Set();
+    while (nums.size < 3) nums.add(randInt(1, maxN));
+    const arr   = Array.from(nums);
+    const sorted = [...arr].sort((a, b) => a - b);
+    const answerOrder = type === 'sort-asc' ? sorted.map(String) : [...sorted].reverse().map(String);
+    return {
+      type, layout: 'sort3',
+      instruction: type === 'sort-asc' ? '从小到大依次点击' : '从大到小依次点击',
+      speakText: type === 'sort-asc' ? '从小到大依次点击' : '从大到小依次点击',
+      options: shuffle(arr.map(String)), answerOrder,
+    };
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   GAME STATE
+───────────────────────────────────────────────────────── */
+const G = {
+  status: 'start',
+  difficulty: 'mid',
+  score: 0,
+  bestScore: +localStorage.getItem('brainblitz_best') || 0,
+  combo: 0,
+  maxCombo: 0,
+  comboActive: false,
+  timeElapsed: 0,
+  globalTimerRef: null,
+  lastTickTime: 0,
+  challengeCount: 0,
+  passedCount: 0,
+  currentChallenge: null,
+  failedChallenge: null,
+  lastTappedValue: null,
+  sortTapSequence: [],
+  answerTimeoutRef: null,
+  spawnTimerRef: null,
+  spawnInterval: SPAWN_GAP,
+  answerWindow: 3,
+  spamTapCount: 0,
+  bgIdx: 0,
+};
+
+/* ─────────────────────────────────────────────────────────
+   DOM HELPERS
+───────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+/* ─────────────────────────────────────────────────────────
+   SPEECH
+───────────────────────────────────────────────────────── */
+function speak(text) {
+  try {
+    if (!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN';
+    u.rate = 1.25;
+    u.pitch = 1.1;
+    speechSynthesis.speak(u);
+  } catch(e) { /* silently fail */ }
+}
+
+/* ─────────────────────────────────────────────────────────
+   START GAME
+───────────────────────────────────────────────────────── */
+function startGame() {
+  const cfg = CONFIG[G.difficulty];
+  Object.assign(G, {
+    status: 'playing',
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    comboActive: false,
+    timeElapsed: 0,
+    lastTickTime: performance.now(),
+    challengeCount: 0,
+    passedCount: 0,
+    currentChallenge: null,
+    failedChallenge: null,
+    lastTappedValue: null,
+    sortTapSequence: [],
+    answerWindow: cfg.answerWindow,
+    spamTapCount: 0,
+    bgIdx: randInt(0, BG_COLORS.length - 1),
+  });
+
+  clearInterval(G.globalTimerRef);
+  clearTimeout(G.answerTimeoutRef);
+  clearTimeout(G.spawnTimerRef);
+
+  $('hud-score').textContent = '0分';
+  $('hud-timer').textContent = '0s';
+  $('hud-challenge-num').textContent = '第 1 题';
+  $('combo-badge').classList.remove('visible');
+  $('challenge-card').style.display = '';
+
+  showScreen('screen-playing');
+  updateBg();
+
+  G.globalTimerRef = setInterval(globalTick, 100);
+  G.spawnTimerRef  = setTimeout(spawnChallenge, 800);
+}
+
+/* ─────────────────────────────────────────────────────────
+   GLOBAL TIMER TICK (100ms)
+───────────────────────────────────────────────────────── */
+function globalTick() {
+  if (G.status === 'game_over') return;
+
+  const now = performance.now();
+  const delta = (now - G.lastTickTime) / 1000;
+  G.lastTickTime = now;
+  G.timeElapsed += delta;
+
+  // Update HUD timer (count up)
+  const secs = Math.floor(G.timeElapsed);
+  $('hud-timer').textContent = `${secs}s`;
+}
+
+/* ─────────────────────────────────────────────────────────
+   BACKGROUND COLOR
+───────────────────────────────────────────────────────── */
+function updateBg() {
+  $('game-container').style.background = BG_COLORS[G.bgIdx % BG_COLORS.length];
+}
+
+function nextBg() {
+  // pick a different color than current
+  let next = (G.bgIdx + randInt(1, BG_COLORS.length - 1)) % BG_COLORS.length;
+  G.bgIdx = next;
+  updateBg();
+}
+
+/* ─────────────────────────────────────────────────────────
+   SPAWN CHALLENGE
+───────────────────────────────────────────────────────── */
+function spawnChallenge() {
+  if (G.status !== 'playing') return;
+
+  nextBg();
+  G.sortTapSequence = [];
+
+  // Pick question
+  const type = pickRandom(ALL_TYPES);
+  let q;
+  if (MATH_TYPES.includes(type)) {
+    q = genMathQuestion(type, G.difficulty);
+  } else if (type === 'spam-tap') {
+    const taps = [5, 7, 10][['easy','mid','hard'].indexOf(G.difficulty)];
+    q = {
+      type: 'spam-tap',
+      layout: 'spam',
+      instruction: `快速连击 ${taps} 次！`,
+      speakText: `快速点击${taps}次`,
+      targetTaps: taps,
+    };
+    G.spamTapCount = 0;
+  } else if (type === 'whack-mole') {
+    const hitsNeeded = [2, 3, 3][['easy','mid','hard'].indexOf(G.difficulty)];
+    q = {
+      type: 'whack-mole',
+      layout: 'grid4',
+      instruction: '打倒冒出的地鼠！',
+      speakText: '打地鼠',
+      hitsNeeded,
+      hits: 0,
+      moleInterval: null,
+    };
+  } else if (type === 'avoid-red') {
+    const items = pickRandom([
+      ['🍎','🍊','🍋','🍇'], ['🔴','🟠','🟡','🟣'],
+      ['猫','狗','鸟','鱼'], ['山','水','风','火'],
+    ]);
+    const redIdx = randInt(0, 3);
+    q = {
+      type: 'avoid-red',
+      layout: 'avoid',
+      instruction: '别碰红色！',
+      speakText: '别碰红色',
+      options: items,
+      redIdx,
+      answer: null, // any non-red is correct
+    };
+  } else if (type === 'freeze') {
+    const holdSec = [2, 1.5, 1][['easy','mid','hard'].indexOf(G.difficulty)];
+    q = {
+      type: 'freeze',
+      layout: 'freeze',
+      instruction: `别碰屏幕！坚持 ${holdSec}s`,
+      speakText: '别碰屏幕',
+      holdSec,
+    };
+  } else {
+    const pool = QB[type];
+    const layout = type === 'stroke-more' ? '2choice' : '4choice';
+    q = { ...pickRandom(pool), type, layout };
+  }
+  G.currentChallenge = q;
+  G.status = 'challenge_active';
+
+  renderChallenge(q);
+  speak(q.speakText);
+  startAnswerWindow(q.type === 'freeze' ? q.holdSec : G.answerWindow);
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER CHALLENGE
+───────────────────────────────────────────────────────── */
+function renderChallenge(q) {
+  const card = $('challenge-card');
+
+  // Trigger pop-in animation
+  card.classList.remove('anim-card-pop');
+  card.classList.remove('anim-shake');
+  void card.offsetWidth;
+  card.classList.add('anim-card-pop');
+
+  // Type badge
+  $('challenge-type-badge').textContent = TYPE_LABELS[q.type] || q.type;
+
+  // Instruction
+  $('challenge-instruction').textContent = q.instruction;
+
+  // Options container
+  const container = $('options-container');
+  container.className = 'layout-' + q.layout;
+  container.innerHTML = '';
+
+  if (q.layout === '4choice' || q.layout === '2choice') {
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = opt;
+      btn.dataset.value = opt;
+      container.appendChild(btn);
+    });
+  } else if (q.layout === 'sort3') {
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = opt;
+      btn.dataset.value = opt;
+      container.appendChild(btn);
+    });
+  } else if (q.layout === 'avoid') {
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn' + (i === q.redIdx ? ' is-red' : '');
+      btn.textContent = opt;
+      btn.dataset.value = String(i);
+      container.appendChild(btn);
+    });
+  } else if (q.layout === 'freeze') {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = '🙅';
+    btn.dataset.value = 'freeze-tap';
+    container.appendChild(btn);
+  } else if (q.layout === 'spam') {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.id = 'spam-btn';
+    btn.textContent = '👊';
+    btn.dataset.value = 'spam';
+    // progress label inside button
+    const prog = document.createElement('span');
+    prog.id = 'spam-progress';
+    prog.style.cssText = 'display:block;font-size:14px;font-weight:700;opacity:0.7;margin-top:4px;';
+    prog.textContent = `0 / ${q.targetTaps}`;
+    btn.appendChild(prog);
+    container.appendChild(btn);
+  } else if (q.layout === 'grid4') {
+    for (let i = 0; i < 4; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.dataset.value = String(i);
+      btn.textContent = '🕳️';
+      container.appendChild(btn);
+    }
+    startMoleAnimation(q);
+  }
+}
+
+function startMoleAnimation(q) {
+  let activeMoleIdx = -1;
+  function popMole() {
+    if (G.status !== 'challenge_active' || G.currentChallenge !== q) return;
+    const btns = $('options-container').querySelectorAll('.option-btn');
+    // hide previous
+    if (activeMoleIdx >= 0 && btns[activeMoleIdx]) {
+      btns[activeMoleIdx].classList.remove('mole-up');
+      btns[activeMoleIdx].textContent = '🕳️';
+    }
+    // pick new random hole
+    let next;
+    do { next = Math.floor(Math.random() * 4); } while (next === activeMoleIdx);
+    activeMoleIdx = next;
+    if (btns[activeMoleIdx]) {
+      btns[activeMoleIdx].classList.add('mole-up');
+      btns[activeMoleIdx].textContent = '🐭';
+      btns[activeMoleIdx].dataset.moleActive = '1';
+    }
+    q.moleInterval = setTimeout(popMole, 900);
+  }
+  popMole();
+}
+
+/* ─────────────────────────────────────────────────────────
+   ANSWER WINDOW TIMER
+───────────────────────────────────────────────────────── */
+function startAnswerWindow(sec) {
+  clearTimeout(G.answerTimeoutRef);
+
+  const bar = $('answer-progress-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+  bar.style.background = 'var(--c-purple)';
+  void bar.offsetWidth;
+  bar.style.transition = `width ${sec}s linear`;
+  bar.style.width = '0%';
+
+  G.answerTimeoutRef = setTimeout(onAnswerTimeout, sec * 1000);
+}
+
+function stopAnswerWindow() {
+  clearTimeout(G.answerTimeoutRef);
+  const bar = $('answer-progress-bar');
+  bar.style.transition = 'none';
+}
+
+/* ─────────────────────────────────────────────────────────
+   HANDLE OPTION TAP
+───────────────────────────────────────────────────────── */
+function handleOptionTap(btn) {
+  if (G.status !== 'challenge_active') return;
+
+  const q   = G.currentChallenge;
+  const val = btn.dataset.value;
+
+  if (q.layout === 'avoid') {
+    // Tapping red = fail; any other = pass
+    const correct = !btn.classList.contains('is-red');
+    if (correct) {
+      btn.classList.add('correct');
+    } else {
+      btn.classList.add('wrong');
+    }
+    G.status = 'challenge_result';
+    stopAnswerWindow();
+    setTimeout(() => evaluateAnswer(correct), 120);
+    return;
+  }
+
+  if (q.layout === 'freeze') {
+    // Any tap = fail
+    btn.classList.add('wrong');
+    G.status = 'challenge_result';
+    stopAnswerWindow();
+    setTimeout(() => evaluateAnswer(false), 120);
+    return;
+  }
+
+  if (q.layout === 'spam') {
+    G.spamTapCount++;
+    const prog = document.getElementById('spam-progress');
+
+    if (G.spamTapCount > q.targetTaps) {
+      // One tap too many = instant death
+      if (prog) prog.textContent = `❌ 多了！`;
+      btn.classList.add('wrong');
+      G.status = 'challenge_result';
+      stopAnswerWindow();
+      setTimeout(() => evaluateAnswer(false), 120);
+    } else {
+      if (prog) prog.textContent = `${G.spamTapCount} / ${q.targetTaps}`;
+      btn.classList.remove('tapped'); void btn.offsetWidth; btn.classList.add('tapped');
+      if (G.spamTapCount === q.targetTaps) {
+        // Hit exactly N — visual feedback, but keep active to catch over-taps
+        btn.classList.add('correct');
+        const instr = document.getElementById('challenge-instruction');
+        if (instr) instr.textContent = '✋ 停！别再点了！';
+      }
+    }
+    return;
+  }
+
+  if (q.layout === 'grid4') {
+    if (btn.dataset.moleActive !== '1') {
+      // Miss = instant death
+      btn.classList.add('mole-miss');
+      clearTimeout(q.moleInterval);
+      G.status = 'challenge_result';
+      stopAnswerWindow();
+      setTimeout(() => evaluateAnswer(false), 120);
+      return;
+    }
+    // Hit!
+    btn.dataset.moleActive = '0';
+    btn.classList.remove('mole-up');
+    btn.classList.add('mole-hit');
+    btn.textContent = '💥';
+    q.hits++;
+    if (q.hits >= q.hitsNeeded) {
+      G.status = 'challenge_result';
+      clearTimeout(q.moleInterval);
+      stopAnswerWindow();
+      setTimeout(() => evaluateAnswer(true), 120);
+    }
+    return;
+  }
+
+  if (q.layout === 'sort3') {
+    if (G.sortTapSequence.some(t => t.val === val)) return; // already tapped
+
+    // Check order immediately — wrong tap = instant death
+    const expectedVal = q.answerOrder[G.sortTapSequence.length];
+    if (val !== expectedVal) {
+      btn.classList.add('wrong');
+      // Show the correct button they should have tapped
+      $('options-container').querySelectorAll('.option-btn').forEach(b => {
+        if (b.dataset.value === expectedVal) b.classList.add('correct');
+      });
+      G.status = 'challenge_result';
+      stopAnswerWindow();
+      setTimeout(() => evaluateAnswer(false), 120);
+      return;
+    }
+
+    // Correct tap — add to sequence
+    G.sortTapSequence.push({ val, btn });
+    const badge = document.createElement('span');
+    badge.className = 'tap-order';
+    badge.textContent = G.sortTapSequence.length;
+    btn.appendChild(badge);
+    btn.classList.add('tapped');
+
+    if (G.sortTapSequence.length === q.answerOrder.length) {
+      // All tapped in correct order
+      G.status = 'challenge_result';
+      stopAnswerWindow();
+      setTimeout(() => evaluateAnswer(true), 120);
+    }
+  } else {
+    // Immediate eval
+    const correct = (val === q.answer);
+    if (correct) {
+      btn.classList.add('correct');
+    } else {
+      btn.classList.add('wrong');
+      // Highlight the correct one
+      $('options-container').querySelectorAll('.option-btn').forEach(b => {
+        if (b.dataset.value === q.answer) b.classList.add('correct');
+      });
+    }
+    // Record what was tapped for the fail-card
+    G.lastTappedValue = val;
+    // Small delay so player sees the feedback
+    G.status = 'challenge_result';
+    stopAnswerWindow();
+    setTimeout(() => evaluateAnswer(correct), 120);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   ANSWER TIMEOUT
+───────────────────────────────────────────────────────── */
+function onAnswerTimeout() {
+  if (G.status !== 'challenge_active') return;
+  const q = G.currentChallenge;
+  if (q && q.moleInterval) clearTimeout(q.moleInterval);
+
+  // freeze: surviving = WIN
+  if (q && q.type === 'freeze') {
+    evaluateAnswer(true);
+    return;
+  }
+  // spam-tap: timeout = win only if count is EXACTLY right
+  if (q && q.type === 'spam-tap') {
+    evaluateAnswer(G.spamTapCount === q.targetTaps);
+    return;
+  }
+  // whack-mole / sort3: timeout = FAIL
+  if (q && ['whack-mole', 'sort-asc', 'sort-desc'].includes(q.type)) {
+    evaluateAnswer(false);
+    return;
+  }
+  // Regular Q&A timeout: skip, no penalty
+  G.status = 'playing';
+  G.combo = 0;
+  updateComboBadge();
+  scheduleNextChallenge();
+}
+
+/* ─────────────────────────────────────────────────────────
+   EVALUATE ANSWER
+───────────────────────────────────────────────────────── */
+function evaluateAnswer(correct) {
+  if (G.status === 'game_over') return;
+  stopAnswerWindow();
+  if (G.currentChallenge && G.currentChallenge.moleInterval) {
+    clearTimeout(G.currentChallenge.moleInterval);
+  }
+  G.status = 'challenge_result';
+
+  if (correct) {
+    const timeBonus  = Math.floor(G.answerWindow * 10);
+    const baseScore  = 10;
+    const multiplier = G.comboActive ? 1.5 : 1;
+    const earned     = Math.round((baseScore + timeBonus) * multiplier);
+
+    G.score       += earned;
+    G.combo       += 1;
+    G.passedCount += 1;
+    G.challengeCount += 1;
+    if (G.combo > G.maxCombo) G.maxCombo = G.combo;
+    if (G.combo >= 5) G.comboActive = true;
+
+    $('hud-score').textContent = `${G.score}分`;
+    $('hud-challenge-num').textContent = `第 ${G.passedCount + 1} 题`;
+    updateComboBadge();
+    autoAccelerate();
+
+    G.status = 'playing';
+    scheduleNextChallenge();
+
+  } else {
+    // One-strike death — record the failed challenge and end
+    G.failedChallenge = G.currentChallenge;
+    G.challengeCount += 1;
+    triggerShake();
+    triggerRedFlash();
+    // Short delay so player sees the red flash before result screen
+    setTimeout(() => endGame(), 600);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   COMBO BADGE
+───────────────────────────────────────────────────────── */
+function updateComboBadge() {
+  const badge = $('combo-badge');
+  if (G.combo >= 5) {
+    badge.textContent = `⚡ ${G.combo} COMBO ×1.5`;
+    badge.classList.add('visible');
+    badge.classList.remove('anim-combo-pop');
+    void badge.offsetWidth;
+    badge.classList.add('anim-combo-pop');
+  } else {
+    badge.classList.remove('visible');
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   AUTO ACCELERATE
+───────────────────────────────────────────────────────── */
+function autoAccelerate() {
+  if (G.passedCount > 0 && G.passedCount % 5 === 0) {
+    G.answerWindow = Math.max(1.5, G.answerWindow - 0.2);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   SCHEDULE NEXT CHALLENGE
+───────────────────────────────────────────────────────── */
+function scheduleNextChallenge() {
+  clearTimeout(G.spawnTimerRef);
+  if (G.status !== 'game_over') {
+    G.spawnTimerRef = setTimeout(spawnChallenge, SPAWN_GAP * 1000);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   VISUAL EFFECTS
+───────────────────────────────────────────────────────── */
+function triggerShake() {
+  const card = $('challenge-card');
+  card.classList.remove('anim-shake');
+  void card.offsetWidth;
+  card.classList.add('anim-shake');
+  setTimeout(() => card.classList.remove('anim-shake'), 500);
+}
+
+function triggerRedFlash() {
+  const el = $('flash-overlay');
+  el.classList.remove('anim-flash-red');
+  void el.offsetWidth;
+  el.classList.add('anim-flash-red');
+  setTimeout(() => el.classList.remove('anim-flash-red'), 650);
+  if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
+
+  // Floating "❌" death notice
+  const penalty = document.createElement('div');
+  penalty.className = 'penalty-float';
+  penalty.textContent = '❌ 答错了！';
+  $('game-container').appendChild(penalty);
+  setTimeout(() => penalty.remove(), 700);
+}
+
+/* ─────────────────────────────────────────────────────────
+   REVIVE OVERLAY
+───────────────────────────────────────────────────────── */
+function showReviveOverlay() {
+  $('overlay-revive').classList.add('visible');
+}
+
+function applyRevive() {
+  G.timeLeft += 10;
+  G.reviveUsed = true;
+  G.revivePending = false;
+  $('overlay-revive').classList.remove('visible');
+  $('hud-timer').classList.remove('danger');
+}
+
+/* ─────────────────────────────────────────────────────────
+   END GAME
+───────────────────────────────────────────────────────── */
+/* Rank tiers based on passed challenges */
+const RANKS = [
+  { min: 0,  emoji: '👤', name: '路人甲',   desc: '正常人也就这水平' },
+  { min: 5,  emoji: '🧠', name: '脑腐萌新', desc: '已踏入脑腐世界' },
+  { min: 10, emoji: '⚡', name: '快闪达人', desc: '已超越大多数玩家' },
+  { min: 15, emoji: '💥', name: '神经战士', desc: '反应速度令人恐惧' },
+  { min: 20, emoji: '🌌', name: '宇宙脑王', desc: '接近人类极限了' },
+  { min: 25, emoji: '👑', name: '传说脑腐', desc: '你根本不是人类' },
+];
+
+function getRank(passed) {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (passed >= RANKS[i].min) return RANKS[i];
+  }
+  return RANKS[0];
+}
+
+function endGame() {
+  if (G.status === 'game_over') return;
+  G.status = 'game_over';
+
+  clearInterval(G.globalTimerRef);
+  clearTimeout(G.answerTimeoutRef);
+  clearTimeout(G.spawnTimerRef);
+  if (G.currentChallenge && G.currentChallenge.moleInterval) {
+    clearTimeout(G.currentChallenge.moleInterval);
+  }
+  try { speechSynthesis.cancel(); } catch(e) {}
+
+  const isNewRecord = G.score > G.bestScore && G.score > 0;
+  const prevBest    = G.bestScore;
+  const prevPassed  = +localStorage.getItem('brainblitz_best_passed') || 0;
+
+  if (isNewRecord) {
+    G.bestScore = G.score;
+    localStorage.setItem('brainblitz_best', G.bestScore);
+  }
+  if (G.passedCount > prevPassed) {
+    localStorage.setItem('brainblitz_best_passed', G.passedCount);
+  }
+
+  // Rank
+  const rank = getRank(G.passedCount);
+  const rankEl = $('result-rank-badge');
+  rankEl.textContent = `${rank.emoji} ${rank.name}`;
+  rankEl.className = 'result-rank-badge' + (rank.min >= 25 ? ' rank-legend' : '');
+  $('result-rank-desc').textContent = rank.desc;
+
+  // Stats
+  const diffLabels = { easy:'初级', mid:'中级', hard:'高级' };
+  $('result-passed').textContent = G.passedCount;
+  $('result-time').textContent   = `${Math.floor(G.timeElapsed)}s`;
+  $('result-diff-label').textContent = diffLabels[G.difficulty];
+
+  // Best score line
+  const bestEl = $('result-best');
+  if (isNewRecord) {
+    bestEl.textContent = '🏆 新纪录！';
+    bestEl.classList.add('new-record');
+    $('result-score').classList.add('new-record-score');
+  } else {
+    bestEl.textContent = `历史最高：${prevBest} 分`;
+    bestEl.classList.remove('new-record');
+    $('result-score').classList.remove('new-record-score');
+  }
+
+  // Comparison to last best-passed
+  const compareEl = $('result-compare');
+  if (prevPassed > 0 && G.passedCount !== prevPassed) {
+    const diff = G.passedCount - prevPassed;
+    compareEl.textContent = diff > 0
+      ? `比上次多过了 ${diff} 关 📈`
+      : `比上次少过了 ${Math.abs(diff)} 关 📉`;
+  } else {
+    compareEl.textContent = '';
+  }
+
+  // Fail card — show the challenge that killed the player
+  const fc = G.failedChallenge;
+  const failCard = $('result-fail-card');
+  if (fc) {
+    failCard.style.display = '';
+    $('result-fail-type').textContent = TYPE_LABELS[fc.type] || fc.type;
+    $('result-fail-instruction').textContent = fc.instruction || '';
+    const optsEl = $('result-fail-options');
+    optsEl.innerHTML = '';
+    // Show options with correct/wrong highlights
+    if (fc.layout === 'spam') {
+      const tag = document.createElement('span');
+      tag.className = 'fail-opt correct-ans';
+      tag.textContent = `👊 连击 ${fc.targetTaps} 次`;
+      optsEl.appendChild(tag);
+    } else if (fc.layout === 'freeze') {
+      const tag = document.createElement('span');
+      tag.className = 'fail-opt correct-ans';
+      tag.textContent = `🙅 坚持 ${fc.holdSec}s 不碰`;
+      optsEl.appendChild(tag);
+    } else if (fc.layout === 'grid4') {
+      const tag = document.createElement('span');
+      tag.className = 'fail-opt correct-ans';
+      tag.textContent = `🐭 打中 ${fc.hitsNeeded} 只地鼠`;
+      optsEl.appendChild(tag);
+    } else if (fc.options) {
+      fc.options.forEach((opt, i) => {
+        const tag = document.createElement('span');
+        const isCorrect = fc.layout === 'sort3'
+          ? fc.answerOrder && fc.answerOrder[0] === opt
+          : opt === fc.answer;
+        const isWrong = (opt === G.lastTappedValue) && !isCorrect;
+        tag.className = 'fail-opt' + (isCorrect ? ' correct-ans' : isWrong ? ' wrong-ans' : '');
+        tag.textContent = opt;
+        // avoid-red: mark the red button
+        if (fc.layout === 'avoid' && i === fc.redIdx) {
+          tag.className = 'fail-opt wrong-ans';
+        }
+        optsEl.appendChild(tag);
+      });
+    }
+  } else {
+    failCard.style.display = 'none';
+  }
+
+  // Animate score count-up
+  $('result-score').textContent = '0';
+  setTimeout(() => {
+    showScreen('screen-result');
+    let displayed = 0;
+    const target  = G.score;
+    const step    = Math.max(1, Math.ceil(target / 30));
+    const ticker  = setInterval(() => {
+      displayed = Math.min(displayed + step, target);
+      $('result-score').textContent = displayed;
+      if (displayed >= target) clearInterval(ticker);
+    }, 30);
+  }, 300);
+}
+
+/* ─────────────────────────────────────────────────────────
+   EVENT LISTENERS
+───────────────────────────────────────────────────────── */
+
+// Difficulty selector
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    G.difficulty = btn.dataset.diff;
+  });
+});
+
+// Start button
+$('btn-start').addEventListener('click', startGame);
+
+// Retry button
+$('btn-retry').addEventListener('click', startGame);
+
+// Options (event delegation on container)
+$('options-container').addEventListener('click', e => {
+  const btn = e.target.closest('.option-btn');
+  if (btn) handleOptionTap(btn);
+});
+
+// Revive buttons
+$('btn-mock-share').addEventListener('click', applyRevive);
+$('btn-revive-skip').addEventListener('click', () => {
+  G.revivePending = false;
+  $('overlay-revive').classList.remove('visible');
+});
+
+// Prevent scroll on playing screen
+$('screen-playing').addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+// Pause/resume on visibility change
+document.addEventListener('visibilitychange', () => {
+  if (G.status === 'game_over' || G.status === 'start') return;
+  if (document.hidden) {
+    clearInterval(G.globalTimerRef);
+    clearTimeout(G.answerTimeoutRef);
+    clearTimeout(G.spawnTimerRef);
+    try { speechSynthesis.cancel(); } catch(e) {}
+  } else {
+    if (G.status === 'playing' || G.status === 'challenge_active' || G.status === 'challenge_result') {
+      G.lastTickTime = performance.now();
+      G.globalTimerRef = setInterval(globalTick, 100);
+      scheduleNextChallenge();
+    }
+  }
+});
+
+</script>
+</body>
+</html>

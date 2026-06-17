@@ -186,18 +186,29 @@ const SUPABASE_KEY = "sb_publishable_3pP03AFu9mu5ApP5ATbXCA_XxBWIXLX";
 const ADMIN_PASSWORD = "admin888";
 
 const GAMES = [
-  { id: 1,  emoji: "🫘", title: "豆豆独",       desc: "六只豆豆藏进格子里，找出它们的专属位置——同行同列，只有一个它。", url: "bean-doku.html" },
-  { id: 2,  emoji: "🔐", title: "规律逃脱",     desc: "寻找图形规律，逃出密室。", url: "escape-iq.html" },
-  { id: 3,  emoji: "🌸", title: "喂食大嘴花",   desc: "贪吃大嘴花！不给合适的食物就会吃掉你哦。", url: "feed_the_flower_v8.html" },
-  { id: 4,  emoji: "📜", title: "记鸽古诗",     desc: "根据古诗内容，连线过关。", url: "line-remember.html" },
-  { id: 5,  emoji: "🍜", title: "拼音餐厅",     desc: "顾客拼出菜名，声母韵母声调一个不能少。", url: "pinyin-restaurant.html" },
-  { id: 6,  emoji: "🥁", title: "九九节拍跟唱版", desc: "跟着节奏，顺畅记住乘法表。", url: "rhythm-table.html" },
-  { id: 7,  emoji: "⚔️", title: "九九节拍混战版", desc: "敲对节拍，背会乘法。", url: "rhythm-table2.html" },
-  { id: 8,  emoji: "🔨", title: "融字铁砧",     desc: "给你偏旁，你能组成多少个汉字？", url: "rongzi_tiezhen_v9.html" },
-  { id: 9,  emoji: "🧠", title: "脑力配对",     desc: "不是找一样的，是找有关系的，每一翻都是一次思考，不只是记忆。", url: "semantic-flip.html" },
-  { id: 10, emoji: "🔗", title: "单词连连看",   desc: "找出单词和它的中文意思，连一连。", url: "word_match_with_sfx.html" },
-  { id: 11, emoji: "💥", title: "词语消消乐",   desc: "根据中文目标，找出三个一样的英文，消除！", url: "wordmatch.html" },
+  { id: 1,  batch: 1, emoji: "🫘", title: "豆豆独",       desc: "六只豆豆藏进格子里，找出它们的专属位置——同行同列，只有一个它。", url: "bean-doku.html" },
+  { id: 2,  batch: 1, emoji: "🔐", title: "规律逃脱",     desc: "寻找图形规律，逃出密室。", url: "escape-iq.html" },
+  { id: 3,  batch: 1, emoji: "🌸", title: "喂食大嘴花",   desc: "贪吃大嘴花！不给合适的食物就会吃掉你哦。", url: "feed_the_flower_v8.html" },
+  { id: 4,  batch: 1, emoji: "📜", title: "记鸽古诗",     desc: "根据古诗内容，连线过关。", url: "line-remember.html" },
+  { id: 5,  batch: 1, emoji: "🍜", title: "拼音餐厅",     desc: "顾客拼出菜名，声母韵母声调一个不能少。", url: "pinyin-restaurant.html" },
+  { id: 6,  batch: 1, emoji: "🥁", title: "九九节拍跟唱版", desc: "跟着节奏，顺畅记住乘法表。", url: "rhythm-table.html" },
+  { id: 7,  batch: 1, emoji: "⚔️", title: "九九节拍混战版", desc: "敲对节拍，背会乘法。", url: "rhythm-table2.html" },
+  { id: 8,  batch: 1, emoji: "🔨", title: "融字铁砧",     desc: "给你偏旁，你能组成多少个汉字？", url: "rongzi_tiezhen_v9.html" },
+  { id: 9,  batch: 1, emoji: "🧠", title: "脑力配对",     desc: "不是找一样的，是找有关系的，每一翻都是一次思考，不只是记忆。", url: "semantic-flip.html" },
+  { id: 10, batch: 1, emoji: "🔗", title: "单词连连看",   desc: "找出单词和它的中文意思，连一连。", url: "word_match_with_sfx.html" },
+  { id: 11, batch: 1, emoji: "💥", title: "词语消消乐",   desc: "根据中文目标，找出三个一样的英文，消除！", url: "wordmatch.html" },
+  { id: 12, batch: 2, emoji: "🧠", title: "脑力快闪大作战", desc: "题题不同，速度反应，是聪明人就坚持一百局！", url: "brainrot-blitz.html" },
+  { id: 13, batch: 2, emoji: "🫧", title: "泡泡攻击", desc: "用算式瞄准，射爆正确答案，答错泡泡越来越多——撑到通关！", url: "bubble-shot.html" },
+  { id: 14, batch: 2, emoji: "🐍", title: "挑食蛇大作战", desc: "只吃符合目标的食物！吃错就完蛋！", url: "knowledge-snake.html" },
+  { id: 15, batch: 2, emoji: "🏃", title: "算数冲冲跑", desc: "数学百米冲刺，等你创造新纪录", url: "math-dash.html" },
+  { id: 16, batch: 2, emoji: "🪞", title: "镜中世界", desc: "你能看清镜子里的真相吗？", url: "mirror-snap.html" },
+  { id: 17, batch: 2, emoji: "⚽️", title: "点球对决", desc: "用点球决战检验你的英语实力——答对射门，答错被扑，5球定胜负。", url: "penalty-quiz.html" },
+  { id: 18, batch: 2, emoji: "🐟", title: "捕鱼大王", desc: "根据目标，点击池中游动的拼音鱼，你能捉到多少条？", url: "pinyin-fisher.html" },
 ];
+
+// 当前批次 = 最新批次号，用户只看这一批
+const CURRENT_BATCH = Math.max(...GAMES.map(g => g.batch));
+const ACTIVE_GAMES  = GAMES.filter(g => g.batch === CURRENT_BATCH);
 
 let currentUser = "";
 let currentGameId = null;
@@ -206,7 +217,7 @@ let localReviews = [];
 let logoTapCount = 0;
 let currentAdminTab = "by-game";
 
-document.getElementById("game-count-welcome").textContent = GAMES.length;
+document.getElementById("game-count-welcome").textContent = ACTIVE_GAMES.length;
 
 async function dbInsert(data) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
@@ -263,12 +274,12 @@ async function startReview() {
 
 function updateList() {
   const scoredIds = localReviews.filter(r => r.score !== null).map(r => r.game_id);
-  const scoredCount = scoredIds.length;
-  document.getElementById("progress-text").textContent = scoredCount + " / " + GAMES.length + " 已评价";
-  document.getElementById("progress-big").textContent = scoredCount + "/" + GAMES.length;
+  const scoredCount = ACTIVE_GAMES.filter(g => scoredIds.includes(g.id)).length;
+  document.getElementById("progress-text").textContent = scoredCount + " / " + ACTIVE_GAMES.length + " 已评价";
+  document.getElementById("progress-big").textContent = scoredCount + "/" + ACTIVE_GAMES.length;
   const list = document.getElementById("game-list");
   list.innerHTML = "";
-  GAMES.forEach(g => {
+  ACTIVE_GAMES.forEach(g => {
     const rev = localReviews.find(r => r.game_id === g.id);
     let badge = `<span class="badge badge-todo">待体验</span>`;
     if (rev && rev.score !== null) badge = `<span class="badge badge-done">已评 ${rev.score} 分</span>`;

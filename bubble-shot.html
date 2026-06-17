@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>泡泡答题 · BubbleShot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100dvh; overflow: hidden;
+      background: linear-gradient(160deg, #e8f5ff 0%, #fff0fa 100%);
+      font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+      color: #333; touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity 0.25s;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Select ── */
+    #select-screen { gap: 12px; padding: 32px 24px; }
+    #select-screen .logo { font-size: 3.2em; margin-bottom: 2px; }
+    #select-screen h1 { font-size: 1.6em; font-weight: 800; color: #ff6b9d; margin-bottom: 4px; }
+    #select-screen p  { color: #aaa; font-size: 0.82em; margin-bottom: 16px; text-align: center; }
+    .diff-btn {
+      width: 265px; padding: 13px 18px;
+      border: 2px solid rgba(0,0,0,0.06); border-radius: 18px;
+      background: #fff; color: #333; font-size: 0.95em; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .diff-btn:active { transform: scale(0.96); box-shadow: none; }
+    .diff-btn .badge { font-size: 0.72em; color: #ff9800; font-weight: 600; }
+
+    /* ── Game ── */
+    #game-screen { flex-direction: column; justify-content: flex-start; padding: 0; }
+    #header {
+      flex-shrink: 0; width: 100%;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 16px;
+      padding-top: calc(7px + env(safe-area-inset-top));
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      gap: 8px;
+    }
+    #diff-label { color: #ff6b9d; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+    #combo-badge {
+      background: linear-gradient(135deg, #ff9800, #ff6b9d); color: #fff;
+      border-radius: 20px; padding: 2px 9px; font-size: 0.7em; font-weight: 700;
+      white-space: nowrap; transition: opacity 0.2s;
+    }
+    #combo-badge.hidden { opacity: 0; }
+
+    /* Progress goal */
+    #goal-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+    #goal-row  { font-size: 0.75em; color: #888; margin-bottom: 3px; }
+    #goal-row strong { color: #ff6b9d; font-size: 1.2em; font-weight: 800; }
+    #goal-bar-bg {
+      width: 100%; max-width: 160px; height: 7px;
+      background: #eee; border-radius: 4px; overflow: hidden;
+    }
+    #goal-bar {
+      height: 100%; width: 0%; border-radius: 4px;
+      background: linear-gradient(90deg, #52c41a, #ff6b9d);
+      transition: width 0.4s ease;
+    }
+
+    #canvas-wrap { flex: 1; width: 100%; position: relative; min-height: 0; }
+    #game-canvas { display: block; width: 100%; height: 100%; }
+
+    .sf {
+      position: absolute; pointer-events: none;
+      font-size: 1.3em; font-weight: 800; color: #ff6b9d;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      white-space: nowrap;
+      animation: sfUp 0.9s ease-out forwards;
+    }
+    @keyframes sfUp {
+      0%   { opacity:1; transform: translateY(0)    scale(1);   }
+      20%  { opacity:1; transform: translateY(-12px) scale(1.2); }
+      100% { opacity:0; transform: translateY(-72px) scale(0.9); }
+    }
+
+    /* ── Modal ── */
+    #modal {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #modal.hidden { display: none; }
+    .mbox {
+      background: #fff; border-radius: 28px; padding: 32px 36px;
+      text-align: center; width: min(300px, 88vw);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      animation: popIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    @keyframes popIn { 0%{opacity:0;transform:scale(0.7)} 100%{opacity:1;transform:scale(1)} }
+    .mbox h2  { font-size: 2em; margin-bottom: 8px; }
+    .mbox .ms { font-size: 1em; color: #888; margin-bottom: 24px; }
+    .mbox .ms strong { color: #ff6b9d; font-size: 1.5em; }
+    .mbtn {
+      display: block; width: 100%; padding: 14px; border: none; border-radius: 16px;
+      background: linear-gradient(135deg, #ff9800, #ff6b9d); color: #fff;
+      font-size: 1em; font-weight: 700; cursor: pointer; margin-bottom: 10px;
+      box-shadow: 0 4px 14px rgba(255,107,157,0.4); transition: transform 0.1s;
+    }
+    .mbtn:active { transform: scale(0.96); }
+    .mbtn.sec {
+      background: #f5f5f5; color: #666; box-shadow: none;
+      border: 1px solid #eee; margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ░░ 难度选择 ░░ -->
+<div id="select-screen" class="screen">
+  <div class="logo">🫧</div>
+  <h1>泡泡答题</h1>
+  <p>拖动炮台瞄准，松手发射<br>超时或打错都会增加泡泡！</p>
+  <button class="diff-btn" onclick="G.start('easy')">
+    <span>🟢 初级</span><span class="badge">加减 ≤10 · 15秒/发</span>
+  </button>
+  <button class="diff-btn" onclick="G.start('medium')">
+    <span>🔵 中级</span><span class="badge">加减 ≤20 · 12秒/发</span>
+  </button>
+  <button class="diff-btn" onclick="G.start('hard')">
+    <span>🟠 高级</span><span class="badge">乘除法 · 9秒/发</span>
+  </button>
+  <button class="diff-btn" onclick="G.start('expert')">
+    <span>🔴 专家</span><span class="badge">混合四则 · 6秒/发</span>
+  </button>
+</div>
+
+<!-- ░░ 游戏界面 ░░ -->
+<div id="game-screen" class="screen hidden">
+  <div id="header">
+    <div id="diff-label">初级</div>
+    <div id="goal-wrap">
+      <div id="goal-row"><strong id="score-num">0</strong> / <span id="target-num">100</span> 分</div>
+      <div id="goal-bar-bg"><div id="goal-bar"></div></div>
+    </div>
+    <div id="combo-badge" class="hidden">🔥 ×1.5</div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="game-canvas"></canvas>
+  </div>
+</div>
+
+<!-- ░░ 结果弹窗 ░░ -->
+<div id="modal" class="hidden">
+  <div class="mbox">
+    <h2 id="m-title">🎉</h2>
+    <div class="ms" id="m-body">得分 <strong>0</strong></div>
+    <button class="mbtn" id="m-retry">再玩一次</button>
+    <button class="mbtn sec" onclick="G.selectScreen()">选择难度</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ── Config ──────────────────────────────────────────────
+const DIFF = {
+  easy:   { label:'初级', target:100, shotTime:15, initN:4, maxN:8,  spawnMaxY:0.38 },
+  medium: { label:'中级', target:150, shotTime:12, initN:5, maxN:9,  spawnMaxY:0.58 },
+  hard:   { label:'高级', target:200, shotTime:9,  initN:6, maxN:10, spawnMaxY:0.80 },
+  expert: { label:'专家', target:300, shotTime:6,  initN:7, maxN:12, spawnMaxY:0.96 },
+};
+
+const COLORS = [
+  '#FF9AA2','#FFB7B2','#FFDAC1','#E2F0CB',
+  '#B5EAD7','#C7CEEA','#9BB7FF','#FFD93D',
+];
+
+const BR = 34;  // bubble radius
+const PR = 10;  // projectile radius
+const PS = 24;  // projectile speed
+
+// ── DOM ─────────────────────────────────────────────────
+const $sel    = document.getElementById('select-screen');
+const $game   = document.getElementById('game-screen');
+const $modal  = document.getElementById('modal');
+const canvas  = document.getElementById('game-canvas');
+const ctx     = canvas.getContext('2d');
+const $wrap   = document.getElementById('canvas-wrap');
+const $dlbl   = document.getElementById('diff-label');
+const $snum   = document.getElementById('score-num');
+const $tnum   = document.getElementById('target-num');
+const $gbar   = document.getElementById('goal-bar');
+const $combo  = document.getElementById('combo-badge');
+const $mttl   = document.getElementById('m-title');
+const $mbdy   = document.getElementById('m-body');
+const $retry  = document.getElementById('m-retry');
+
+// ── State ────────────────────────────────────────────────
+let S = {};
+let animId = null;
+let bidSeq  = 0;
+
+// ── Layout ───────────────────────────────────────────────
+function dangerY()   { return Math.floor(canvas.height * 0.56); }
+function timerCY()   { return Math.floor(canvas.height * 0.67); }
+function questionY() { return Math.floor(canvas.height * 0.76); }
+function cannonCY()  { return Math.floor(canvas.height * 0.88); }
+
+// ── Question generator ───────────────────────────────────
+function rnd(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+
+function genQ(diff) {
+  let expr, ans;
+  if (diff==='easy') {
+    const a=rnd(1,9),b=rnd(1,9);
+    if (Math.random()<0.45&&a!==b){const[hi,lo]=a>b?[a,b]:[b,a];expr=`${hi} - ${lo}`;ans=hi-lo;}
+    else{expr=`${a} + ${b}`;ans=a+b;}
+  } else if (diff==='medium') {
+    const a=rnd(1,20),b=rnd(1,20);
+    if (Math.random()<0.45&&a!==b){const[hi,lo]=a>b?[a,b]:[b,a];expr=`${hi} - ${lo}`;ans=hi-lo;}
+    else{expr=`${a} + ${b}`;ans=a+b;}
+  } else if (diff==='hard') {
+    const a=rnd(2,9),b=rnd(2,9);
+    if (Math.random()<0.5){expr=`${a} × ${b}`;ans=a*b;}
+    else{const p=a*b;expr=`${p} ÷ ${a}`;ans=b;}
+  } else {
+    const k=rnd(0,3);
+    if(k===0){const a=rnd(5,50),b=rnd(5,50);expr=`${a}+${b}`;ans=a+b;}
+    else if(k===1){const a=rnd(10,50),b=rnd(1,a-1);expr=`${a}-${b}`;ans=a-b;}
+    else if(k===2){const a=rnd(2,9),b=rnd(2,9);expr=`${a}×${b}`;ans=a*b;}
+    else{const a=rnd(2,9),b=rnd(2,9),p=a*b;expr=`${p}÷${a}`;ans=b;}
+  }
+  return {expr,ans};
+}
+
+function wrongAnswers(correct, count, diff) {
+  const set=new Set();
+  const range=diff==='easy'?4:diff==='medium'?7:12;
+  let tries=0;
+  while(set.size<count&&tries++<300){
+    const delta=rnd(1,range)*(Math.random()<0.5?1:-1);
+    const w=correct+delta;
+    if(w!==correct&&w>=0&&!set.has(w))set.add(w);
+  }
+  return [...set];
+}
+
+// ── Bubble factory ───────────────────────────────────────
+function dist(x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;return Math.sqrt(dx*dx+dy*dy);}
+
+// minYFrac/maxYFrac: fraction of dangerY() — e.g. 0=top edge, 0.95=near danger line
+function mkBubble(answer, isCorrect, minYFrac=0, maxYFrac=0.95) {
+  const cw = canvas.width;
+  const dY = dangerY();
+  const mg = BR + 8;
+  const minY = Math.max(mg, Math.floor(dY * minYFrac));
+  const maxY = Math.min(dY - BR - 6, Math.floor(dY * maxYFrac));
+
+  let x, y, tries=0;
+  do {
+    x = rnd(mg, cw-mg);
+    y = rnd(Math.min(minY, maxY), maxY);
+    tries++;
+  } while(tries<100 && S.bubbles.some(b=>dist(b.x,b.y,x,y)<BR*2.3));
+
+  return {
+    id: ++bidSeq, x, y, vx:0, vy:0,
+    answer, isCorrect,
+    color: COLORS[Math.floor(Math.random()*COLORS.length)],
+    scale: 0.1, shakePx: 0,
+  };
+}
+
+function spawnInitialBubbles(q) {
+  S.bubbles = [];
+  const cfg = DIFF[S.diff];
+  const wrongs = wrongAnswers(q.ans, cfg.initN - 1, S.diff);
+  const pool = [q.ans, ...wrongs].sort(() => Math.random() - 0.5);
+  pool.forEach(a => S.bubbles.push(mkBubble(a, a === q.ans, 0, cfg.spawnMaxY)));
+}
+
+function addPenaltyBubble() {
+  const cfg = DIFF[S.diff];
+  if (S.bubbles.length >= cfg.maxN) return;
+  // Penalty bubbles in lower half of play zone — builds pressure toward danger line
+  const w = wrongAnswers(S.q.ans, 1, S.diff)[0];
+  S.bubbles.push(mkBubble(w, false, 0.55, 0.95));
+}
+
+// Refresh all bubble numbers for new question; keep positions
+function refreshBubbles(q) {
+  const n = S.bubbles.length;
+  if (n === 0) { spawnInitialBubbles(q); return; }
+  const wrongs = wrongAnswers(q.ans, n - 1, S.diff);
+  const pool = [q.ans, ...wrongs].sort(() => Math.random() - 0.5);
+  S.bubbles.forEach((b, i) => {
+    b.answer = pool[i] !== undefined ? pool[i] : wrongAnswers(q.ans, 1, S.diff)[0];
+    b.isCorrect = (b.answer === q.ans);
+    b.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    b.scale = 0.7; // brief pop-in to signal number change
+  });
+}
+
+// ── Projectile ───────────────────────────────────────────
+function fire() {
+  if (S.proj?.active) return;
+  const cx=canvas.width/2, cy=cannonCY();
+  S.proj = {
+    active:true, x:cx, y:cy,
+    vx:Math.cos(S.aimAngle)*PS,
+    vy:Math.sin(S.aimAngle)*PS,
+  };
+  if (S.aimGuideLeft > 0) S.aimGuideLeft--;
+  S.timerPaused = true;
+}
+
+function updateProj() {
+  const p=S.proj;
+  if(!p||!p.active) return;
+  p.x+=p.vx; p.y+=p.vy;
+  if(p.x-PR<0){p.x=PR;p.vx=Math.abs(p.vx);}
+  if(p.x+PR>canvas.width){p.x=canvas.width-PR;p.vx=-Math.abs(p.vx);}
+  if(p.y+PR<0||p.y-PR>canvas.height){
+    p.active=false; S.timerPaused=false;
+    // missed shot counts as wrong: add penalty + refresh question
+    S.combo=0; refreshHUD();
+    if(navigator.vibrate) navigator.vibrate(40);
+    addPenaltyBubble();
+    const mq=genQ(S.diff); S.q=mq;
+    S.countdown=DIFF[S.diff].shotTime;
+    refreshBubbles(mq);
+  }
+}
+
+// ── Collision ────────────────────────────────────────────
+function checkCollisions() {
+  const p=S.proj;
+  if(!p||!p.active) return;
+  for(let i=0;i<S.bubbles.length;i++){
+    const b=S.bubbles[i];
+    if(dist(p.x,p.y,b.x,b.y)<BR+PR){
+      p.active=false;
+      S.timerPaused=false;
+      S.countdown=DIFF[S.diff].shotTime; // reset timer on any hit
+      b.isCorrect ? onHitCorrect(b,i) : onHitWrong(b);
+      return;
+    }
+  }
+}
+
+function onHitCorrect(b, idx) {
+  S.combo++;
+  const mult=S.combo>=5?2.0:S.combo>=3?1.5:1.0;
+  const pts=Math.round(10*mult);
+  S.score+=pts;
+  refreshHUD();
+  floatScore(b.x, b.y, `+${pts}${mult>1?' ×'+mult:''}`);
+  S.bubbles.splice(idx,1);
+  if(S.score>=S.target){setTimeout(doWin,300);return;}
+  const q=genQ(S.diff);
+  S.q=q;
+  refreshBubbles(q);
+}
+
+function onHitWrong(b) {
+  S.combo=0;
+  refreshHUD();
+  b.shakePx=12;
+  if(navigator.vibrate) navigator.vibrate(60);
+  addPenaltyBubble();
+  // Refresh question immediately so blocked bubbles don't trap the player
+  const wq=genQ(S.diff); S.q=wq;
+  S.countdown=DIFF[S.diff].shotTime;
+  refreshBubbles(wq);
+}
+
+function checkDanger() {
+  const dY=dangerY();
+  if(S.bubbles.some(b=>b.y+BR>=dY)) doFail();
+}
+
+// ── Rendering ─────────────────────────────────────────────
+function render() {
+  const cw=canvas.width,ch=canvas.height;
+  ctx.clearRect(0,0,cw,ch);
+  drawBg();
+  drawDangerLine();
+  drawBubbles();
+  drawAimLine();
+  drawProj();
+  drawTimer();
+  drawQuestion();
+  drawCannon();
+}
+
+function drawBg() {
+  const g=ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,'#edf7ff');
+  g.addColorStop(1,'#fff5fb');
+  ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function drawDangerLine() {
+  const y=dangerY();
+  ctx.save();
+  ctx.strokeStyle='rgba(255,80,80,0.45)';
+  ctx.lineWidth=1.5; ctx.setLineDash([7,5]);
+  ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font='11px sans-serif';
+  ctx.fillStyle='rgba(255,80,80,0.6)';
+  ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('⚠ 危险线',canvas.width-8,y-3);
+  ctx.restore();
+}
+
+function drawBubbles() {
+  S.bubbles.forEach(b=>{
+    if(b.scale<1) b.scale=Math.min(1,b.scale+0.07);
+    ctx.save();
+    const sx=b.shakePx>0?(Math.random()-0.5)*b.shakePx:0;
+    if(b.shakePx>0) b.shakePx*=0.65;
+    ctx.translate(b.x+sx,b.y);
+    ctx.scale(b.scale,b.scale);
+
+    ctx.shadowColor='rgba(0,0,0,0.1)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+    ctx.beginPath(); ctx.arc(0,0,BR,0,Math.PI*2);
+    ctx.fillStyle=b.color; ctx.fill();
+
+    ctx.shadowColor='transparent';
+    const gls=ctx.createRadialGradient(-BR*0.28,-BR*0.32,0,0,0,BR);
+    gls.addColorStop(0,'rgba(255,255,255,0.7)');
+    gls.addColorStop(0.5,'rgba(255,255,255,0.2)');
+    gls.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(0,0,BR,0,Math.PI*2);
+    ctx.fillStyle=gls; ctx.fill();
+
+    const txt=String(b.answer);
+    const fs=txt.length>3?BR*0.5:BR*0.62;
+    ctx.font=`700 ${fs}px 'PingFang SC',sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#333'; ctx.fillText(txt,0,1);
+    ctx.restore();
+  });
+}
+
+// Aim trajectory: white dots with dark border — visible on any background
+function drawAimLine() {
+  if(S.proj?.active) return;
+  if(S.aimGuideLeft <= 0) return;
+  const cx=canvas.width/2, cy=cannonCY();
+  const dY=dangerY();
+  let x=cx,y=cy,vx=Math.cos(S.aimAngle),vy=Math.sin(S.aimAngle);
+  const cw=canvas.width;
+
+  for(let step=0;step<400;step++){
+    x+=vx*4; y+=vy*4;
+    if(x<PR){x=PR;vx=Math.abs(vx);}
+    if(x>cw-PR){x=cw-PR;vx=-Math.abs(vx);}
+    if(y<0) break; // hit top
+    if(y>=dY) continue; // still below bubble zone, keep tracing
+    // Stop near bubbles
+    if(S.bubbles.some(b=>dist(x,y,b.x,b.y)<BR+PR+4)) break;
+
+    if(step%4===0){
+      const a=Math.max(0.25, 0.9-step/350);
+      ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2);
+      ctx.fillStyle=`rgba(80,110,255,${a*0.18})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fillStyle=`rgba(80,110,255,${a})`; ctx.fill();
+    }
+  }
+}
+
+function drawProj() {
+  const p=S.proj;
+  if(!p||!p.active) return;
+  ctx.save(); ctx.translate(p.x,p.y);
+  const glo=ctx.createRadialGradient(0,0,0,0,0,PR*2.5);
+  glo.addColorStop(0,'rgba(255,180,50,0.9)');
+  glo.addColorStop(1,'rgba(255,100,0,0)');
+  ctx.beginPath(); ctx.arc(0,0,PR*2.5,0,Math.PI*2);
+  ctx.fillStyle=glo; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,PR,0,Math.PI*2);
+  ctx.fillStyle='#FFD700'; ctx.fill();
+  ctx.strokeStyle='#ff8c00'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.restore();
+}
+
+// Countdown arc + number above question
+function drawTimer() {
+  const cx=canvas.width/2, cy=timerCY();
+  const cfg=DIFF[S.diff];
+  const ratio=Math.max(0,S.countdown/cfg.shotTime);
+  const r=20;
+
+  // BG track
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=4; ctx.stroke();
+
+  // Progress arc (clockwise depletion)
+  const endAng=-Math.PI/2+ratio*Math.PI*2;
+  const color=ratio>0.5?'#52c41a':ratio>0.25?'#fa8c16':'#f5222d';
+  ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,endAng);
+  ctx.strokeStyle=color; ctx.lineWidth=4; ctx.lineCap='round'; ctx.stroke();
+
+  // Number
+  const secs=Math.ceil(S.countdown);
+  ctx.font=`700 ${secs>9?12:14}px 'PingFang SC',sans-serif`;
+  ctx.fillStyle=ratio>0.25?'#555':'#f5222d';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(String(secs),cx,cy);
+
+  // Label
+  ctx.font='10px sans-serif';
+  ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.fillText('秒后增加泡泡',cx,cy+r+10);
+}
+
+function drawQuestion() {
+  if(!S.q) return;
+  const cx=canvas.width/2, qy=questionY();
+  const text=S.q.expr+' = ?';
+  ctx.save();
+  ctx.font=`700 ${Math.min(24,canvas.width*0.065)}px 'PingFang SC',sans-serif`;
+  const tw=ctx.measureText(text).width;
+  const ph=38,pw=tw+44,pr2=ph/2,px=cx-pw/2;
+
+  ctx.fillStyle='rgba(255,255,255,0.92)';
+  ctx.shadowColor='rgba(0,0,0,0.07)'; ctx.shadowBlur=8;
+  ctx.beginPath();
+  ctx.moveTo(px+pr2,qy-ph/2);ctx.lineTo(px+pw-pr2,qy-ph/2);
+  ctx.quadraticCurveTo(px+pw,qy-ph/2,px+pw,qy);
+  ctx.quadraticCurveTo(px+pw,qy+ph/2,px+pw-pr2,qy+ph/2);
+  ctx.lineTo(px+pr2,qy+ph/2);
+  ctx.quadraticCurveTo(px,qy+ph/2,px,qy);
+  ctx.quadraticCurveTo(px,qy-ph/2,px+pr2,qy-ph/2);
+  ctx.closePath(); ctx.fill();
+
+  ctx.shadowColor='transparent';
+  ctx.fillStyle='#222'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text,cx,qy);
+  ctx.restore();
+}
+
+function drawCannon() {
+  const cx=canvas.width/2, cy=cannonCY();
+  const ang=S.aimAngle;
+
+  // Barrel (rotates with aim)
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang+Math.PI/2);
+  const bw=16,bh=44,br=6,bx=-bw/2,by=-bh;
+  const bg=ctx.createLinearGradient(bx,0,bx+bw,0);
+  bg.addColorStop(0,'#b0bec5'); bg.addColorStop(0.5,'#eceff1'); bg.addColorStop(1,'#b0bec5');
+  ctx.beginPath();
+  ctx.moveTo(bx+br,by); ctx.lineTo(bx+bw-br,by);
+  ctx.quadraticCurveTo(bx+bw,by,bx+bw,by+br);
+  ctx.lineTo(bx+bw,by+bh-br); ctx.quadraticCurveTo(bx+bw,by+bh,bx+bw-br,by+bh);
+  ctx.lineTo(bx+br,by+bh); ctx.quadraticCurveTo(bx,by+bh,bx,by+bh-br);
+  ctx.lineTo(bx,by+br); ctx.quadraticCurveTo(bx,by,bx+br,by);
+  ctx.closePath();
+  ctx.fillStyle=bg; ctx.fill();
+  ctx.strokeStyle='#90a4ae'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.restore();
+
+  // Base circle
+  ctx.save(); ctx.translate(cx,cy);
+  const baseG=ctx.createRadialGradient(-6,-6,0,0,0,22);
+  baseG.addColorStop(0,'#eceff1'); baseG.addColorStop(1,'#90a4ae');
+  ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2);
+  ctx.fillStyle=baseG; ctx.fill();
+  ctx.strokeStyle='#78909c'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🎯',0,1);
+  ctx.restore();
+}
+
+// ── HUD ──────────────────────────────────────────────────
+function refreshHUD() {
+  $snum.textContent = S.score;
+  const pct = Math.min(100,(S.score/S.target)*100);
+  $gbar.style.width = pct+'%';
+  if(S.combo>=5){$combo.textContent=`🔥 ×2.0 ${S.combo}连`;$combo.classList.remove('hidden');}
+  else if(S.combo>=3){$combo.textContent=`⚡ ×1.5 ${S.combo}连`;$combo.classList.remove('hidden');}
+  else{$combo.classList.add('hidden');}
+}
+
+function floatScore(cx,cy,text) {
+  const el=document.createElement('div');
+  el.className='sf'; el.textContent=text;
+  const scx=$wrap.clientWidth/canvas.width;
+  const scy=$wrap.clientHeight/canvas.height;
+  el.style.left=(cx*scx-28)+'px';
+  el.style.top =(cy*scy-16)+'px';
+  $wrap.appendChild(el);
+  el.addEventListener('animationend',()=>el.remove());
+}
+
+// ── Game lifecycle ────────────────────────────────────────
+function resizeCanvas() {
+  canvas.width =$wrap.clientWidth  || 375;
+  canvas.height=$wrap.clientHeight || 500;
+}
+
+let lastTime = 0;
+
+function loop(ts) {
+  if(S.phase!=='playing') return;
+  const dt=Math.min(0.05,(ts-lastTime)/1000);
+  lastTime=ts;
+
+  // Countdown (paused while projectile in flight)
+  if(!S.timerPaused){
+    S.countdown-=dt;
+    if(S.countdown<=0){
+      S.countdown=DIFF[S.diff].shotTime;
+      addPenaltyBubble();
+    }
+  }
+
+  // Update bubble pop-in
+  S.bubbles.forEach(b=>{ if(b.scale<1) b.scale=Math.min(1,b.scale+0.07); });
+
+  updateProj();
+  checkCollisions();
+  if(S.phase==='playing') checkDanger();
+  if(S.phase==='playing') render();
+  if(S.phase==='playing') animId=requestAnimationFrame(loop);
+}
+
+function doWin() {
+  if(S.phase!=='playing') return;
+  S.phase='win';
+  cancelAnimationFrame(animId);
+  $mttl.textContent='🎉 通关！';
+  $mbdy.innerHTML=`得分 <strong>${S.score}</strong> / 目标 ${S.target}`;
+  $retry.onclick=()=>G.start(S.diff);
+  $modal.classList.remove('hidden');
+}
+
+function doFail() {
+  if(S.phase!=='playing') return;
+  S.phase='fail';
+  cancelAnimationFrame(animId);
+  if(navigator.vibrate) navigator.vibrate([100,50,120]);
+  $mttl.textContent='💥 游戏结束';
+  $mbdy.innerHTML=`得分 <strong>${S.score}</strong> / 目标 ${S.target}`;
+  $retry.onclick=()=>G.start(S.diff);
+  $modal.classList.remove('hidden');
+}
+
+// ── Public API ───────────────────────────────────────────
+const G={
+  start(diff){
+    cancelAnimationFrame(animId);
+    lastTime=0;
+    const cfg=DIFF[diff];
+    S={
+      phase:'playing', diff, score:0, combo:0,
+      target:cfg.target, bubbles:[], q:null,
+      proj:null, aimAngle:-Math.PI/2,
+      countdown:cfg.shotTime, timerPaused:false,
+      aimGuideLeft:3,
+    };
+    $dlbl.textContent=cfg.label;
+    $tnum.textContent=cfg.target;
+    $gbar.style.width='0%';
+    refreshHUD();
+
+    $sel.classList.add('hidden');
+    $game.classList.remove('hidden');
+    $modal.classList.add('hidden');
+
+    requestAnimationFrame(()=>{
+      resizeCanvas();
+      const q=genQ(diff);
+      S.q=q;
+      spawnInitialBubbles(q);
+      animId=requestAnimationFrame(loop);
+    });
+  },
+  selectScreen(){
+    cancelAnimationFrame(animId);
+    S.phase='select';
+    $sel.classList.remove('hidden');
+    $game.classList.add('hidden');
+    $modal.classList.add('hidden');
+  },
+};
+window.G=G;
+
+// ── Input ────────────────────────────────────────────────
+function toCanvas(cx,cy){
+  const r=canvas.getBoundingClientRect();
+  return{x:(cx-r.left)*(canvas.width/r.width),y:(cy-r.top)*(canvas.height/r.height)};
+}
+
+function updateAim(clientX,clientY){
+  if(S.phase!=='playing') return;
+  const pt=toCanvas(clientX,clientY);
+  const cx2=canvas.width/2,cy2=cannonCY();
+  const dx=pt.x-cx2,dy=pt.y-cy2;
+  if(Math.sqrt(dx*dx+dy*dy)<15||dy>=0) return;
+  let ang=Math.atan2(dy,dx);
+  // Clamp to ±75° from straight up
+  const clamp=Math.PI*5/12;
+  ang=Math.max(-Math.PI/2-clamp,Math.min(-Math.PI/2+clamp,ang));
+  S.aimAngle=ang;
+}
+
+canvas.addEventListener('mousemove',e=>updateAim(e.clientX,e.clientY));
+canvas.addEventListener('click',()=>{ if(S.phase==='playing') fire(); });
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  updateAim(e.touches[0].clientX,e.touches[0].clientY);
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  if(S.phase==='playing') fire();
+},{passive:false});
+
+window.addEventListener('resize',()=>{ if(S.phase==='playing') resizeCanvas(); });
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){cancelAnimationFrame(animId);}
+  else if(S.phase==='playing'){lastTime=0;animId=requestAnimationFrame(loop);}
+});
+})();
+</script>
+</body>
+</html>

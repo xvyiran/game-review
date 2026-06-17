@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>点球对决 · PenaltyQuiz</title>
+  <style>
+    :root {
+      --grass:   #2d8545;
+      --grass-d: #1e6332;
+      --gold:    #f5c518;
+      --red:     #e74c3c;
+      --green:   #27ae60;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      user-select: none;
+      background: var(--grass-d);
+    }
+
+    #app {
+      width: 100vw; height: 100vh; height: 100dvh;
+      position: relative; overflow: hidden;
+      background-image:
+        repeating-linear-gradient(0deg, transparent 0, transparent 44px, rgba(0,0,0,0.055) 44px, rgba(0,0,0,0.055) 88px),
+        linear-gradient(175deg, #1a5c2e 0%, var(--grass) 55%, #245f3a 100%);
+    }
+
+    /* ── Screens ─────────────────────────────── */
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ════ HOME ═══════════════════════════════ */
+    #s-home { gap: 0; padding: 32px 24px 44px; }
+    .home-ball { font-size: 72px; line-height: 1; margin-bottom: 10px;
+                 animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .home-title { font-size: 30px; font-weight: 900; color: #fff;
+                  text-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+    .home-sub   { font-size: 13px; color: rgba(255,255,255,0.6); letter-spacing: 2px;
+                  margin: 4px 0 28px; }
+    .diff-label { font-size: 12px; color: rgba(255,255,255,0.7); letter-spacing: 2px; margin-bottom: 12px; }
+    .diff-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+                  width: 100%; max-width: 292px; }
+    .diff-btn   { border: none; border-radius: 16px; padding: 18px 10px;
+                  cursor: pointer; text-align: center; transition: transform .12s; }
+    .diff-btn:active { transform: scale(0.93); }
+    .diff-btn .dn { display: block; font-size: 19px; font-weight: 800; color: #fff; }
+    .diff-btn .dt { display: block; font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 3px; }
+    .diff-btn.easy   { background: #27ae60; box-shadow: 0 4px 14px rgba(39,174,96,.45); }
+    .diff-btn.medium { background: #2980b9; box-shadow: 0 4px 14px rgba(41,128,185,.45); }
+    .diff-btn.hard   { background: #e67e22; box-shadow: 0 4px 14px rgba(230,126,34,.45); }
+    .diff-btn.expert { background: #c0392b; box-shadow: 0 4px 14px rgba(192,57,43,.45); }
+    .home-best  { margin-top: 22px; font-size: 13px; color: rgba(255,255,255,0.55);
+                  background: rgba(0,0,0,0.15); padding: 8px 20px; border-radius: 20px; }
+
+    /* ════ COUNTDOWN ══════════════════════════ */
+    #s-cd { gap: 8px; }
+    .cd-badge { font-size: 13px; color: rgba(255,255,255,.65); letter-spacing: 2px; }
+    .cd-num   { font-size: 108px; font-weight: 900; color: #fff; line-height: 1;
+                text-shadow: 0 4px 24px rgba(0,0,0,.5);
+                animation: cd-pop .4s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes cd-pop { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
+    .cd-hint  { font-size: 16px; color: rgba(255,255,255,.7); margin-top: 10px; }
+
+    /* ════ GAME ═══════════════════════════════ */
+    #s-game { justify-content: flex-start;
+              padding: env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0); }
+
+    .g-header {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px 10px; background: rgba(0,0,0,0.22);
+    }
+    .g-q     { font-size: 14px; color: rgba(255,255,255,.85); font-weight: 600; }
+    .g-score { font-size: 18px; font-weight: 900; color: var(--gold);
+               text-shadow: 0 1px 6px rgba(0,0,0,.4); }
+
+    .timer-bar  { width: 100%; height: 7px; background: rgba(0,0,0,.28); }
+    .timer-fill { height: 100%; width: 100%;
+                  background: linear-gradient(90deg,#52c41a,#a8e063);
+                  transition: width .22s linear, background .4s; }
+    .timer-fill.warn { background: linear-gradient(90deg,#f39c12,var(--red)); }
+
+    .word-area  { width: 100%; text-align: center; padding: 10px 16px 6px; }
+    .word-hint  { font-size: 12px; color: rgba(255,255,255,.6); letter-spacing: 1px; }
+    .word-en    { font-size: clamp(32px,9vw,50px); font-weight: 900; color: #fff;
+                  letter-spacing: 3px; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+
+    /* ── Field Scene ──────────────────────── */
+    .field-scene {
+      flex: 1; width: 100%;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0 12px;
+      position: relative;
+    }
+    .field-gap { flex: 1; min-height: 8px; max-height: 36px; }
+    .player-zone {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px;
+    }
+
+    /* ── GOAL ─────────────────────────────── */
+    .goal-wrap { position: relative; width: min(350px, 90vw); }
+
+    .goal-frame {
+      position: relative;
+      width: 100%;
+      height: min(185px, 47vw);
+      border: 5px solid rgba(255,255,255,.95);
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      background: rgba(0,0,0,.18);
+      overflow: hidden;
+      display: flex;
+    }
+    .goal-frame::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+      background-size: 17% 20%;
+    }
+
+    /* ── Half panels (display only, no click) ─ */
+    .half-btn {
+      position: relative; z-index: 3;
+      flex: 1;
+      border: none; background: rgba(255,255,255,.07);
+      color: #fff; cursor: default; pointer-events: none;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      padding-top: 9%; gap: 5px;
+      transition: background .15s, box-shadow .18s;
+    }
+    .half-btn.half-left  { border-right: 1px solid rgba(255,255,255,.22); }
+    .half-btn.half-right { border-left:  1px solid rgba(255,255,255,.22); }
+
+    /* aimed: finger is pointing toward this half */
+    .half-btn.aimed {
+      background: rgba(245,197,24,.22);
+      box-shadow: inset 0 0 32px rgba(245,197,24,.3);
+    }
+    .half-btn.correct { background: rgba(39,174,96,.62); }
+    .half-btn.wrong   { background: rgba(231,76,60,.55); }
+
+    .half-dir  { font-size: clamp(11px,3vw,14px); opacity: .5; line-height: 1; }
+    .half-word {
+      font-size: clamp(14px,4vw,20px); font-weight: 800; line-height: 1.25;
+      text-align: center; padding: 0 6%;
+      text-shadow: 0 1px 6px rgba(0,0,0,.45);
+    }
+
+    /* Goalkeeper */
+    .gk-wrap {
+      position: absolute; z-index: 4;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .gk-wrap.saving {
+      transition: transform 0.38s cubic-bezier(.25,1.45,.5,1);
+    }
+
+    /* Goal flash */
+    .goal-flash { position: absolute; inset: 0; z-index: 8; pointer-events: none; opacity: 0; }
+    .goal-flash.scored { animation: fl-gold .55s ease forwards; }
+    .goal-flash.saved  { animation: fl-red  .55s ease forwards; }
+    @keyframes fl-gold { 0%{opacity:0;background:rgba(245,197,24,.6)} 30%{opacity:1} 100%{opacity:0} }
+    @keyframes fl-red  { 0%{opacity:0;background:rgba(231,76,60,.5)} 30%{opacity:1} 100%{opacity:0} }
+
+    /* Feedback text */
+    .fb-txt {
+      position: absolute; top:50%; left:50%; z-index: 9;
+      transform: translate(-50%,-50%) scale(0);
+      font-size: 15px; font-weight: 900;
+      padding: 7px 16px; border-radius: 20px;
+      white-space: nowrap; pointer-events: none;
+    }
+    .fb-txt.goal-t { background:var(--gold);  color:#1a1a1a; animation: fb-goal 1s ease forwards; }
+    .fb-txt.miss-t { background:var(--red);   color:#fff;    animation: fb-miss 1s ease forwards; }
+    @keyframes fb-goal {
+      0%  { transform:translate(-50%,-50%) scale(0);   opacity:0; }
+      25% { transform:translate(-50%,-80%) scale(1.1); opacity:1; }
+      70% { transform:translate(-50%,-90%) scale(1);   opacity:1; }
+      100%{ transform:translate(-50%,-105%) scale(.9); opacity:0; }
+    }
+    @keyframes fb-miss {
+      0%  { transform:translate(-50%,-50%) scale(0);   opacity:0; }
+      25% { transform:translate(-50%,-50%) scale(1.1); opacity:1; }
+      70% { transform:translate(-50%,-50%) scale(1);   opacity:1; }
+      100%{ transform:translate(-50%,-50%) scale(.9);  opacity:0; }
+    }
+
+    .goal-post-l,.goal-post-r {
+      position: absolute; top:0; bottom:-6px; width:5px;
+      background: rgba(255,255,255,.95); border-radius:0 0 3px 3px; z-index: 6;
+      pointer-events: none;
+    }
+    .goal-post-l { left:-5px; }
+    .goal-post-r { right:-5px; }
+    .goal-bar { width:100%; height:6px; background:rgba(255,255,255,.55);
+                border-radius:0 0 4px 4px; }
+
+    /* ── Power Meter ──────────────────────── */
+    .power-wrap {
+      width: min(320px, 86vw);
+      margin-top: 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+
+    .power-track {
+      position: relative; width: 100%; height: 14px;
+      background: rgba(0,0,0,.4); border-radius: 7px; overflow: hidden;
+    }
+    .power-zone {
+      position: absolute; top: 0; bottom: 0;
+      left: 30%; width: 40%;
+      background: rgba(39,174,96,.28);
+      pointer-events: none;
+      transition: opacity .4s;
+    }
+    .power-fill {
+      position: relative; z-index: 1;
+      height: 100%; width: 0%;
+      border-radius: 7px;
+      background: linear-gradient(90deg, #f5c518, #e67e22);
+    }
+    .power-fill.sweet { background: linear-gradient(90deg, #27ae60, #52c41a); }
+    .power-fill.over  { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+
+    /* Zone labels — visible shots 1-3, hidden shots 4+ */
+    .power-labels {
+      position: relative; width: 100%; height: 14px;
+      font-size: 10px; color: rgba(255,255,255,.45);
+      transition: opacity .4s;
+    }
+    .power-labels .lbl-left  { position: absolute; left: 2px; }
+    .power-labels .lbl-mid   { position: absolute; left: 50%; transform: translateX(-50%);
+                                color: rgba(39,174,96,.8); }
+    .power-labels .lbl-right { position: absolute; right: 2px; }
+
+    /* hide zone guide from shot 4 onward */
+    .power-wrap.no-guide .power-zone   { opacity: 0; }
+    .power-wrap.no-guide .power-labels { opacity: 0; }
+
+    .power-hint {
+      font-size: 12px; color: rgba(255,255,255,.6); letter-spacing: 1px;
+      text-align: center; transition: color .2s;
+    }
+    .power-hint.charging { color: var(--gold); font-weight: 700; }
+
+    /* ── Tutorial overlay (Q1 only) ────────── */
+    #tut {
+      position: absolute; inset: 0; z-index: 50;
+      pointer-events: none;
+      opacity: 0; transition: opacity .5s;
+    }
+    #tut.show { opacity: 1; }
+
+    .tut-goal-row {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      /* will be positioned by JS based on goal height */
+      display: flex; justify-content: space-between;
+      padding: 0 10%;
+      font-size: 12px; color: rgba(255,255,255,.85);
+      font-weight: 700;
+    }
+    .tut-goal-row span {
+      background: rgba(0,0,0,.32); padding: 4px 10px; border-radius: 20px;
+      animation: tut-pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes tut-pulse { 0%,100%{opacity:.7} 50%{opacity:1} }
+
+    .tut-ball-box {
+      position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      /* positioned by JS */
+      background: rgba(0,0,0,.38); border-radius: 14px;
+      padding: 8px 18px; text-align: center;
+      font-size: 12px; color: rgba(255,255,255,.9); line-height: 1.7;
+      white-space: nowrap;
+      animation: tut-pulse 1.6s ease-in-out infinite;
+    }
+
+    /* ── Penalty markings ─────────────────── */
+    .penalty-area {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+    }
+    .p-line { width: min(180px,46vw); height: 2px; background: rgba(255,255,255,.35); }
+    .p-spot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.55); }
+
+    /* ball-wrap gets a subtle pulse ring on player's turn */
+    .ball-wrap { position: relative; z-index: 20; line-height: 1; }
+    .ball-wrap::before {
+      content: ''; position: absolute; inset: -8px; border-radius: 50%;
+      border: 2px solid rgba(245,197,24,0); transition: border-color .3s;
+    }
+    .ball-wrap.ready::before {
+      border-color: rgba(245,197,24,.55);
+      animation: ring-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes ring-pulse { 0%,100%{transform:scale(1);opacity:.6} 50%{transform:scale(1.15);opacity:1} }
+
+    .ball {
+      font-size: 38px; display: block;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,.5));
+    }
+    .ball.shoot-goal  { animation: ball-goal  .50s ease-in  forwards; }
+    .ball.shoot-short { animation: ball-short .52s ease-out forwards; }
+    .ball.shoot-over  { animation: ball-over  .52s ease-in  forwards; }
+
+    @keyframes ball-goal {
+      0%   { transform: translate(0,0) scale(1) rotate(0deg); }
+      100% { transform: translate(var(--dx),var(--dy)) scale(.52) rotate(380deg); }
+    }
+    @keyframes ball-short {
+      0%   { transform: translate(0,0) scale(1) rotate(0deg); }
+      55%  { transform: translate(calc(var(--dx)*.44), calc(var(--dy)*.36)) scale(.84) rotate(150deg); }
+      100% { transform: translate(calc(var(--dx)*.42), calc(var(--dy)*.33 + 24px)) scale(.80) rotate(168deg); }
+    }
+    @keyframes ball-over {
+      0%   { transform: translate(0,0) scale(1) rotate(0deg); }
+      45%  { transform: translate(calc(var(--dx)*.5), calc(var(--dy)*1.3)) scale(.68) rotate(260deg); }
+      100% { transform: translate(calc(var(--dx)*.65), calc(var(--dy)*2.1)) scale(.44) rotate(460deg); }
+    }
+
+    /* ── Penalty arc ─────────────────────── */
+    .penalty-arc {
+      width: min(160px, 41vw);
+      height: min(26px, 6.7vw);
+      border-radius: 80px 80px 0 0;
+      border: 2px solid rgba(255,255,255,.3);
+      border-bottom: none;
+      margin-bottom: -1px;
+    }
+
+    /* ── Kicker ───────────────────────────── */
+    .kicker-wrap { position: relative; }
+    .kicker-svg  { overflow: visible; display: block; transform-origin: 50% 100%; }
+    .kicker-svg.kicking { animation: k-kick .46s cubic-bezier(.25,.46,.45,.94); }
+    .kicker-svg.charging-pose { animation: charge-lean .28s ease forwards; }
+    @keyframes charge-lean {
+      0%   { transform: rotate(0deg) translateY(0); }
+      100% { transform: rotate(-9deg) translateY(4px); }
+    }
+    @keyframes k-kick {
+      0%  { transform: rotate(-9deg) translateY(4px); }
+      25% { transform: rotate(-22deg) translateY(-10px) scale(1.04); }
+      55% { transform: rotate(-15deg) translateY(-8px); }
+      80% { transform: rotate(-4deg) translateY(-2px); }
+      100%{ transform: rotate(0deg) translateY(0); }
+    }
+
+    /* ════ RESULT MODAL ═══════════════════ */
+    #modal {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,.62);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s; z-index: 200;
+    }
+    #modal.show { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: #fff; border-radius: 24px; padding: 28px 24px 24px;
+      width: min(308px,84vw); text-align: center;
+      transform: scale(.78) translateY(16px);
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+    #modal.show .modal-box { transform: scale(1) translateY(0); }
+    .m-emoji  { font-size: 50px; margin-bottom: 6px; }
+    .m-title  { font-size: 22px; font-weight: 900; color: #1a1a2e; }
+    .m-score  { font-size: 62px; font-weight: 900; color: #2980b9; line-height: 1.1; }
+    .m-lbl    { font-size: 14px; color: #999; margin-bottom: 2px; }
+    .m-detail { font-size: 13px; color: #bbb; margin-bottom: 10px; }
+    .m-best   { font-size: 13px; color: #666; background: #f7f7f7;
+                border-radius: 12px; padding: 9px 14px; margin-bottom: 20px; }
+    .m-best span { color: #2980b9; font-weight: 700; }
+    .m-actions { display: flex; gap: 10px; }
+    .m-actions button {
+      flex: 1; padding: 14px 8px; border: none; border-radius: 16px;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: transform .1s;
+    }
+    .m-actions button:active { transform: scale(.95); }
+    #btn-replay { background: #27ae60; color: #fff; }
+    #btn-home   { background: #ecf0f1; color: #555; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div id="s-home" class="screen active">
+    <div class="home-ball">⚽</div>
+    <div class="home-title">点球对决</div>
+    <div class="home-sub">PenaltyQuiz · 英语词汇</div>
+    <div class="diff-label">选择难度</div>
+    <div class="diff-grid">
+      <button class="diff-btn easy"   data-diff="easy">  <span class="dn">初级</span><span class="dt">⏱ 12 秒</span></button>
+      <button class="diff-btn medium" data-diff="medium"><span class="dn">中级</span><span class="dt">⏱ 9 秒</span></button>
+      <button class="diff-btn hard"   data-diff="hard">  <span class="dn">高级</span><span class="dt">⏱ 6 秒</span></button>
+      <button class="diff-btn expert" data-diff="expert"><span class="dn">专家</span><span class="dt">⏱ 4 秒</span></button>
+    </div>
+    <div class="home-best" id="home-best">历史最高：0 分</div>
+  </div>
+
+  <!-- COUNTDOWN -->
+  <div id="s-cd" class="screen">
+    <div class="cd-badge" id="cd-badge">初级</div>
+    <div class="cd-num"   id="cd-num">3</div>
+    <div class="cd-hint"  id="cd-hint">准备好了吗？</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="s-game" class="screen">
+    <div class="g-header">
+      <div class="g-q" id="g-q">第 1 题 / 5</div>
+      <div class="g-score">⭐&thinsp;<span id="g-score">0</span></div>
+    </div>
+    <div class="timer-bar">
+      <div class="timer-fill" id="timer-fill" style="width:100%"></div>
+    </div>
+    <div class="word-area">
+      <div class="word-hint">这个单词是什么意思？</div>
+      <div class="word-en" id="word-en">apple</div>
+    </div>
+
+    <div class="field-scene" id="field-scene">
+
+      <!-- Tutorial overlay (Q1 only) -->
+      <div id="tut">
+        <div class="tut-goal-row" id="tut-goal-row">
+          <span>← 滑向左区</span>
+          <span>滑向右区 →</span>
+        </div>
+        <div class="tut-ball-box" id="tut-ball-box">
+          按住屏幕蓄力<br>左右滑动选方向<br>松手射门 ⚽
+        </div>
+      </div>
+
+      <!-- ── GOAL ── -->
+      <div class="goal-wrap">
+        <div class="goal-frame" id="goal-frame">
+
+          <button class="half-btn half-left" id="btn-left">
+            <div class="half-dir">◀</div>
+            <div class="half-word" id="word-left">苹果</div>
+          </button>
+
+          <button class="half-btn half-right" id="btn-right">
+            <div class="half-dir">▶</div>
+            <div class="half-word" id="word-right">香蕉</div>
+          </button>
+
+          <div class="gk-wrap" id="gk-wrap">
+            <svg viewBox="0 0 48 76" width="36" height="58" style="overflow:visible">
+              <!-- ground shadow -->
+              <ellipse cx="24" cy="75" rx="18" ry="3.5" fill="rgba(0,0,0,.22)"/>
+              <!-- hair -->
+              <circle cx="24" cy="7" r="9.5" fill="#2C1810"/>
+              <!-- head skin -->
+              <circle cx="24" cy="9"  r="8.5" fill="#F5B8A0"/>
+              <!-- eyes -->
+              <circle cx="21" cy="8" r="1.2" fill="#444"/>
+              <circle cx="27" cy="8" r="1.2" fill="#444"/>
+              <!-- jersey torso (yellow-orange) -->
+              <polygon points="16,18 32,18 34,50 14,50" fill="#E67E22"/>
+              <!-- white collar stripe -->
+              <ellipse cx="24" cy="18" rx="5.5" ry="2.2" fill="white" opacity=".8"/>
+              <!-- jersey sleeves toward arms -->
+              <line x1="17" y1="24" x2="3"  y2="27" stroke="#E67E22" stroke-width="6.5" stroke-linecap="round"/>
+              <line x1="31" y1="24" x2="45" y2="27" stroke="#E67E22" stroke-width="6.5" stroke-linecap="round"/>
+              <!-- big green gloves -->
+              <circle cx="2"  cy="27" r="7.5" fill="#27AE60"/>
+              <circle cx="46" cy="27" r="7.5" fill="#27AE60"/>
+              <!-- glove grip lines -->
+              <line x1="-2" y1="25" x2="6"  y2="25" stroke="rgba(0,0,0,.28)" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="-2" y1="29" x2="6"  y2="29" stroke="rgba(0,0,0,.28)" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="42" y1="25" x2="50" y2="25" stroke="rgba(0,0,0,.28)" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="42" y1="29" x2="50" y2="29" stroke="rgba(0,0,0,.28)" stroke-width="1.8" stroke-linecap="round"/>
+              <!-- shorts (dark navy) -->
+              <polygon points="14,48 12,64 22,64 24,56 26,64 36,64 34,48" fill="#1A237E"/>
+              <!-- legs (skin) -->
+              <line x1="16" y1="63" x2="12" y2="71" stroke="#F5B8A0" stroke-width="5" stroke-linecap="round"/>
+              <line x1="32" y1="63" x2="36" y2="71" stroke="#F5B8A0" stroke-width="5" stroke-linecap="round"/>
+              <!-- boots -->
+              <ellipse cx="10" cy="73" rx="8.5" ry="3.2" fill="#1a1a1a"/>
+              <ellipse cx="38" cy="73" rx="8.5" ry="3.2" fill="#1a1a1a"/>
+            </svg>
+          </div>
+
+          <div class="goal-flash" id="goal-flash"></div>
+          <div class="fb-txt"     id="fb-txt"></div>
+
+          <div class="goal-post-l"></div>
+          <div class="goal-post-r"></div>
+        </div>
+        <div class="goal-bar"></div>
+      </div>
+
+      <!-- Power meter -->
+      <div class="power-wrap" id="power-wrap">
+        <div class="power-track">
+          <div class="power-zone"></div>
+          <div class="power-fill" id="power-fill"></div>
+        </div>
+        <div class="power-labels">
+          <span class="lbl-left">太弱</span>
+          <span class="lbl-mid">适中</span>
+          <span class="lbl-right">太强</span>
+        </div>
+        <div class="power-hint" id="power-hint">按住屏幕蓄力 · 滑向目标 · 松手射门</div>
+      </div>
+
+      <div class="field-gap"></div>
+
+      <div class="player-zone">
+        <div class="penalty-arc"></div>
+        <div class="penalty-area">
+          <div class="p-line"></div>
+          <div class="p-spot"></div>
+        </div>
+        <div class="ball-wrap" id="ball-wrap">
+          <span class="ball" id="ball">⚽</span>
+        </div>
+        <div class="kicker-wrap">
+          <svg class="kicker-svg" id="kicker" viewBox="0 0 56 96" width="44" height="76" style="overflow:visible">
+            <!-- ground shadow -->
+            <ellipse cx="26" cy="93" rx="14" ry="3" fill="rgba(0,0,0,.24)"/>
+            <!-- hair -->
+            <circle cx="28" cy="9"  r="11"  fill="#2C1810"/>
+            <!-- head skin -->
+            <circle cx="28" cy="11" r="10"  fill="#F5B8A0"/>
+            <!-- eyes -->
+            <circle cx="24" cy="10" r="1.4" fill="#444"/>
+            <circle cx="32" cy="10" r="1.4" fill="#444"/>
+            <!-- jersey torso (red) -->
+            <polygon points="20,21 36,21 34,58 22,58" fill="#C0392B"/>
+            <!-- white collar -->
+            <ellipse cx="28" cy="21" rx="5.5" ry="2.2" fill="white" opacity=".8"/>
+            <!-- jersey sleeve → left arm (swinging back) -->
+            <line x1="22" y1="27" x2="11" y2="38" stroke="#C0392B" stroke-width="5.5" stroke-linecap="round"/>
+            <line x1="11" y1="38" x2="9"  y2="47" stroke="#F5B8A0" stroke-width="4.5" stroke-linecap="round"/>
+            <!-- jersey sleeve → right arm (swinging forward) -->
+            <line x1="34" y1="27" x2="44" y2="22" stroke="#C0392B" stroke-width="5.5" stroke-linecap="round"/>
+            <line x1="44" y1="22" x2="47" y2="15" stroke="#F5B8A0" stroke-width="4.5" stroke-linecap="round"/>
+            <!-- shorts (navy blue) -->
+            <polygon points="20,57 36,57 39,72 17,72" fill="#1A237E"/>
+            <!-- left leg (standing) -->
+            <line x1="23" y1="71" x2="16" y2="85" stroke="#F5B8A0" stroke-width="5" stroke-linecap="round"/>
+            <!-- left boot (flat on ground) -->
+            <ellipse cx="13" cy="88" rx="9" ry="3.5" fill="#1a1a1a"/>
+            <ellipse cx="14" cy="87" rx="7" ry="2.4" fill="#333"/>
+            <!-- right leg (kicking, bent forward-up) -->
+            <line x1="33" y1="71" x2="41" y2="76" stroke="#F5B8A0" stroke-width="5" stroke-linecap="round"/>
+            <!-- right boot (elevated, angled) -->
+            <ellipse cx="50" cy="70" rx="9"   ry="3.5" fill="#1a1a1a" transform="rotate(-28 50 70)"/>
+            <ellipse cx="50" cy="69" rx="7"   ry="2.4" fill="#333"    transform="rotate(-28 50 69)"/>
+          </svg>
+        </div>
+      </div>
+
+    </div><!-- field-scene -->
+  </div><!-- s-game -->
+
+  <!-- RESULT MODAL -->
+  <div id="modal">
+    <div class="modal-box">
+      <div class="m-emoji"  id="m-emoji">🏆</div>
+      <div class="m-title"  id="m-title">本局结束</div>
+      <div class="m-score"  id="m-score">0</div>
+      <div class="m-lbl">分</div>
+      <div class="m-detail" id="m-detail">答对 0 / 5 题</div>
+      <div class="m-best">历史最高：<span id="m-best-num">0</span> 分</div>
+      <div class="m-actions">
+        <button id="btn-replay">⚽ 再来一局</button>
+        <button id="btn-home">🏠 换难度</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+/* ── CONFIG ─────────────────────────────────── */
+const DIFF = {
+  easy:   { label:'初级', time:12 },
+  medium: { label:'中级', time:9  },
+  hard:   { label:'高级', time:6  },
+  expert: { label:'专家', time:4  },
+}
+const TOTAL      = 5
+const DIRS       = ['left', 'right']
+const CHARGE_MAX = 2000
+const SWEET_MIN  = 0.30
+const SWEET_MAX  = 0.70
+
+/* ── VOCABULARY ─────────────────────────────── */
+const VOCAB = [
+  {en:'apple',cn:'苹果'},{en:'banana',cn:'香蕉'},{en:'orange',cn:'橙子'},
+  {en:'grape',cn:'葡萄'},{en:'peach',cn:'桃子'},{en:'mango',cn:'芒果'},
+  {en:'lemon',cn:'柠檬'},{en:'cherry',cn:'樱桃'},{en:'cat',cn:'猫'},
+  {en:'dog',cn:'狗'},{en:'bird',cn:'鸟'},{en:'fish',cn:'鱼'},
+  {en:'rabbit',cn:'兔子'},{en:'tiger',cn:'老虎'},{en:'lion',cn:'狮子'},
+  {en:'horse',cn:'马'},{en:'book',cn:'书'},{en:'pen',cn:'钢笔'},
+  {en:'pencil',cn:'铅笔'},{en:'ruler',cn:'尺子'},{en:'bag',cn:'书包'},
+  {en:'eraser',cn:'橡皮'},{en:'table',cn:'桌子'},{en:'chair',cn:'椅子'},
+  {en:'school',cn:'学校'},{en:'teacher',cn:'老师'},{en:'student',cn:'学生'},
+  {en:'friend',cn:'朋友'},{en:'water',cn:'水'},{en:'milk',cn:'牛奶'},
+  {en:'bread',cn:'面包'},{en:'cake',cn:'蛋糕'},{en:'rice',cn:'米饭'},
+  {en:'egg',cn:'鸡蛋'},{en:'soup',cn:'汤'},{en:'meat',cn:'肉'},
+  {en:'sun',cn:'太阳'},{en:'moon',cn:'月亮'},{en:'star',cn:'星星'},
+  {en:'tree',cn:'树'},{en:'flower',cn:'花'},{en:'river',cn:'河流'},
+  {en:'house',cn:'房子'},{en:'car',cn:'汽车'},{en:'bus',cn:'公共汽车'},
+  {en:'train',cn:'火车'},{en:'red',cn:'红色'},{en:'blue',cn:'蓝色'},
+  {en:'green',cn:'绿色'},{en:'yellow',cn:'黄色'},{en:'black',cn:'黑色'},
+  {en:'white',cn:'白色'},{en:'big',cn:'大的'},{en:'small',cn:'小的'},
+  {en:'happy',cn:'快乐的'},{en:'sad',cn:'伤心的'},{en:'run',cn:'跑'},
+  {en:'jump',cn:'跳'},{en:'eat',cn:'吃'},{en:'drink',cn:'喝'},
+  {en:'sleep',cn:'睡觉'},{en:'play',cn:'玩'},{en:'read',cn:'读'},
+  {en:'write',cn:'写'},{en:'mother',cn:'妈妈'},{en:'father',cn:'爸爸'},
+  {en:'brother',cn:'兄弟'},{en:'sister',cn:'姐妹'},
+]
+
+/* ── STATE ──────────────────────────────────── */
+const S = {
+  diff:'easy', qs:[], qi:0,
+  score:0, correct:0,
+  timeLeft:12, maxT:12,
+  locked:false, timer:null, cdTimer:null,
+  best: parseInt(localStorage.getItem('pq_best')||'0'),
+  charging:false, chargeDir:null, chargeStart:0, chargeTimer:null,
+}
+
+/* ── DOM helpers ────────────────────────────── */
+const $ = id => document.getElementById(id)
+const SCREENS = { home:$('s-home'), cd:$('s-cd'), game:$('s-game') }
+
+function show(name) {
+  Object.values(SCREENS).forEach(s => s.classList.remove('active'))
+  if (SCREENS[name]) SCREENS[name].classList.add('active')
+}
+
+function shuffle(a) {
+  a = [...a]
+  for (let i = a.length-1; i > 0; i--) {
+    const j = 0|Math.random()*(i+1);[a[i],a[j]]=[a[j],a[i]]
+  }
+  return a
+}
+
+/* ── QUESTIONS ──────────────────────────────── */
+function genQs() {
+  const words = shuffle(VOCAB).slice(0, TOTAL)
+  return words.map(w => {
+    const distractor = shuffle(VOCAB.filter(v => v.cn !== w.cn))[0].cn
+    const correctDir = Math.random() < 0.5 ? 'left' : 'right'
+    const wrongDir   = correctDir === 'left' ? 'right' : 'left'
+    return {
+      word: w.en,
+      opts: { [correctDir]: w.cn, [wrongDir]: distractor },
+      correct: correctDir,
+    }
+  })
+}
+
+/* ── TUTORIAL ───────────────────────────────── */
+let tutTimeout = null
+
+function showTutorial() {
+  // Position tutorial hints based on actual element positions
+  const sceneRect = $('field-scene').getBoundingClientRect()
+  const goalRect  = $('goal-frame').getBoundingClientRect()
+  const ballRect  = $('ball-wrap').getBoundingClientRect()
+
+  const tut = $('tut')
+
+  // goal-row hint: vertically centered on the goal halves
+  const tutGoal = $('tut-goal-row')
+  tutGoal.style.top = (goalRect.top - sceneRect.top + goalRect.height * 0.3) + 'px'
+
+  // ball-box hint: just above the kicker
+  const tutBall = $('tut-ball-box')
+  tutBall.style.bottom = (sceneRect.bottom - ballRect.top + 4) + 'px'
+
+  tut.classList.add('show')
+  clearTimeout(tutTimeout)
+  tutTimeout = setTimeout(dismissTutorial, 4000)
+}
+
+function dismissTutorial() {
+  clearTimeout(tutTimeout)
+  $('tut').classList.remove('show')
+}
+
+/* ── COUNTDOWN ──────────────────────────────── */
+function startCountdown(done) {
+  show('cd')
+  $('cd-badge').textContent = DIFF[S.diff].label
+  $('cd-hint').textContent  = '准备好了吗？'
+  let n = 3; setCD(n)
+  clearInterval(S.cdTimer)
+  S.cdTimer = setInterval(() => {
+    n--
+    if (n > 0) { setCD(n) }
+    else {
+      clearInterval(S.cdTimer)
+      $('cd-num').textContent  = '开始！'
+      $('cd-hint').textContent = ''
+      setTimeout(done, 500)
+    }
+  }, 1000)
+}
+function setCD(n) {
+  const el = $('cd-num')
+  el.textContent = n
+  el.style.animation = 'none'; void el.offsetWidth
+  el.style.animation = 'cd-pop .4s cubic-bezier(.34,1.56,.64,1)'
+}
+
+/* ── START GAME ─────────────────────────────── */
+function startGame(diff) {
+  S.diff = diff; S.maxT = DIFF[diff].time
+  S.qs = genQs(); S.qi = 0; S.score = 0; S.correct = 0; S.locked = false
+  clearInterval(S.timer)
+  startCountdown(() => { show('game'); showQ() })
+}
+
+/* ── SHOW QUESTION ──────────────────────────── */
+function showQ() {
+  const q = S.qs[S.qi]
+  $('g-q').textContent     = `第 ${S.qi+1} 题 / ${TOTAL}`
+  $('g-score').textContent = S.score
+  $('word-en').textContent = q.word
+
+  DIRS.forEach(d => {
+    $('btn-'+d).className = 'half-btn half-' + d
+    $('word-'+d).textContent = q.opts[d]
+  })
+
+  // reset ball
+  const ball = $('ball')
+  ball.className = 'ball'; ball.style.cssText = ''
+  void ball.offsetWidth
+  $('ball-wrap').classList.add('ready')
+
+  // reset GK
+  const gk = $('gk-wrap')
+  gk.classList.remove('saving')
+  gk.style.transform = 'translate(-50%, -50%)'
+
+  // reset flash / feedback
+  $('goal-flash').className = 'goal-flash'
+  const fb = $('fb-txt')
+  fb.className = 'fb-txt'; fb.textContent = ''
+
+  // reset power meter
+  resetPower()
+
+  // power zone guide: show for shots 1-3, hide for shots 4+
+  $('power-wrap').classList.toggle('no-guide', S.qi >= 3)
+
+  // tutorial: show only on Q1
+  if (S.qi === 0) {
+    // slight delay so layout is settled
+    setTimeout(showTutorial, 300)
+  } else {
+    dismissTutorial()
+  }
+
+  S.locked = false; S.timeLeft = S.maxT
+  updateTimer()
+  clearInterval(S.timer)
+  S.timer = setInterval(() => {
+    S.timeLeft--; updateTimer()
+    if (S.timeLeft <= 0) { clearInterval(S.timer); onTimeout() }
+  }, 1000)
+}
+
+function updateTimer() {
+  const pct  = S.maxT > 0 ? S.timeLeft/S.maxT*100 : 0
+  const fill = $('timer-fill')
+  fill.style.width = pct + '%'
+  const warn = S.timeLeft <= Math.min(3, Math.ceil(S.maxT * 0.35))
+  fill.classList.toggle('warn', warn)
+}
+
+/* ── POWER METER ────────────────────────────── */
+function resetPower() {
+  stopChargeTimer()
+  S.charging = false; S.chargeDir = null; S.chargeStart = 0
+  DIRS.forEach(d => $('btn-'+d).classList.remove('aimed'))
+  const k = $('kicker'); k.classList.remove('charging-pose')
+  const fill = $('power-fill')
+  fill.style.width = '0%'; fill.className = 'power-fill'
+  const hint = $('power-hint')
+  hint.textContent = '按住屏幕蓄力 · 滑向目标 · 松手射门'
+  hint.classList.remove('charging')
+}
+
+function stopChargeTimer() {
+  if (S.chargeTimer) { clearInterval(S.chargeTimer); S.chargeTimer = null }
+}
+
+/* ── CHARGE MECHANIC ────────────────────────── */
+function getPoint(e) {
+  if (e.changedTouches && e.changedTouches.length > 0)
+    return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY }
+  if (e.touches && e.touches.length > 0)
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  return { x: e.clientX, y: e.clientY }
+}
+
+function updateAimDir(pt) {
+  const goalRect = $('goal-frame').getBoundingClientRect()
+  const midX = goalRect.left + goalRect.width / 2
+  const newDir = pt.x < midX ? 'left' : 'right'
+  if (newDir !== S.chargeDir) {
+    if (S.chargeDir) $('btn-'+S.chargeDir).classList.remove('aimed')
+    S.chargeDir = newDir
+    $('btn-'+newDir).classList.add('aimed')
+  }
+}
+
+function startCharge(pt) {
+  if (S.locked || S.charging) return
+  dismissTutorial()
+  S.charging    = true
+  S.chargeStart = performance.now()
+  $('ball-wrap').classList.remove('ready')
+  const k = $('kicker'); k.classList.remove('kicking'); k.classList.add('charging-pose')
+
+  updateAimDir(pt)  // set initial aim from press position
+
+  const hint = $('power-hint')
+  hint.textContent = '蓄力中… 松手射门！'
+  hint.classList.add('charging')
+
+  S.chargeTimer = setInterval(() => {
+    const ratio = Math.min((performance.now() - S.chargeStart) / CHARGE_MAX, 1)
+    const fill = $('power-fill')
+    fill.style.width = (ratio * 100) + '%'
+    if (ratio < SWEET_MIN)       fill.className = 'power-fill'
+    else if (ratio <= SWEET_MAX) fill.className = 'power-fill sweet'
+    else                          fill.className = 'power-fill over'
+    if (ratio >= 1) stopChargeTimer()
+  }, 30)
+}
+
+function releaseCharge() {
+  if (!S.charging || S.locked) return
+  const elapsed = performance.now() - S.chargeStart
+  const ratio   = Math.min(elapsed / CHARGE_MAX, 1)
+  const dir     = S.chargeDir
+  S.charging = false
+  stopChargeTimer()
+  doShoot(dir, ratio)
+}
+
+/* ── DO SHOOT ───────────────────────────────── */
+function doShoot(dir, power) {
+  if (S.locked) return
+  S.locked = true
+  clearInterval(S.timer)
+  $('ball-wrap').classList.remove('ready')
+
+  DIRS.forEach(d => $('btn-'+d).classList.remove('aimed'))
+
+  const q       = S.qs[S.qi]
+  const correct = dir === q.correct
+  const inSweet = power >= SWEET_MIN && power <= SWEET_MAX
+
+  // GK always dives toward the wrong-answer side
+  const gkDir = q.correct === 'left' ? 'right' : 'left'
+  moveGK(gkDir)
+
+  let outcome
+  if (power < SWEET_MIN)       outcome = 'short'
+  else if (power > SWEET_MAX)  outcome = 'over'
+  else if (correct)             outcome = 'goal'
+  else                          outcome = 'save'
+
+  const k = $('kicker')
+  k.classList.remove('kicking'); void k.offsetWidth
+  k.classList.add('kicking')
+
+  shootBall(dir, outcome, () => {
+    if (outcome === 'goal') {
+      $('btn-'+dir).classList.add('correct')
+      const pts = 100 + S.timeLeft * 10
+      S.score += pts; S.correct++
+      $('g-score').textContent = S.score
+      showFlash('scored', `进球！ +${pts}`)
+      if (navigator.vibrate) navigator.vibrate(80)
+    } else if (outcome === 'save') {
+      $('btn-'+dir).classList.add('wrong')
+      $('btn-'+q.correct).classList.add('correct')
+      showFlash('saved', '扑救！')
+    } else if (outcome === 'short') {
+      $('btn-'+q.correct).classList.add('correct')
+      showFlash('saved', '力量不足！')
+    } else {
+      $('btn-'+q.correct).classList.add('correct')
+      showFlash('saved', '踢飞了！')
+    }
+    setTimeout(nextQ, 950)
+  })
+}
+
+/* ── BALL ANIMATION ─────────────────────────── */
+function shootBall(dir, outcome, done) {
+  const ball  = $('ball')
+  const btn   = $('btn-'+dir)
+  const bRect = ball.getBoundingClientRect()
+  const tRect = btn.getBoundingClientRect()
+
+  const dx = (tRect.left + tRect.width/2)  - (bRect.left + bRect.width/2)
+  const dy = (tRect.top  + tRect.height/2) - (bRect.top  + bRect.height/2)
+
+  ball.style.setProperty('--dx', dx+'px')
+  ball.style.setProperty('--dy', dy+'px')
+
+  if (outcome === 'short')     ball.className = 'ball shoot-short'
+  else if (outcome === 'over') ball.className = 'ball shoot-over'
+  else                          ball.className = 'ball shoot-goal'
+
+  setTimeout(done, 530)
+}
+
+/* ── GK DIVE ────────────────────────────────── */
+function moveGK(dir) {
+  const gk    = $('gk-wrap')
+  const tRect = $('btn-'+dir).getBoundingClientRect()
+  const gRect = gk.getBoundingClientRect()
+  const dx = (tRect.left + tRect.width/2)  - (gRect.left + gRect.width/2)
+  const dy = (tRect.top  + tRect.height/2) - (gRect.top  + gRect.height/2)
+  gk.classList.add('saving')
+  gk.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`
+}
+
+/* ── FLASH / FEEDBACK ───────────────────────── */
+function showFlash(type, txt) {
+  const fl = $('goal-flash')
+  fl.className = 'goal-flash'; void fl.offsetWidth
+  fl.className = 'goal-flash ' + type
+  const fb = $('fb-txt')
+  fb.textContent = txt
+  fb.className   = 'fb-txt'; void fb.offsetWidth
+  fb.className   = 'fb-txt ' + (type === 'scored' ? 'goal-t' : 'miss-t')
+}
+
+/* ── TIMEOUT ────────────────────────────────── */
+function onTimeout() {
+  if (S.locked) return
+  if (S.charging) { releaseCharge(); return }
+  S.locked = true
+  DIRS.forEach(d => $('btn-'+d).classList.remove('aimed'))
+  $('btn-'+S.qs[S.qi].correct).classList.add('correct')
+  showFlash('saved', '超时！')
+  setTimeout(nextQ, 1000)
+}
+
+function nextQ() { S.qi++; S.qi >= TOTAL ? endGame() : showQ() }
+
+/* ── END GAME ───────────────────────────────── */
+function endGame() {
+  clearInterval(S.timer)
+  const isNew = S.score > S.best
+  if (isNew) { S.best = S.score; localStorage.setItem('pq_best', S.best); refreshBest() }
+  const all = S.correct === TOTAL
+  $('m-emoji').textContent  = all ? '🏆' : S.correct >= 3 ? '⚽' : '😅'
+  $('m-title').textContent  = all ? '完美射手！' : S.correct >= 3 ? '表现不错！' : '继续加油！'
+  $('m-score').textContent  = S.score
+  $('m-detail').textContent = `答对 ${S.correct} / ${TOTAL} 题${isNew ? '　🎉 新纪录！' : ''}`
+  $('m-best-num').textContent = S.best
+  $('modal').classList.add('show')
+}
+
+function refreshBest() {
+  $('home-best').textContent = `历史最高：${S.best} 分`
+}
+
+/* ── EVENTS ─────────────────────────────────── */
+// Home difficulty buttons
+document.querySelectorAll('.diff-btn').forEach(b =>
+  b.addEventListener('click', () => startGame(b.dataset.diff))
+)
+
+// Charge: press anywhere on game screen → start; move → update aim; release → shoot
+const gameEl = $('s-game')
+
+function onDown(e) {
+  if (!$('s-game').classList.contains('active')) return
+  if (e.target.closest('#modal') || e.target.closest('.diff-btn') ||
+      e.target.closest('#btn-replay') || e.target.closest('#btn-home')) return
+  const pt = getPoint(e)
+  startCharge(pt)
+}
+
+function onMove(e) {
+  if (S.charging) updateAimDir(getPoint(e))
+}
+
+gameEl.addEventListener('mousedown',  onDown)
+gameEl.addEventListener('touchstart', e => { e.preventDefault(); onDown(e) }, { passive: false })
+
+document.addEventListener('mousemove',   onMove)
+document.addEventListener('touchmove',   e => { e.preventDefault(); onMove(e) }, { passive: false })
+
+document.addEventListener('mouseup',    () => releaseCharge())
+document.addEventListener('touchend',   () => releaseCharge(), { passive: false })
+document.addEventListener('touchcancel',() => { stopChargeTimer(); S.charging = false })
+
+$('btn-replay').addEventListener('click', () => {
+  $('modal').classList.remove('show'); startGame(S.diff)
+})
+$('btn-home').addEventListener('click', () => {
+  clearInterval(S.timer); clearInterval(S.cdTimer)
+  stopChargeTimer(); S.charging = false
+  $('modal').classList.remove('show'); show('home')
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(S.timer)
+    if (S.charging) { stopChargeTimer(); S.charging = false }
+  }
+})
+
+/* ── INIT ───────────────────────────────────── */
+refreshBest()
+</script>
+</body>
+</html>

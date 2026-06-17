@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>镜中世界 · MirrorSnap</title>
+  <style>
+    :root {
+      --color-bg:           #0a0e1a;
+      --color-surface:      #111827;
+      --color-surface-2:    #1a2333;
+      --color-border:       #1e3a5f;
+      --color-primary:      #4fc3f7;
+      --color-primary-dim:  #1a3d5c;
+      --color-shape-fill:   #132240;
+      --color-shape-stroke: #a8e0ff;
+      --color-mirror-fill:  #0d1f2e;
+      --color-mirror-stroke:#a0d4f0;
+      --color-correct:      #ffd700;
+      --color-correct-glow: rgba(255,215,0,0.45);
+      --color-wrong:        #ff3b3b;
+      --color-wrong-glow:   rgba(255,59,59,0.45);
+      --color-text:         #e0f4ff;
+      --color-text-dim:     rgba(224,244,255,0.5);
+      --color-text-muted:   rgba(224,244,255,0.3);
+      --radius-card:        14px;
+      --radius-btn:         26px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--color-bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      color: var(--color-text);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    #game-container { width: 100vw; height: 100vh; height: 100dvh; position: relative; overflow: hidden; }
+
+    /* ── 屏幕管理 ─────────────────────────────── */
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ══ 开始屏 ══════════════════════════════════ */
+    #screen-start {
+      justify-content: center; padding: 20px 24px;
+      background: radial-gradient(ellipse at 50% 20%, #0d1a2e 0%, var(--color-bg) 70%);
+    }
+    .start-logo { font-size: 11px; letter-spacing: 0.2em; color: var(--color-primary); text-transform: uppercase; margin-bottom: 8px; opacity: 0.7; }
+    .start-title { font-size: 28px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+    .start-title span { color: var(--color-primary); }
+    .start-subtitle { font-size: 12px; color: var(--color-text-dim); text-align: center; margin-bottom: 18px; }
+
+    /* 故事卡 */
+    .story-box {
+      width: 100%; background: linear-gradient(135deg, #0d1a2e 0%, #111827 100%);
+      border: 1px solid rgba(79,195,247,0.3); border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 16px;
+      position: relative; overflow: hidden;
+    }
+    .story-box::before {
+      content: '🪟'; font-size: 48px; position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%); opacity: 0.12;
+    }
+    .story-text { font-size: 13px; line-height: 1.8; color: var(--color-text-dim); }
+    .story-text strong { color: var(--color-text); }
+
+    .story-rules { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--color-border); }
+    .story-rule-item {
+      flex: 1; text-align: center; padding: 6px 4px;
+      background: rgba(255,255,255,0.03); border-radius: 8px;
+    }
+    .rule-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+    .rule-text { font-size: 10px; color: var(--color-text-dim); line-height: 1.4; }
+    .rule-text strong { color: var(--color-text); font-size: 12px; display: block; }
+
+    /* 难度 */
+    .difficulty-label { font-size: 12px; color: var(--color-text-dim); margin-bottom: 8px; align-self: flex-start; }
+    .difficulty-group { display: flex; gap: 8px; width: 100%; margin-bottom: 16px; }
+    .diff-btn {
+      flex: 1; padding: 9px 6px;
+      border: 1.5px solid var(--color-border); border-radius: 10px;
+      background: var(--color-surface); color: var(--color-text-dim);
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .diff-btn .diff-name { font-size: 14px; display: block; margin-bottom: 2px; }
+    .diff-btn .diff-info { font-size: 10px; color: var(--color-text-muted); line-height: 1.5; }
+    .diff-btn:active { transform: scale(0.96); }
+    .diff-btn.selected { border-color: var(--color-primary); background: var(--color-primary-dim); color: var(--color-text); box-shadow: 0 0 12px rgba(79,195,247,0.2); }
+    .diff-btn.selected .diff-info { color: rgba(224,244,255,0.7); }
+
+    .btn-start {
+      width: 100%; padding: 14px; border: none; border-radius: var(--radius-btn);
+      background: var(--color-primary); color: #0a0e1a;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(79,195,247,0.35); letter-spacing: 0.05em;
+    }
+    .btn-start:active { transform: scale(0.97); }
+
+    /* ══ 游戏屏 ══════════════════════════════════ */
+    #screen-playing { justify-content: flex-start; padding: 0; }
+
+    /* HUD */
+    .hud {
+      width: 100%; padding: 10px 16px 8px; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .hud-top { display: flex; justify-content: space-between; align-items: center; }
+
+    /* 镜子进度槽 */
+    .mirrors-row { display: flex; gap: 5px; align-items: center; }
+    .mirror-slot {
+      width: 18px; height: 22px; border-radius: 3px;
+      border: 1.5px solid rgba(79,195,247,0.3);
+      background: rgba(79,195,247,0.05);
+      position: relative; overflow: hidden;
+      transition: all 0.3s;
+    }
+    .mirror-slot.passed {
+      border-color: var(--color-correct);
+      background: rgba(255,215,0,0.15);
+      box-shadow: 0 0 6px var(--color-correct-glow);
+      animation: mirrorFill 0.4s ease-out;
+    }
+    .mirror-slot::after {
+      content: ''; position: absolute;
+      top: 2px; left: 50%; transform: translateX(-50%);
+      width: 1.5px; height: calc(100% - 4px);
+      background: rgba(79,195,247,0.2);
+    }
+    .mirror-slot.passed::after { background: rgba(255,215,0,0.6); }
+
+    /* 生命值 */
+    .lives-row { display: flex; gap: 4px; align-items: center; }
+    .life-orb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(255,59,59,0.2); border: 1.5px solid rgba(255,59,59,0.5);
+      position: relative; display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      transition: all 0.3s;
+    }
+    .life-orb.active {
+      background: rgba(79,195,247,0.2); border-color: var(--color-primary);
+      box-shadow: 0 0 6px rgba(79,195,247,0.3);
+    }
+    .life-orb.active::after { content: '♥'; color: var(--color-primary); font-size: 10px; }
+    .life-orb.lost { background: rgba(255,59,59,0.15); border-color: rgba(255,59,59,0.4); animation: lifeLost 0.4s ease-out; }
+    .life-orb.lost::after { content: '✕'; color: var(--color-wrong); font-size: 10px; }
+
+    /* 题目计数 */
+    .hud-counter { font-size: 11px; color: var(--color-text-dim); text-align: center; letter-spacing: 0.05em; }
+
+    /* ── 题目区 ─────────────────────────────────── */
+    .question-area {
+      width: 100%; flex: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 6px 16px 4px; position: relative; gap: 10px; min-height: 0;
+    }
+    .phase-hint {
+      font-size: 13px; font-weight: 600; color: var(--color-primary);
+      background: var(--color-primary-dim); border: 1px solid rgba(79,195,247,0.3);
+      border-radius: 20px; padding: 5px 14px; letter-spacing: 0.04em; transition: opacity 0.3s;
+    }
+    .panels-row { display: flex; align-items: center; justify-content: center; gap: 0; width: 100%; }
+    .shape-panel { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .panel-label { font-size: 11px; color: var(--color-text-muted); letter-spacing: 0.05em; }
+    .shape-display {
+      width: min(44vw, 200px); height: min(44vw, 200px);
+      background: var(--color-surface); border: 1.5px solid var(--color-border);
+      border-radius: 14px; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    .mirror-display {
+      background: var(--color-mirror-fill); border-color: rgba(160,212,240,0.35);
+      box-shadow: inset 0 0 20px rgba(79,195,247,0.06);
+    }
+    .question-mark {
+      font-size: 52px; font-weight: 900; color: rgba(79,195,247,0.35);
+      animation: qmarkPulse 1.5s ease-in-out infinite; line-height: 1;
+    }
+    .mirror-divider {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 0 8px; flex-shrink: 0;
+    }
+    .divider-line { width: 2px; height: 36px; background: linear-gradient(transparent, rgba(79,195,247,0.5), transparent); }
+    .divider-icon { font-size: 15px; color: var(--color-primary); opacity: 0.7; line-height: 1; }
+    .countdown-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; pointer-events: none;
+    }
+    .countdown-num { font-size: 96px; font-weight: 900; color: var(--color-primary); text-shadow: 0 0 30px rgba(79,195,247,0.5); line-height: 1; }
+    .countdown-num.pop { animation: countdownPop 0.7s ease-out forwards; }
+    .question-timer-wrap { position: absolute; top: 8px; right: 16px; width: 44px; height: 44px; }
+    .q-timer-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--color-primary); }
+    .q-timer-text.danger { color: var(--color-wrong); }
+    .progress-arc { transition: stroke 0.3s; }
+    .progress-arc.danger { stroke: var(--color-wrong); }
+    .progress-arc.pulse { animation: arcPulse 0.5s ease-in-out infinite alternate; }
+
+    /* ── 选项区 ─────────────────────────────────── */
+    .options-area {
+      width: 100%; display: none; gap: 10px;
+      padding: 4px 16px 10px; flex-shrink: 0; justify-content: center;
+    }
+    .options-area.revealed { display: flex; animation: optionsReveal 0.3s ease-out; }
+    .option-card {
+      flex: 0 0 auto;
+      width: min(calc((100vw - 52px) / 3), 150px);
+      height: min(calc((100vw - 52px) / 3), 150px);
+      background: var(--color-surface-2); border: 2px solid rgba(79,195,247,0.25);
+      border-radius: var(--radius-card);
+      display: flex; align-items: center; justify-content: center;
+      overflow: visible; cursor: pointer; position: relative;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+    .option-card > svg { overflow: hidden; border-radius: calc(var(--radius-card) - 2px); }
+    .option-card:active { transform: scale(0.94); }
+    .option-card.correct {
+      border-color: var(--color-correct);
+      box-shadow: 0 0 22px var(--color-correct-glow), inset 0 0 10px rgba(255,215,0,0.1);
+      animation: correctPop 0.5s ease-out forwards;
+    }
+    .option-card.wrong { border-color: var(--color-wrong); box-shadow: 0 0 18px var(--color-wrong-glow); }
+    .option-card.reveal { border-color: var(--color-correct); box-shadow: 0 0 14px var(--color-correct-glow); }
+    .options-area.shake { animation: shake 0.5s ease; }
+
+    /* ══ 结算屏 ══════════════════════════════════ */
+    #screen-result {
+      justify-content: center; align-items: center; padding: 32px 24px;
+      background: radial-gradient(ellipse at 50% 30%, #0d1a2e 0%, var(--color-bg) 70%);
+    }
+    #screen-result.active { animation: resultIn 0.4s ease-out; }
+    .result-icon { font-size: 52px; margin-bottom: 10px; }
+    .result-headline { font-size: 28px; font-weight: 900; margin-bottom: 6px; }
+    .result-headline.win { color: var(--color-correct); }
+    .result-headline.lose { color: var(--color-text-dim); }
+    .result-subtext { font-size: 13px; color: var(--color-text-dim); margin-bottom: 24px; text-align: center; line-height: 1.7; }
+    .result-stats-grid { display: flex; gap: 10px; width: 100%; margin-bottom: 24px; }
+    .result-stat-card { flex: 1; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 12px 8px; text-align: center; }
+    .stat-value { font-size: 26px; font-weight: 800; color: var(--color-primary); font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 10px; color: var(--color-text-dim); margin-top: 2px; }
+    .btn-replay {
+      width: 100%; padding: 14px; border: none; border-radius: var(--radius-btn);
+      background: var(--color-primary); color: #0a0e1a;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: transform 0.1s; box-shadow: 0 4px 20px rgba(79,195,247,0.35);
+    }
+    .btn-replay:active { transform: scale(0.97); }
+
+    /* ── 穿越 Portal ─────────────────────────── */
+    #portalOverlay {
+      position: fixed; inset: 0; z-index: 80;
+      background: radial-gradient(circle at var(--ox,50%) var(--oy,50%), rgba(255,255,255,0.98) 0%, rgba(79,195,247,0.8) 40%, rgba(10,14,26,0) 75%);
+      pointer-events: none; clip-path: circle(0% at var(--ox,50%) var(--oy,50%)); opacity: 0;
+    }
+    #portalOverlay.burst { animation: portalBurst 0.85s ease-out forwards; }
+    @keyframes portalBurst {
+      0%   { clip-path: circle(0% at var(--ox) var(--oy)); opacity: 1; }
+      45%  { clip-path: circle(80% at var(--ox) var(--oy)); opacity: 1; }
+      70%  { clip-path: circle(100% at var(--ox) var(--oy)); opacity: 0.9; }
+      100% { clip-path: circle(140% at var(--ox) var(--oy)); opacity: 0; }
+    }
+
+    /* ── 碎裂 Shatter SVG ─────────────────────── */
+    .crk {
+      stroke-dasharray: 90;
+      stroke-dashoffset: 90;
+      animation: crackExtend 0.38s ease-out forwards;
+      animation-delay: calc(var(--i) * 28ms);
+    }
+    @keyframes crackExtend { to { stroke-dashoffset: 0; } }
+
+    /* ── 失败提示 Toast ───────────────────────── */
+    #mistakeToast {
+      position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(180, 20, 20, 0.92); color: #fff; padding: 12px 24px;
+      border-radius: 24px; font-size: 15px; font-weight: 700;
+      pointer-events: none; z-index: 90; opacity: 0;
+      transition: opacity 0.25s; white-space: nowrap;
+      border: 1px solid rgba(255,100,100,0.5);
+    }
+    #mistakeToast.show { opacity: 1; }
+
+    /* ── @keyframes ─────────────────────────── */
+    @keyframes correctPop {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(1.1); }
+      70%  { transform: scale(1.04); }
+      100% { transform: scale(1.06); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      15%  { transform: translateX(-9px); }
+      30%  { transform: translateX(9px); }
+      45%  { transform: translateX(-6px); }
+      60%  { transform: translateX(6px); }
+      75%  { transform: translateX(-3px); }
+      90%  { transform: translateX(3px); }
+    }
+    @keyframes arcPulse { from { opacity: 1; } to { opacity: 0.35; } }
+    @keyframes countdownPop {
+      0%   { transform: scale(1.8); opacity: 0; }
+      25%  { transform: scale(1); opacity: 1; }
+      75%  { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.65); opacity: 0; }
+    }
+    @keyframes qmarkPulse {
+      0%, 100% { opacity: 0.25; transform: scale(1); }
+      50%       { opacity: 0.55; transform: scale(1.08); }
+    }
+    @keyframes resultIn {
+      from { transform: scale(0.88); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    @keyframes mirrorSlideIn {
+      from { opacity: 0; transform: translateX(18px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes optionsReveal {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes mirrorFill {
+      0%   { transform: scaleY(0); }
+      60%  { transform: scaleY(1.15); }
+      100% { transform: scaleY(1); }
+    }
+    @keyframes lifeLost {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(1.3); filter: brightness(2); }
+      60%  { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+    #panelMirror.animate-in { animation: mirrorSlideIn 0.4s ease-out; }
+
+    /* ── 竖向布局（上下镜像）────────────────────── */
+    .panels-row.vertical {
+      flex-direction: column;
+      gap: 4px;
+    }
+    .panels-row.vertical .shape-display {
+      width: min(40vw, 170px);
+      height: min(40vw, 170px);
+    }
+    .mirror-divider.divider-h {
+      flex-direction: row;
+      padding: 4px 0;
+    }
+    .mirror-divider.divider-h .divider-line {
+      width: 40px;
+      height: 2px;
+    }
+    /* 镜子方向标注 */
+    .original-badge {
+      font-size: 10px; color: var(--color-text-muted);
+      letter-spacing: 0.05em; text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div id="game-container">
+
+  <!-- ── 开始屏 ── -->
+  <div id="screen-start" class="screen active">
+    <div class="start-logo">MirrorSnap</div>
+    <div class="start-title">镜中<span>世界</span></div>
+    <div class="start-subtitle">你被困入镜中世界，找到正确的镜像才能逃脱</div>
+
+    <div class="story-box">
+      <div class="story-text">
+        <strong>穿越 7 面正确的镜子，你就能逃出去。</strong><br>
+        每道题，镜子会出现在图形旁边——选出镜中形象，穿越那面镜子。
+        选错了，镜子碎裂，你失去一次机会。
+      </div>
+      <div class="story-rules">
+        <div class="story-rule-item">
+          <span class="rule-icon">🪟</span>
+          <div class="rule-text"><strong>答对 7 次</strong>穿越逃脱</div>
+        </div>
+        <div class="story-rule-item">
+          <span class="rule-icon">💔</span>
+          <div class="rule-text"><strong>错 3 次</strong>永困镜中</div>
+        </div>
+        <div class="story-rule-item">
+          <span class="rule-icon">🎲</span>
+          <div class="rule-text"><strong>共 10 关</strong>关卡挑战</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="difficulty-label">选择难度</div>
+    <div class="difficulty-group">
+      <button class="diff-btn selected" data-diff="easy">
+        <span class="diff-name">初级</span>
+        <span class="diff-info">简单图形<br>8s · 四方向</span>
+      </button>
+      <button class="diff-btn" data-diff="medium">
+        <span class="diff-name">中级</span>
+        <span class="diff-info">不规则图形<br>5s · 四方向</span>
+      </button>
+      <button class="diff-btn" data-diff="hard">
+        <span class="diff-name">高级</span>
+        <span class="diff-info">组合图形<br>5s · 四方向</span>
+      </button>
+    </div>
+
+    <button class="btn-start" id="btnStart">开始逃脱</button>
+  </div>
+
+  <!-- ── 游戏屏 ── -->
+  <div id="screen-playing" class="screen">
+
+    <div class="hud">
+      <div class="hud-top">
+        <div class="mirrors-row" id="mirrorsRow"></div>
+        <div class="lives-row" id="livesRow"></div>
+      </div>
+      <div class="hud-counter" id="hudCounter">第 1 题 / 共 10 题</div>
+    </div>
+
+    <div class="question-area" id="questionArea">
+      <div class="phase-hint" id="phaseHint">观察这个图形</div>
+
+      <div class="panels-row" id="panelsRow">
+        <div class="shape-panel" id="panelOriginal">
+          <div class="shape-display" id="shapeDisplay"></div>
+          <div class="panel-label" id="originalLabel"></div>
+        </div>
+        <div class="mirror-divider" id="mirrorDivider" style="display:none">
+          <div class="divider-line"></div>
+          <div class="divider-icon" id="dividerIcon">⟺</div>
+          <div class="divider-line"></div>
+        </div>
+        <div class="shape-panel" id="panelMirror" style="display:none">
+          <div class="shape-display mirror-display" id="mirrorDisplay">
+            <span class="question-mark" id="questionMark">?</span>
+          </div>
+          <div class="panel-label">镜中形象</div>
+        </div>
+      </div>
+
+      <div class="countdown-overlay" id="countdownOverlay" style="display:none">
+        <div class="countdown-num" id="countdownNum">3</div>
+      </div>
+
+      <div class="question-timer-wrap" id="qTimerWrap" style="display:none">
+        <svg viewBox="0 0 44 44" style="width:44px;height:44px;">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--color-surface-2)" stroke-width="3"/>
+          <circle id="progressArc" class="progress-arc"
+            cx="22" cy="22" r="18" fill="none"
+            stroke="var(--color-primary)" stroke-width="3"
+            stroke-dasharray="113.1" stroke-dashoffset="0"
+            stroke-linecap="round" transform="rotate(-90 22 22)"/>
+        </svg>
+        <div class="q-timer-text" id="qTimerText">8</div>
+      </div>
+    </div>
+
+    <div class="options-area" id="optionsArea">
+      <div class="option-card" id="opt0"></div>
+      <div class="option-card" id="opt1"></div>
+      <div class="option-card" id="opt2"></div>
+    </div>
+  </div>
+
+  <!-- ── 结算屏 ── -->
+  <div id="screen-result" class="screen">
+    <div class="result-icon" id="resultIcon">🌟</div>
+    <div class="result-headline" id="resultHeadline">已逃出！</div>
+    <div class="result-subtext" id="resultSubtext"></div>
+    <div class="result-stats-grid">
+      <div class="result-stat-card">
+        <div class="stat-value" id="resultCorrect">0</div>
+        <div class="stat-label">穿越镜子</div>
+      </div>
+      <div class="result-stat-card">
+        <div class="stat-value" id="resultMistakes">0</div>
+        <div class="stat-label">碎裂次数</div>
+      </div>
+      <div class="result-stat-card">
+        <div class="stat-value" id="resultAccuracy">0%</div>
+        <div class="stat-label">正确率</div>
+      </div>
+    </div>
+    <button class="btn-replay" id="btnReplay">再次挑战</button>
+  </div>
+
+</div>
+
+<!-- Portal overlay (全屏穿越光效) -->
+<div id="portalOverlay"></div>
+<!-- 失败提示 -->
+<div id="mistakeToast"></div>
+
+<script>
+/* ══ CONFIG ══════════════════════════════════════ */
+const CONFIG = {
+  totalQuestions: 10,
+  correctToWin:   7,
+  maxMistakes:    3,
+
+  difficulty: {
+    easy: {
+      label: '初级', questionTime: 8,
+      shapeTypes: ['irregular'],
+      mirrorModes: ['right', 'left', 'up', 'down'],
+      vertexRange: [3, 6],
+      concaveCount: [0, 0],
+      concaveRatio: 0.7,
+      angleVariance: 0.55,
+      radiusVariance: 0.65,
+    },
+    medium: {
+      label: '中级', questionTime: 5,
+      shapeTypes: ['irregular'],
+      mirrorModes: ['right', 'left', 'up', 'down'],
+      vertexRange: [4, 8],
+      concaveCount: [1, 2], concaveRatio: 0.52,
+    },
+    hard: {
+      label: '高级', questionTime: 5,
+      shapeTypes: ['irregular', 'complex'],
+      mirrorModes: ['right', 'left', 'up', 'down'],
+      vertexRange: [4, 10],
+      concaveCount: [2, 4], concaveRatio: 0.42,
+      groupSize: 2,
+    },
+  },
+
+  timing: {
+    observe:       1200,
+    mirrorAppear:  800,
+    countdownStep: 700,
+  },
+}
+
+function getMirrorLabel(q) {
+  const labels = { right: '右镜像 →', left: '← 左镜像', up: '↑ 上镜像', down: '↓ 下镜像', center: '⊕ 中心对称' }
+  return labels[q.mirrorMode] || ''
+}
+function getMirrorIcon(q) {
+  const icons = { right: '→', left: '←', up: '↑', down: '↓', center: '⊕' }
+  return icons[q.mirrorMode] || '?'
+}
+const ARC_CIRCUMFERENCE = 2 * Math.PI * 18  // ≈ 113.1
+
+/* ══ STATE ═══════════════════════════════════════ */
+const G = {
+  status: 'start',
+  questionCount: 0,
+  correctCount: 0,
+  mistakeCount: 0,
+  questionTimeLeft: 0,
+  questionTimer: null,
+  questionStartAt: 0,
+  seqTimers: [],
+  difficulty: 'easy',
+  currentQuestion: null,
+  isAnimating: false,
+  pausedAt: null,
+}
+
+/* ══ UTILS ═══════════════════════════════════════ */
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+function seqTimeout(fn, ms) { const id = setTimeout(fn, ms); G.seqTimers.push(id); return id }
+function clearSeqTimers() { G.seqTimers.forEach(clearTimeout); G.seqTimers = [] }
+
+/* ══ SVG ENGINE ══════════════════════════════════ */
+function pickNonAdjacentIndices(n, count) {
+  if (count === 0) return []
+  const cands = shuffle(Array.from({ length: n }, (_, i) => i))
+  const result = []
+  for (const idx of cands) {
+    if (result.length >= count) break
+    const adj = result.some(r => { const d = Math.abs(r - idx); return d <= 1 || d >= n - 1 })
+    if (!adj) result.push(idx)
+  }
+  return result
+}
+
+function generateRegularPolygon(vertexRange) {
+  const n = randInt(vertexRange[0], vertexRange[1])
+  const R = 76
+  const startDeg = randInt(10, 45) + (Math.random() < 0.5 ? 0 : 180 / n)
+  const startRad = startDeg * Math.PI / 180
+  const pts = []
+  for (let i = 0; i < n; i++) {
+    const θ = startRad + (2 * Math.PI / n) * i
+    pts.push([100 + R * Math.cos(θ), 100 + R * Math.sin(θ)])
+  }
+  return pts
+}
+
+function generateIrregularPolygon(vertexRange, concaveCountRange, concaveRatio, angleVar, radiusVar) {
+  const n = randInt(vertexRange[0], vertexRange[1])
+  const R = 76, step = (2 * Math.PI) / n
+  const aVar = angleVar !== undefined ? angleVar : 0.36
+  const rVar = radiusVar !== undefined ? radiusVar : 0.32
+  const concaveCount = randInt(concaveCountRange[0], concaveCountRange[1])
+  const concaveIdx = pickNonAdjacentIndices(n, concaveCount)
+  const startRad = -Math.PI / 2
+  const pts = []
+  for (let i = 0; i < n; i++) {
+    const θ = startRad + step * i + (Math.random() - 0.5) * step * aVar
+    const r = concaveIdx.includes(i) ? R * concaveRatio : R * (1 + (Math.random() - 0.5) * rVar)
+    pts.push([100 + r * Math.cos(θ), 100 + r * Math.sin(θ)])
+  }
+  return pts
+}
+
+function generatePolygon(shapeType, cfg) {
+  if (shapeType === 'regular') return generateRegularPolygon(cfg.vertexRange)
+  if (shapeType === 'complex') return generateIrregularPolygon(cfg.vertexRange, [2, 4], 0.42)
+  return generateIrregularPolygon(cfg.vertexRange, cfg.concaveCount || [1, 2], cfg.concaveRatio || 0.52, cfg.angleVariance, cfg.radiusVariance)
+}
+
+function mirrorOnePts(pts, mode) {
+  return pts.map(([x, y]) =>
+    (mode === 'right' || mode === 'left') ? [200 - x, y] :
+    (mode === 'up'    || mode === 'down') ? [x, 200 - y] :
+                                            [200 - x, 200 - y]
+  )
+}
+function mirrorPoints(pts, mode) {
+  // 支持单图形 [[x,y],...] 和组合图形 [[[x,y],...],[...]]
+  if (pts.length > 0 && Array.isArray(pts[0][0])) {
+    return pts.map(shape => mirrorOnePts(shape, mode))
+  }
+  return mirrorOnePts(pts, mode)
+}
+
+function rotatePoints(pts, deg) {
+  const θ = deg * Math.PI / 180, cos = Math.cos(θ), sin = Math.sin(θ)
+  return pts.map(([x, y]) => {
+    const dx = x - 100, dy = y - 100
+    return [100 + dx * cos - dy * sin, 100 + dx * sin + dy * cos]
+  })
+}
+
+/* 干扰项用跨轴错误变换：H轴(right/left)→V轴干扰；V轴(up/down)→H轴干扰；center→H+V干扰 */
+function generateDistractors(origPts, correctPts, mode) {
+  const isH = mode === 'right' || mode === 'left'
+  const isV = mode === 'up' || mode === 'down'
+
+  let d0, d1
+  if (isH) {
+    // 正确为H翻转，干扰为V翻转 + HV翻转（三者视觉各不同）
+    d0 = mirrorPoints(origPts, 'up')
+    d1 = mirrorPoints(origPts, 'center')
+  } else if (isV) {
+    // 正确为V翻转，干扰为H翻转 + HV翻转
+    d0 = mirrorPoints(origPts, 'right')
+    d1 = mirrorPoints(origPts, 'center')
+  } else {
+    // center(HV翻转)，干扰为H翻转 + V翻转
+    d0 = mirrorPoints(origPts, 'right')
+    d1 = mirrorPoints(origPts, 'up')
+  }
+
+  const options = shuffle([
+    { points: correctPts, isCorrect: true },
+    { points: d0, isCorrect: false },
+    { points: d1, isCorrect: false },
+  ])
+  return { options, correctIndex: options.findIndex(o => o.isCorrect) }
+}
+
+/* 在子区域生成简单图形（用于高级组合题） */
+function generateSubShape(cx, cy, subR) {
+  const pts = generateIrregularPolygon([3, 4], [0, 0], 0.7, 0.55, 0.65)
+  const scale = subR / 76
+  return pts.map(([x, y]) => [(x - 100) * scale + cx, (y - 100) * scale + cy])
+}
+
+/* 高级：生成由 2 个简单图形组成的组合题 */
+function generateGroupQuestion(difficulty) {
+  const cfg = CONFIG.difficulty[difficulty]
+  const mirrorMode = cfg.mirrorModes[randInt(0, cfg.mirrorModes.length - 1)]
+  const origPts = [
+    generateSubShape(58, 100, 38),
+    generateSubShape(142, 100, 38),
+  ]
+  const correctPts = mirrorPoints(origPts, mirrorMode)
+  const { options, correctIndex } = generateDistractors(origPts, correctPts, mirrorMode)
+  return { origPts, mirrorMode, options, correctIndex }
+}
+
+function generateQuestion(difficulty) {
+  if (CONFIG.difficulty[difficulty].groupSize) return generateGroupQuestion(difficulty)
+  const cfg = CONFIG.difficulty[difficulty]
+  const shapeType = cfg.shapeTypes[randInt(0, cfg.shapeTypes.length - 1)]
+  const origPts = generatePolygon(shapeType, cfg)
+  const mirrorMode = cfg.mirrorModes[randInt(0, cfg.mirrorModes.length - 1)]
+  const correctPts = mirrorPoints(origPts, mirrorMode)
+  const { options, correctIndex } = generateDistractors(origPts, correctPts, mirrorMode)
+  return { origPts, mirrorMode, options, correctIndex }
+}
+
+function pointsToSVG(ptsOrGroups) {
+  const isGrouped = ptsOrGroups.length > 0 && Array.isArray(ptsOrGroups[0][0])
+  const shapes = isGrouped ? ptsOrGroups : [ptsOrGroups]
+  const polys = shapes.map(pts => {
+    const ps = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+    return `<polygon points="${ps}" fill="var(--color-shape-fill)" stroke="var(--color-shape-stroke)" stroke-width="2.5" stroke-linejoin="round"/>`
+  }).join('\n    ')
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block">
+    ${polys}
+  </svg>`
+}
+
+/* ══ UI HELPERS ══════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+}
+
+function buildHUD() {
+  const mr = document.getElementById('mirrorsRow')
+  mr.innerHTML = ''
+  for (let i = 0; i < CONFIG.correctToWin; i++) {
+    const slot = document.createElement('div')
+    slot.className = 'mirror-slot' + (i < G.correctCount ? ' passed' : '')
+    slot.id = 'ms' + i
+    mr.appendChild(slot)
+  }
+  const lr = document.getElementById('livesRow')
+  lr.innerHTML = ''
+  for (let i = 0; i < CONFIG.maxMistakes; i++) {
+    const orb = document.createElement('div')
+    orb.className = 'life-orb ' + (i < G.mistakeCount ? 'lost' : 'active')
+    orb.id = 'lo' + i
+    lr.appendChild(orb)
+  }
+  const qn = G.questionCount > 0 ? G.questionCount : 1
+  document.getElementById('hudCounter').textContent = `第 ${qn} 题 / 共 ${CONFIG.totalQuestions} 题`
+}
+
+function updateHUDAfterCorrect() {
+  const slot = document.getElementById('ms' + (G.correctCount - 1))
+  if (slot) { slot.classList.add('passed') }
+}
+
+function updateHUDAfterMistake() {
+  const orb = document.getElementById('lo' + (G.mistakeCount - 1))
+  if (orb) { orb.className = 'life-orb lost' }
+}
+
+function updateQuestionTimerUI() {
+  const cfg = CONFIG.difficulty[G.difficulty]
+  const ratio = G.questionTimeLeft / cfg.questionTime
+  document.getElementById('progressArc').style.strokeDashoffset = ARC_CIRCUMFERENCE * (1 - ratio)
+  document.getElementById('qTimerText').textContent = Math.ceil(G.questionTimeLeft)
+  const isDanger = ratio < 0.3
+  document.getElementById('progressArc').classList.toggle('danger', isDanger)
+  document.getElementById('progressArc').classList.toggle('pulse', isDanger)
+  document.getElementById('qTimerText').classList.toggle('danger', isDanger)
+}
+
+function showMistakeToast() {
+  const remaining = CONFIG.maxMistakes - G.mistakeCount
+  const el = document.getElementById('mistakeToast')
+  el.textContent = remaining > 0 ? `💔 还剩 ${remaining} 次机会` : `💔 最后机会！坚持住！`
+  el.classList.add('show')
+  setTimeout(() => el.classList.remove('show'), 2000)
+}
+
+/* ══ PHASE DISPLAY ═══════════════════════════════ */
+function setObservePhase(q) {
+  document.getElementById('shapeDisplay').innerHTML = pointsToSVG(q.origPts)
+  document.getElementById('originalLabel').textContent = ''
+  document.getElementById('phaseHint').textContent = '观察这个图形'
+  document.getElementById('phaseHint').style.opacity = '1'
+  document.getElementById('mirrorDivider').style.display = 'none'
+  document.getElementById('panelMirror').style.display = 'none'
+  document.getElementById('countdownOverlay').style.display = 'none'
+  document.getElementById('qTimerWrap').style.display = 'none'
+  document.getElementById('optionsArea').classList.remove('revealed')
+  // Reset layout
+  const pr = document.getElementById('panelsRow')
+  pr.classList.remove('vertical')
+  document.getElementById('panelMirror').style.order = ''
+  document.getElementById('mirrorDivider').style.order = ''
+  document.getElementById('panelOriginal').style.order = ''
+  document.getElementById('mirrorDivider').classList.remove('divider-h')
+  ;[0, 1, 2].forEach(i => {
+    const c = document.getElementById('opt' + i)
+    c.innerHTML = ''; c.className = 'option-card'
+  })
+}
+
+function setMirrorPhase(q) {
+  document.getElementById('phaseHint').textContent = getMirrorLabel(q)
+  document.getElementById('dividerIcon').textContent = getMirrorIcon(q)
+
+  const md = document.getElementById('mirrorDisplay')
+  md.innerHTML = ''
+  const qm = document.createElement('span')
+  qm.className = 'question-mark'; qm.textContent = '?'
+  md.appendChild(qm)
+
+  const pr  = document.getElementById('panelsRow')
+  const div = document.getElementById('mirrorDivider')
+  const pm  = document.getElementById('panelMirror')
+  const po  = document.getElementById('panelOriginal')
+
+  const isV = q.mirrorMode === 'up' || q.mirrorMode === 'down'
+  // mirrorFirst: mirror panel appears before original in flex order
+  const mirrorFirst = q.mirrorMode === 'left' || q.mirrorMode === 'up'
+
+  if (isV) {
+    pr.classList.add('vertical')
+    div.classList.add('divider-h')
+  } else {
+    pr.classList.remove('vertical')
+    div.classList.remove('divider-h')
+  }
+
+  if (mirrorFirst) {
+    pm.style.order = '-1'
+    div.style.order = '0'
+    po.style.order  = '1'
+    document.getElementById('originalLabel').textContent = isV ? '原图形' : ''
+  } else {
+    pm.style.order  = ''
+    div.style.order = ''
+    po.style.order  = ''
+    document.getElementById('originalLabel').textContent = isV ? '原图形' : ''
+  }
+
+  pm.style.display = 'flex'
+  pm.classList.add('animate-in')
+  setTimeout(() => pm.classList.remove('animate-in'), 500)
+  div.style.display = 'flex'
+}
+
+function setCountdownPhase() {
+  document.getElementById('phaseHint').style.opacity = '0'
+  document.getElementById('countdownOverlay').style.display = 'flex'
+}
+
+function setActivePhase(q) {
+  document.getElementById('countdownOverlay').style.display = 'none'
+  document.getElementById('phaseHint').style.opacity = '0'
+  document.getElementById('qTimerWrap').style.display = 'block'
+  ;[0, 1, 2].forEach(i => {
+    const c = document.getElementById('opt' + i)
+    c.innerHTML = pointsToSVG(q.options[i].points)
+    c.className = 'option-card'
+  })
+  document.getElementById('optionsArea').classList.add('revealed')
+}
+
+/* ══ COUNTDOWN ═══════════════════════════════════ */
+function runCountdown(from, onDone) {
+  if (from <= 0) { onDone(); return }
+  const el = document.getElementById('countdownNum')
+  el.textContent = from
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop')
+  seqTimeout(() => runCountdown(from - 1, onDone), CONFIG.timing.countdownStep)
+}
+
+/* ══ TIMER ═══════════════════════════════════════ */
+function startQuestionTimer() {
+  const cfg = CONFIG.difficulty[G.difficulty]
+  G.questionTimeLeft = cfg.questionTime
+  G.questionStartAt = Date.now()
+  clearInterval(G.questionTimer)
+  G.questionTimer = setInterval(() => {
+    G.questionTimeLeft = Math.max(0, cfg.questionTime - (Date.now() - G.questionStartAt) / 1000)
+    updateQuestionTimerUI()
+    if (G.questionTimeLeft <= 0) {
+      clearInterval(G.questionTimer); G.questionTimer = null
+      onQuestionTimeout()
+    }
+  }, 100)
+}
+function stopQuestionTimer() { clearInterval(G.questionTimer); G.questionTimer = null }
+
+/* ══ STATE MACHINE ═══════════════════════════════ */
+function transition(status) {
+  G.status = status
+
+  if (status === 'playing') {
+    clearSeqTimers()
+    G.currentQuestion = generateQuestion(G.difficulty)
+    G.questionCount++
+    buildHUD()
+    setObservePhase(G.currentQuestion)
+    seqTimeout(() => transition('shape_observe'), 50)
+
+  } else if (status === 'shape_observe') {
+    seqTimeout(() => transition('mirror_appear'), CONFIG.timing.observe)
+
+  } else if (status === 'mirror_appear') {
+    setMirrorPhase(G.currentQuestion)
+    seqTimeout(() => transition('countdown'), CONFIG.timing.mirrorAppear)
+
+  } else if (status === 'countdown') {
+    setCountdownPhase()
+    runCountdown(3, () => transition('question_active'))
+
+  } else if (status === 'question_active') {
+    G.isAnimating = false
+    setActivePhase(G.currentQuestion)
+    startQuestionTimer()
+
+  } else if (status === 'question_result') {
+    stopQuestionTimer()
+    G.isAnimating = true
+    seqTimeout(() => {
+      G.isAnimating = false
+      if (!checkGameEnd()) transition('playing')
+    }, 950)
+
+  } else if (status === 'result') {
+    stopQuestionTimer(); clearSeqTimers()
+    G.isAnimating = false
+    showResultScreen()
+  }
+}
+
+function checkGameEnd() {
+  if (G.correctCount >= CONFIG.correctToWin) { transition('result'); return true }
+  if (G.mistakeCount >= CONFIG.maxMistakes) { transition('result'); return true }
+  if (G.questionCount >= CONFIG.totalQuestions) { transition('result'); return true }
+  return false
+}
+
+/* ══ ANSWER HANDLING ═════════════════════════════ */
+function onOptionClick(index) {
+  if (G.isAnimating || G.status !== 'question_active') return
+  G.isAnimating = true
+  const isCorrect = index === G.currentQuestion.correctIndex
+  if (isCorrect) {
+    G.correctCount++
+    animatePortal(index)
+  } else {
+    G.mistakeCount++
+    animateShatter(index, G.currentQuestion.correctIndex)
+    showMistakeToast()
+    updateHUDAfterMistake()
+  }
+  transition('question_result')
+}
+
+function onQuestionTimeout() {
+  if (G.status !== 'question_active') return
+  G.mistakeCount++
+  animateTimeout(G.currentQuestion.correctIndex)
+  showMistakeToast()
+  updateHUDAfterMistake()
+  transition('question_result')
+}
+
+/* ══ ANIMATIONS ══════════════════════════════════ */
+function animatePortal(idx) {
+  const card = document.getElementById('opt' + idx)
+  card.classList.add('correct')
+  setTimeout(() => card.classList.remove('correct'), 550)
+
+  // Portal burst from mirror panel position
+  const pm = document.getElementById('panelMirror')
+  const rect = pm ? pm.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width: 0, height: 0 }
+  const ox = ((rect.left + rect.width / 2) / window.innerWidth * 100).toFixed(1) + '%'
+  const oy = ((rect.top + rect.height / 2) / window.innerHeight * 100).toFixed(1) + '%'
+  const overlay = document.getElementById('portalOverlay')
+  overlay.style.setProperty('--ox', ox)
+  overlay.style.setProperty('--oy', oy)
+  overlay.classList.remove('burst'); void overlay.offsetWidth; overlay.classList.add('burst')
+  setTimeout(() => overlay.classList.remove('burst'), 900)
+
+  // Update mirror slot after portal flash
+  setTimeout(() => updateHUDAfterCorrect(), 300)
+}
+
+function animateShatter(wrongIdx, correctIdx) {
+  const wrongCard = document.getElementById('opt' + wrongIdx)
+  wrongCard.classList.add('wrong')
+
+  // Inject crack SVG
+  const crackSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  crackSVG.setAttribute('viewBox', '0 0 100 100')
+  crackSVG.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10'
+  const crackLines = [
+    [50,50,8,8,0],[50,50,92,8,1],[50,50,8,92,2],[50,50,92,92,3],
+    [50,50,50,3,4],[50,50,3,50,5],[50,50,97,50,6],[50,50,50,97,7],
+    [50,50,25,3,2],[50,50,75,97,3],[50,50,3,70,4],[50,50,97,30,5],
+  ]
+  crackLines.forEach(([x1,y1,x2,y2,i]) => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1)
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2)
+    line.setAttribute('stroke', `rgba(255,59,59,${i < 8 ? '0.85' : '0.5'})`)
+    line.setAttribute('stroke-width', i < 4 ? '2' : '1.2')
+    line.className = 'crk'
+    line.style.setProperty('--i', String(i))
+    crackSVG.appendChild(line)
+  })
+  wrongCard.appendChild(crackSVG)
+  setTimeout(() => crackSVG.remove(), 700)
+
+  // Shake + reveal correct
+  document.getElementById('optionsArea').classList.add('shake')
+  document.getElementById('opt' + correctIdx).classList.add('reveal')
+  setTimeout(() => {
+    document.getElementById('optionsArea').classList.remove('shake')
+    wrongCard.classList.remove('wrong')
+    document.getElementById('opt' + correctIdx).classList.remove('reveal')
+  }, 650)
+}
+
+function animateTimeout(correctIdx) {
+  document.getElementById('optionsArea').classList.add('shake')
+  document.getElementById('opt' + correctIdx).classList.add('reveal')
+  setTimeout(() => {
+    document.getElementById('optionsArea').classList.remove('shake')
+    document.getElementById('opt' + correctIdx).classList.remove('reveal')
+  }, 700)
+}
+
+/* ══ RESULT SCREEN ═══════════════════════════════ */
+function showResultScreen() {
+  const escaped = G.correctCount >= CONFIG.correctToWin
+  const accuracy = G.questionCount > 0
+    ? Math.round(G.correctCount / G.questionCount * 100) + '%' : '0%'
+
+  document.getElementById('resultIcon').textContent = escaped ? '🌟' : '🪟'
+  const hl = document.getElementById('resultHeadline')
+  hl.textContent = escaped ? '已逃出！' : '困于镜中...'
+  hl.className = 'result-headline ' + (escaped ? 'win' : 'lose')
+
+  const sub = document.getElementById('resultSubtext')
+  if (escaped) {
+    sub.textContent = `穿越了 ${G.correctCount} 面镜子，碎裂了 ${G.mistakeCount} 面，成功逃脱！`
+  } else {
+    sub.textContent = `只穿越了 ${G.correctCount} / ${CONFIG.correctToWin} 面镜子，${
+      G.mistakeCount >= CONFIG.maxMistakes ? '机会全部用尽...' : '关卡结束。'
+    }\n继续努力，下次一定能逃出去！`
+  }
+
+  document.getElementById('resultCorrect').textContent = G.correctCount + '/' + CONFIG.correctToWin
+  document.getElementById('resultMistakes').textContent = G.mistakeCount
+  document.getElementById('resultAccuracy').textContent = accuracy
+  showScreen('screen-result')
+}
+
+/* ══ INIT & EVENTS ═══════════════════════════════ */
+function initGame() {
+  G.questionCount = 0; G.correctCount = 0; G.mistakeCount = 0
+  G.isAnimating = false; G.pausedAt = null; G.status = 'start'
+  stopQuestionTimer(); clearSeqTimers()
+}
+
+function startGame() {
+  initGame()
+  showScreen('screen-playing')
+  transition('playing')
+}
+
+// Visibility pause/resume (only question timer)
+document.addEventListener('visibilitychange', () => {
+  const active = ['shape_observe','mirror_appear','countdown','question_active','question_result']
+  if (!active.includes(G.status)) return
+  if (document.hidden) {
+    G.pausedAt = Date.now()
+    stopQuestionTimer()
+  } else if (G.pausedAt) {
+    const paused = (Date.now() - G.pausedAt) / 1000
+    G.pausedAt = null
+    if (G.status === 'question_active') {
+      G.questionTimeLeft = Math.max(0, G.questionTimeLeft - paused)
+      G.questionStartAt = Date.now()
+      if (G.questionTimeLeft <= 0) { onQuestionTimeout() }
+      else startQuestionTimer()
+    }
+  }
+})
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'))
+    btn.classList.add('selected')
+    G.difficulty = btn.dataset.diff
+  })
+})
+
+document.getElementById('btnStart').addEventListener('click', startGame)
+
+;[0, 1, 2].forEach(i => {
+  const card = document.getElementById('opt' + i)
+  card.addEventListener('touchstart', e => { e.preventDefault(); onOptionClick(i) }, { passive: false })
+  card.addEventListener('mousedown', () => onOptionClick(i))
+})
+
+document.getElementById('btnReplay').addEventListener('click', () => showScreen('screen-start'))
+</script>
+</body>
+</html>

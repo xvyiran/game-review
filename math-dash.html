@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>算数冲冲跑 · MathDash</title>
+  <style>
+    :root {
+      --yellow:    #FFD700;
+      --orange:    #FFA500;
+      --yellow-dk: #CC8800;
+      --road:      #737373;
+      --grass:     #4daa35;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    #game-container {
+      width: 100vw; height: 100vh; height: 100dvh;
+      max-width: 480px; margin: 0 auto;
+      position: relative; overflow: hidden;
+    }
+
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ══ 开始屏 ══ */
+    #screen-start {
+      align-items: center; justify-content: center;
+      background: linear-gradient(175deg, #87CEEB 0%, #B8E6FF 50%, #7EC8E3 100%);
+    }
+    .start-clouds {
+      position: absolute; top: 7%; font-size: 44px;
+      opacity: 0.45; letter-spacing: 18px;
+      animation: cloudDrift 8s ease-in-out infinite;
+    }
+    .start-runner {
+      font-size: 110px; margin-bottom: 8px;
+      animation: startBounce 0.7s ease-in-out infinite alternate;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,0.2));
+    }
+    .start-title {
+      font-size: 36px; font-weight: 900; color: #FF6B35;
+      text-shadow: 0 3px 0 #CC3300, 0 5px 10px rgba(0,0,0,0.12);
+      letter-spacing: 2px; margin-bottom: 4px;
+    }
+    .start-en {
+      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.75);
+      letter-spacing: 5px; margin-bottom: 28px;
+    }
+    .diff-picker {
+      display: flex; gap: 10px; margin-bottom: 32px;
+      background: rgba(255,255,255,0.3); border-radius: 50px; padding: 4px;
+    }
+    .diff-btn {
+      padding: 8px 24px; border: none; border-radius: 50px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      background: transparent; color: rgba(60,80,100,0.7);
+      transition: background 0.2s, color 0.2s;
+    }
+    .diff-btn.active { background: #fff; color: #FF6B35; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .btn-start {
+      background: linear-gradient(180deg, var(--yellow) 0%, var(--orange) 100%);
+      color: #7B3F00; font-size: 22px; font-weight: 900;
+      border: none; border-radius: 50px; padding: 16px 72px;
+      box-shadow: 0 6px 0 var(--yellow-dk), 0 8px 16px rgba(0,0,0,0.18);
+      cursor: pointer; letter-spacing: 3px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-start:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--yellow-dk); }
+    .best-badge {
+      margin-top: 18px; font-size: 13px; color: rgba(60,80,100,0.65);
+      background: rgba(255,255,255,0.4); padding: 5px 16px;
+      border-radius: 20px; display: none;
+    }
+
+    /* ══ 游戏屏 ══ */
+    #screen-game { background: var(--grass); }
+
+    /* HUD */
+    .hud {
+      flex-shrink: 0; height: 52px;
+      background: rgba(0,30,60,0.35); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; z-index: 10;
+    }
+    .hud-lives  { font-size: 19px; letter-spacing: 2px; }
+    .hud-progress { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9); }
+    .hud-speed  {
+      font-size: 12px; color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.12); border-radius: 10px; padding: 3px 10px;
+    }
+
+    /* 题目栏 */
+    .question-bar {
+      flex-shrink: 0;
+      background: var(--yellow);
+      padding: 10px 16px; text-align: center;
+      box-shadow: 0 4px 0 var(--orange), 0 6px 12px rgba(0,0,0,0.12);
+      z-index: 10;
+    }
+    .question-text { font-size: 30px; font-weight: 900; color: #333; letter-spacing: 2px; }
+
+    /* 倒计时进度条 */
+    .time-bar-wrap {
+      flex-shrink: 0; height: 7px;
+      background: rgba(0,0,0,0.2); z-index: 10;
+    }
+    .time-bar {
+      height: 100%; width: 100%;
+      background: #34C759;
+      transition: background 0.3s;
+    }
+
+    /* ── 跑道 ── */
+    .road-area {
+      flex: 1; position: relative; overflow: hidden;
+      background: var(--grass);
+      --scroll-dur: 0.65s;
+    }
+
+    /* 草地纹理 */
+    .grass-stripe {
+      position: absolute; top: 0; bottom: 0; width: 15%;
+      background-image: repeating-linear-gradient(
+        to bottom, rgba(0,0,0,0.07) 0, rgba(0,0,0,0.07) 24px,
+        transparent 24px, transparent 48px
+      );
+      animation: upScroll var(--scroll-dur) linear infinite;
+    }
+    .grass-stripe.left  { left: 0; }
+    .grass-stripe.right { right: 0; }
+
+    /* lanes-wrap: built by JS */
+    .lanes-wrap {
+      position: absolute; top: 0; bottom: 0;
+      left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: row;
+    }
+    .lane-edge {
+      width: 5px; flex-shrink: 0;
+      background: #FFE066;
+      background-image: repeating-linear-gradient(
+        to bottom, #FFE066 0, #FFE066 28px, transparent 28px, transparent 48px
+      );
+      animation: upScroll var(--scroll-dur) linear infinite;
+    }
+    .lane {
+      flex: 1; position: relative;
+      background-color: var(--road);
+      background-image: linear-gradient(rgba(255,255,255,0.12) 2px, transparent 2px);
+      background-size: 100% 48px;
+      animation: upScroll var(--scroll-dur) linear infinite;
+    }
+    .lane-div {
+      width: 5px; flex-shrink: 0;
+      background-image: repeating-linear-gradient(
+        to bottom, rgba(255,255,255,0.7) 0, rgba(255,255,255,0.7) 22px,
+        transparent 22px, transparent 48px
+      );
+      animation: upScroll var(--scroll-dur) linear infinite;
+    }
+
+    /* ── 障碍物 ── */
+    .obstacle {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      z-index: 6; pointer-events: none;
+    }
+    /* 警示条纹顶部 */
+    .obs-stripe {
+      height: 13px;
+      background: repeating-linear-gradient(
+        90deg, #FF3B30 0, #FF3B30 20px, #FFD700 20px, #FFD700 40px
+      );
+      border-radius: 6px 6px 0 0;
+      box-shadow: 0 0 14px rgba(255,59,48,0.8), 0 2px 4px rgba(0,0,0,0.3);
+    }
+    /* 答题面板区 */
+    .obs-panels {
+      display: flex; flex-direction: row;
+      background: rgba(0,0,0,0.55);
+    }
+    .obs-panel {
+      flex: 1; height: 68px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px; font-weight: 900; color: #fff;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      border: 2px solid rgba(255,255,255,0.18);
+      transition: background 0.15s;
+    }
+    .obs-panel.flash-correct { background: rgba(52,199,89,0.7) !important; }
+    .obs-panel.flash-wrong   { background: rgba(255,59,48,0.7) !important; }
+    .obs-pdiv {
+      width: 4px; flex-shrink: 0;
+      background: rgba(255,255,255,0.2);
+    }
+    /* 底部红条 */
+    .obs-bottom {
+      height: 8px;
+      background: #FF3B30;
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* 障碍物进场/退场 */
+    .obstacle.entering { animation: obsEnter 0.25s ease-out forwards; }
+    .obstacle.breaking { animation: obsBreak 0.35s ease-out forwards; }
+    .obstacle.crashing { animation: obsCrash 0.4s ease-out forwards; }
+
+    /* ── 跑者 ── */
+    .runner-wrap {
+      position: absolute; bottom: 28px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 7; pointer-events: none;
+      display: flex; align-items: center; gap: 6px;
+      transition: left 0.12s ease-out;
+    }
+    /* 速度线 */
+    .speed-trail {
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .st {
+      height: 3px; background: rgba(255,255,255,0.75);
+      border-radius: 2px;
+      animation: trailLine 0.35s linear infinite;
+    }
+    .st:nth-child(1) { width: 30px; animation-delay: 0s; }
+    .st:nth-child(2) { width: 22px; animation-delay: 0.12s; }
+    .st:nth-child(3) { width: 14px; animation-delay: 0.24s; }
+
+    /* 跑者主体 */
+    .runner-body {
+      font-size: 92px; line-height: 1;
+      animation: runnerAnim 0.24s ease-in-out infinite alternate;
+      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.4));
+      transform-origin: bottom center;
+    }
+    .runner-body.crashed {
+      animation: crashAnim 0.5s ease-out forwards !important;
+    }
+
+    /* ── 反馈层 ── */
+    .feedback-overlay {
+      position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 8;
+    }
+    /* 加分弹字 */
+    .score-float {
+      position: absolute; pointer-events: none; z-index: 10;
+      font-size: 32px; font-weight: 900; color: var(--yellow);
+      text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      left: 50%; top: 35%; transform: translateX(-50%);
+      animation: floatUp 0.8s ease-out forwards;
+    }
+
+    /* ══ 结算屏 ══ */
+    #screen-result {
+      background: rgba(0,0,0,0.55);
+      align-items: center; justify-content: flex-end;
+    }
+    .result-card {
+      background: #fff; border-radius: 28px 28px 0 0;
+      padding: 28px 24px max(44px, env(safe-area-inset-bottom));
+      width: 100%; max-width: 480px;
+      transform: translateY(100%);
+      transition: transform 0.42s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #screen-result.active .result-card { transform: translateY(0); }
+    .result-emoji { text-align: center; font-size: 62px; margin-bottom: 4px; }
+    .result-title-text {
+      text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 20px;
+    }
+    .result-title-text.win  { color: #FF6B35; }
+    .result-title-text.lose { color: #888; }
+    .result-table {
+      background: #F0F8FF; border-radius: 14px; padding: 4px 16px; margin-bottom: 14px;
+    }
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-bottom: 1px solid #E5EFF7; font-size: 14px;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: #999; }
+    .stat-value { font-weight: 700; font-size: 17px; color: #333; }
+    .stat-value.big { font-size: 28px; color: #FF6B35; }
+    .new-record-badge {
+      text-align: center; font-size: 13px; font-weight: 700;
+      color: #FF6B35; background: #FFF3E0;
+      border-radius: 20px; padding: 6px; margin-bottom: 14px; display: none;
+    }
+    .btn-replay {
+      display: block; width: 100%;
+      background: linear-gradient(180deg, var(--yellow) 0%, var(--orange) 100%);
+      color: #7B3F00; font-size: 20px; font-weight: 900;
+      border: none; border-radius: 50px; padding: 16px;
+      box-shadow: 0 5px 0 var(--yellow-dk); cursor: pointer; letter-spacing: 2px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-replay:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--yellow-dk); }
+
+    /* ══ 动画 ══ */
+    @keyframes upScroll {
+      from { background-position: 0 0; }
+      to   { background-position: 0 -48px; }
+    }
+    @keyframes runnerAnim {
+      from { transform: rotate(-6deg) translateY(0) scaleX(1.02); }
+      to   { transform: rotate(5deg) translateY(-13px) scaleX(0.97); }
+    }
+    @keyframes crashAnim {
+      0%   { transform: rotate(0deg) scale(1); }
+      30%  { transform: rotate(-25deg) translateX(-18px) scale(1.15); }
+      60%  { transform: rotate(10deg) translateX(8px) scale(0.85); }
+      100% { transform: rotate(-5deg) translateX(-5px) scale(0.95); }
+    }
+    @keyframes trailLine {
+      0%   { opacity: 0.85; transform: scaleX(1); }
+      100% { opacity: 0; transform: scaleX(0.2) translateX(-14px); }
+    }
+    @keyframes startBounce {
+      from { transform: translateY(0) rotate(-4deg); }
+      to   { transform: translateY(-18px) rotate(4deg); }
+    }
+    @keyframes cloudDrift {
+      0%,100% { transform: translateX(0); }
+      50%      { transform: translateX(14px); }
+    }
+    @keyframes obsEnter {
+      from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    @keyframes obsBreak {
+      0%   { opacity: 1; transform: translateX(-50%) scale(1); }
+      50%  { opacity: 0.6; transform: translateX(-50%) scale(1.15) rotate(2deg); }
+      100% { opacity: 0; transform: translateX(-50%) scale(0.6) translateY(-30px); }
+    }
+    @keyframes obsCrash {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      40%  { transform: translateX(-50%) translateY(20px) scale(1.1); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(40px) scale(0.8); }
+    }
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-90px); }
+    }
+    @keyframes screenShake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-8px); }
+      40%     { transform: translateX(8px); }
+      60%     { transform: translateX(-5px); }
+      80%     { transform: translateX(5px); }
+    }
+    .shake { animation: screenShake 0.4s ease-out; }
+
+    /* ── 已选跑道高亮 ── */
+    .obs-panel.selected {
+      background: rgba(255,215,0,0.28) !important;
+      border: 2px solid #FFD700 !important;
+      box-shadow: inset 0 0 0 2px rgba(255,215,0,0.4);
+    }
+
+    /* ── 加速区 ── */
+    .boost-zone {
+      flex-shrink: 0; height: 58px;
+      background: rgba(0,20,50,0.25);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #boost-btn {
+      background: rgba(255,140,0,0.18);
+      border: 2px solid rgba(255,140,0,0.45);
+      border-radius: 32px; padding: 9px 52px;
+      font-size: 15px; color: rgba(255,255,255,0.85);
+      font-weight: 700; letter-spacing: 1px; cursor: pointer;
+      transition: background 0.1s, transform 0.1s, box-shadow 0.1s;
+      user-select: none; -webkit-user-select: none;
+    }
+    #boost-btn.boosting {
+      background: rgba(255,140,0,0.7);
+      transform: scale(0.95);
+      box-shadow: 0 0 18px rgba(255,140,0,0.6);
+      color: #fff;
+    }
+
+    /* 加速时 HUD 速度显示变色 */
+    .hud-speed.boost-on { background: rgba(255,140,0,0.4); color: #FFD700; }
+
+    /* 加速时跑者动画加快 */
+    .runner-wrap.boost-active .runner-body {
+      animation: runnerBoost 0.12s ease-in-out infinite alternate !important;
+      filter: drop-shadow(0 0 14px rgba(255,140,0,0.85)) !important;
+    }
+    @keyframes runnerBoost {
+      from { transform: rotate(-9deg) translateY(0) scaleX(1.06); }
+      to   { transform: rotate(7deg) translateY(-18px) scaleX(0.93); }
+    }
+
+    /* 教程提示 */
+    .tutorial-hint {
+      position: absolute; left: 50%; bottom: 38%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); color: #fff;
+      border-radius: 14px; padding: 13px 22px;
+      text-align: center; pointer-events: none;
+      z-index: 20; white-space: nowrap;
+    }
+    .tut-row { font-size: 14px; line-height: 1.6; }
+    .tut-row + .tut-row { margin-top: 4px; opacity: 0.85; }
+    .tut-key {
+      display: inline-block;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.45);
+      border-radius: 5px; padding: 1px 8px;
+      font-size: 12px; font-weight: 700; font-family: monospace;
+      animation: keyPulse 0.9s ease-in-out infinite alternate;
+    }
+    @keyframes keyPulse {
+      from { background: rgba(255,255,255,0.18); }
+      to   { background: rgba(255,215,0,0.35); border-color: #FFD700; }
+    }
+  </style>
+</head>
+<body>
+<div id="game-container">
+
+  <!-- ══ 开始屏 ══ -->
+  <div id="screen-start" class="screen active">
+    <div class="start-clouds">☁️ ☁️ ☁️</div>
+    <div class="start-runner">🏃</div>
+    <div class="start-title">算数冲冲跑</div>
+    <div class="start-en">MATH DASH</div>
+    <div class="diff-picker" id="diff-picker">
+      <button class="diff-btn active" data-diff="easy">初级 · 2跑道</button>
+      <button class="diff-btn" data-diff="hard">高级 · 3跑道</button>
+    </div>
+    <button class="btn-start" id="btn-start">开 始</button>
+    <div class="best-badge" id="best-badge">🏆 最高分：<span id="best-val">0</span></div>
+  </div>
+
+  <!-- ══ 游戏屏 ══ -->
+  <div id="screen-game" class="screen">
+    <div class="hud">
+      <div class="hud-lives" id="hud-lives">❤️❤️❤️</div>
+      <div class="hud-speed" id="hud-speed">速度 ×1.0</div>
+      <div class="hud-progress" id="hud-progress">1 / 10</div>
+    </div>
+    <div class="question-bar">
+      <div class="question-text" id="question-text">？ + ？ = ?</div>
+    </div>
+    <div class="time-bar-wrap">
+      <div class="time-bar" id="time-bar"></div>
+    </div>
+    <div class="road-area" id="road-area">
+      <div class="grass-stripe left"></div>
+      <div class="grass-stripe right"></div>
+      <!-- .lanes-wrap 由 buildLanes() 注入 -->
+      <!-- #obstacle 由 buildObstacle() 注入 -->
+      <div class="runner-wrap" id="runner-wrap">
+        <div class="speed-trail">
+          <div class="st"></div>
+          <div class="st"></div>
+          <div class="st"></div>
+        </div>
+        <div class="runner-body" id="runner-body">🏃</div>
+      </div>
+      <div class="feedback-overlay" id="feedback-overlay"></div>
+    </div>
+    <div class="boost-zone">
+      <div id="boost-btn">🚀 长按加速</div>
+    </div>
+  </div>
+
+  <!-- ══ 结算屏 ══ -->
+  <div id="screen-result" class="screen">
+    <div class="result-card">
+      <div class="result-emoji" id="result-emoji">🎉</div>
+      <div class="result-title-text win" id="result-title">通关！</div>
+      <div class="result-table" id="result-table"></div>
+      <div class="new-record-badge" id="new-record">🏆 新纪录！</div>
+      <button class="btn-replay" id="btn-replay">再来一局</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── 配置 ──────────────────────────────────────────────
+const TOTAL_Q   = 10;
+const MAX_LIVES = 1;
+const BEST_KEY  = 'math_dash_v3';
+
+// 每帧像素（×60fps），base=每题开始速度，inc=每题递增
+const OBS_CFG = {
+  easy: { base: 2.8, inc: 0.18 },
+  hard: { base: 4.2, inc: 0.28 },
+};
+const DIFFICULTY = {
+  easy: { range: 10, distract: 2, lanes: 2, label: '初级' },
+  hard: { range: 30, distract: 1, lanes: 3, label: '高级' },
+};
+
+// ── 状态 ──────────────────────────────────────────────
+let currentDiff = 'easy';
+let gs = {};
+let isAnswering = false;
+let touchStartX = 0;
+
+// 障碍物 RAF 状态
+let obsY = 0, obsActive = false, obsRAF = null;
+let roadH = 0, runnerTopY = 0, obsMaxY = 0;
+let obsW = 0, obsLeft = 0;
+let obsCurrentSpeed = 0, obsBaseSpeedForQ = 0;
+
+// 加速状态
+let spaceBoost = false;
+
+// 教程计时器
+let tutTimer = null;
+
+// ── DOM ───────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+// ── 难度选择 ──────────────────────────────────────────
+$('diff-picker').addEventListener('click', e => {
+  const btn = e.target.closest('.diff-btn');
+  if (!btn) return;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentDiff = btn.dataset.diff;
+});
+
+// ── 跑道构建 ──────────────────────────────────────────
+function buildLanes(numLanes) {
+  const roadArea = $('road-area');
+  roadArea.querySelector('.lanes-wrap')?.remove();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'lanes-wrap';
+
+  const laneW = Math.min(96, (window.innerWidth * 0.78) / numLanes);
+  const totalW = laneW * numLanes + 5 * 2 + 5 * (numLanes - 1);
+  wrap.style.width = totalW + 'px';
+
+  wrap.appendChild(mkEl('div', 'lane-edge'));
+  for (let i = 0; i < numLanes; i++) {
+    if (i > 0) wrap.appendChild(mkEl('div', 'lane-div'));
+    const lane = mkEl('div', 'lane');
+    lane.style.cssText = `width:${laneW}px;flex:none`;
+    wrap.appendChild(lane);
+  }
+  wrap.appendChild(mkEl('div', 'lane-edge'));
+
+  const runnerWrap = roadArea.querySelector('.runner-wrap');
+  roadArea.insertBefore(wrap, runnerWrap);
+  return wrap;
+}
+
+function buildObstacle(numLanes) {
+  const roadArea = $('road-area');
+  $('obstacle')?.remove();
+
+  const obs = mkEl('div', 'obstacle');
+  obs.id = 'obstacle';
+
+  obs.appendChild(mkEl('div', 'obs-stripe'));
+
+  const panels = mkEl('div', 'obs-panels');
+  for (let i = 0; i < numLanes; i++) {
+    if (i > 0) panels.appendChild(mkEl('div', 'obs-pdiv'));
+    const p = mkEl('div', 'obs-panel');
+    p.id = `obs-${i}`;
+    panels.appendChild(p);
+  }
+  obs.appendChild(panels);
+  obs.appendChild(mkEl('div', 'obs-bottom'));
+
+  const runnerWrap = roadArea.querySelector('.runner-wrap');
+  roadArea.insertBefore(obs, runnerWrap);
+  return obs;
+}
+
+function mkEl(tag, cls) {
+  const el = document.createElement(tag);
+  el.className = cls;
+  return el;
+}
+
+// ── 题库 ──────────────────────────────────────────────
+function makeQuestions() {
+  const { range, distract, lanes } = DIFFICULTY[currentDiff];
+  const qs = [];
+  for (let i = 0; i < TOTAL_Q; i++) {
+    const a = rnd(1, range), b = rnd(1, range), ans = a + b;
+    const wrongSet = new Set();
+    let t = 0;
+    while (wrongSet.size < lanes - 1 && t++ < 50) {
+      const w = ans + (Math.random() < 0.5 ? 1 : -1) * rnd(1, distract + 1);
+      if (w !== ans && w >= 1) wrongSet.add(w);
+    }
+    const options = shuffle([ans, ...[...wrongSet]]);
+    qs.push({ text: `${a} + ${b} = ?`, options, answerIdx: options.indexOf(ans) });
+  }
+  return qs;
+}
+
+function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function shuffle(a) {
+  a = [...a];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── HUD ───────────────────────────────────────────────
+function refreshHUD() {
+  $('hud-lives').textContent = '❤️'.repeat(gs.lives) + '🖤'.repeat(MAX_LIVES - gs.lives);
+  $('hud-progress').textContent = `${Math.min(gs.qi + 1, TOTAL_Q)} / ${TOTAL_Q}`;
+  const base = OBS_CFG[currentDiff].base;
+  const baseSpeed = base + OBS_CFG[currentDiff].inc * gs.qi;
+  const displaySpeed = spaceBoost ? baseSpeed * 2 : baseSpeed;
+  $('hud-speed').textContent = `速度 ×${(displaySpeed / base).toFixed(1)}`;
+}
+
+// ── 出题 ──────────────────────────────────────────────
+function showQ() {
+  // 不重置 selectedLane —— 跑者留在上一题所在跑道
+  const q = gs.questions[gs.qi];
+  $('question-text').textContent = q.text;
+
+  const numLanes = DIFFICULTY[currentDiff].lanes;
+  for (let i = 0; i < numLanes; i++) {
+    const p = $(`obs-${i}`);
+    p.textContent = q.options[i];
+    // 保留选中高亮，清除对错颜色
+    p.className = 'obs-panel' + (i === gs.selectedLane ? ' selected' : '');
+  }
+
+  if (gs.qi === 0) showTutorial();
+
+  refreshHUD();
+  startObstacle();
+}
+
+// ── 障碍物 ──────────────────────────────────────────────
+function calibrateObsBounds() {
+  const roadArea = $('road-area');
+  const wrap = roadArea.querySelector('.lanes-wrap');
+  const runnerWrap = $('runner-wrap');
+  if (!wrap || !runnerWrap) return false;
+
+  const rRect  = roadArea.getBoundingClientRect();
+  const wRect  = wrap.getBoundingClientRect();
+  const rwRect = runnerWrap.getBoundingClientRect();
+
+  roadH    = rRect.height;
+  if (roadH < 50) return false; // DOM not laid out yet
+  obsW     = wRect.width;
+  obsLeft  = wRect.left - rRect.left;
+  // Runner top relative to road-area top
+  runnerTopY = rwRect.top - rRect.top;
+  // Obstacle enters at -90px, reaches runner when its BOTTOM equals runner TOP
+  // obstacle height ≈ 13 + 68 + 8 = 89px
+  obsMaxY  = runnerTopY - 89;
+  return true;
+}
+
+function snapRunnerToLane(laneIdx) {
+  const panel = $(`obs-${laneIdx}`);
+  if (!panel) return;
+  const roadRect = $('road-area').getBoundingClientRect();
+  const pRect = panel.getBoundingClientRect();
+  if (!pRect.width) return;
+  const cx = pRect.left + pRect.width / 2 - roadRect.left;
+  const rw = $('runner-wrap');
+  rw.style.transition = 'none';
+  rw.style.left = cx + 'px';
+  rw.offsetWidth; // force reflow to apply instantly
+  rw.style.transition = '';
+}
+
+function startObstacle() {
+  if (!calibrateObsBounds()) { setTimeout(startObstacle, 50); return; }
+
+  const obs = $('obstacle');
+  obs.style.cssText = `width:${obsW}px;left:${obsLeft}px;top:-90px;opacity:1;transform:none;transition:none`;
+  obs.classList.remove('breaking','crashing','entering');
+
+  // 每题开始立即定位跑者到当前选中跑道（无过渡动画）
+  snapRunnerToLane(gs.selectedLane);
+
+  obsY = -90;
+  obsActive = true;
+
+  // Time bar reset
+  const tb = $('time-bar');
+  tb.style.cssText = 'width:100%;background:#34C759;transition:none';
+
+  cancelAnimationFrame(obsRAF);
+  const baseSpeed = Math.min(
+    OBS_CFG[currentDiff].base + OBS_CFG[currentDiff].inc * gs.qi,
+    9
+  );
+  obsBaseSpeedForQ = baseSpeed;
+
+  function step() {
+    if (!obsActive) return;
+    const speed = spaceBoost ? Math.min(baseSpeed * 2, 16) : baseSpeed;
+    obsCurrentSpeed = speed;
+    obsY += speed;
+    obs.style.top = obsY + 'px';
+
+    // Time bar update
+    const progress = Math.max(0, Math.min(1, (obsY + 90) / (obsMaxY + 90)));
+    tb.style.width = ((1 - progress) * 100) + '%';
+    if (progress > 0.75) tb.style.background = '#FF3B30';
+    else if (progress > 0.45) tb.style.background = '#FFD700';
+    else tb.style.background = '#34C759';
+
+    if (obsY >= obsMaxY) {
+      obsActive = false;
+      onObstacleReach();
+    } else {
+      obsRAF = requestAnimationFrame(step);
+    }
+  }
+  obsRAF = requestAnimationFrame(step);
+}
+
+function stopObstacle() {
+  obsActive = false;
+  cancelAnimationFrame(obsRAF);
+}
+
+function dismissObstacle(win) {
+  const obs = $('obstacle');
+  obs.classList.add(win ? 'breaking' : 'crashing');
+}
+
+// 障碍到达跑者 → 此时才判断正误
+function onObstacleReach() {
+  if (isAnswering) return;
+  isAnswering = true;
+
+  const q = gs.questions[gs.qi];
+  const sel = gs.selectedLane;
+  const correct = sel !== -1 && sel === q.answerIdx;
+
+  // 高亮选中道 + 显示正确答案
+  if (sel !== -1) $(`obs-${sel}`).classList.add(correct ? 'flash-correct' : 'flash-wrong');
+  if (!correct) $(`obs-${q.answerIdx}`).classList.add('flash-correct');
+
+  $('time-bar').style.cssText = 'width:0%;background:#FF3B30';
+
+  if (correct) {
+    const pts = Math.min(30, Math.max(10, Math.round(10 * obsCurrentSpeed / OBS_CFG[currentDiff].base)));
+    gs.score += pts;
+    gs.correctCount++;
+    flashFeedback('rgba(52,199,89,0.4)', 300);
+    floatScore(`+${pts}`);
+    dismissObstacle(true);
+  } else {
+    gs.lives--;
+    flashFeedback('rgba(255,59,48,0.55)', 500);
+    shakeScreen();
+    runnerCrash();
+    dismissObstacle(false);
+  }
+
+  gs.qi++;
+  gs.selectedLane = -1;
+  refreshHUD();
+
+  const delay = correct ? 420 : 750;
+  setTimeout(() => {
+    isAnswering = false;
+    if (!correct) restoreRunner();
+    if (gs.lives <= 0) endGame(false, '💔 撞墙失败');
+    else if (gs.qi >= TOTAL_Q) endGame(true);
+    else showQ();
+  }, delay);
+}
+
+// ── 选择跑道（不立即判断，只高亮）──────────────────────
+function selectLane(laneIdx) {
+  if (!obsActive || isAnswering) return;
+  dismissTutorial();
+  const numLanes = DIFFICULTY[currentDiff].lanes;
+  for (let i = 0; i < numLanes; i++) {
+    $(`obs-${i}`).classList.toggle('selected', i === laneIdx);
+  }
+  gs.selectedLane = laneIdx;
+
+  // Move runner to the center of the selected lane
+  const panel = $(`obs-${laneIdx}`);
+  const roadRect = $('road-area').getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const centerX = panelRect.left + panelRect.width / 2 - roadRect.left;
+  const runner = $('runner-wrap');
+  runner.style.left = centerX + 'px';
+}
+
+// ── 教程 ──────────────────────────────────────────────
+function showTutorial() {
+  $('tutorial-hint')?.remove();
+  clearTimeout(tutTimer);
+  const el = document.createElement('div');
+  el.id = 'tutorial-hint';
+  el.className = 'tutorial-hint';
+  const n = DIFFICULTY[currentDiff].lanes;
+  const laneHint = n === 2
+    ? '<span class="tut-key">←</span> <span class="tut-key">→</span> 滑动选跑道'
+    : '<span class="tut-key">←</span> <span class="tut-key">↓</span> <span class="tut-key">→</span> 选跑道';
+  el.innerHTML = `
+    <div class="tut-row">${laneHint}</div>
+    <div class="tut-row">🚀 长按下方按钮 / <span class="tut-key">空格</span> 加速冲分</div>
+  `;
+  $('road-area').appendChild(el);
+  tutTimer = setTimeout(dismissTutorial, 3500);
+}
+
+function dismissTutorial() {
+  clearTimeout(tutTimer);
+  const el = $('tutorial-hint');
+  if (!el) return;
+  el.style.transition = 'opacity 0.3s';
+  el.style.opacity = '0';
+  setTimeout(() => el?.remove(), 300);
+}
+
+function flashFeedback(color, dur) {
+  const el = $('feedback-overlay');
+  el.style.cssText = `background:${color};transition:none;opacity:1`;
+  setTimeout(() => {
+    el.style.transition = `opacity ${dur * 0.55}ms ease`;
+    el.style.opacity = '0';
+  }, dur * 0.45);
+}
+
+function floatScore(txt) {
+  const el = mkEl('div', 'score-float');
+  el.textContent = txt;
+  $('road-area').appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+function shakeScreen() {
+  const gc = $('game-container');
+  gc.classList.remove('shake');
+  void gc.offsetWidth;
+  gc.classList.add('shake');
+  setTimeout(() => gc.classList.remove('shake'), 450);
+}
+
+function runnerCrash() { $('runner-body').classList.add('crashed'); }
+function restoreRunner() { $('runner-body').classList.remove('crashed'); }
+
+// ── 生命周期 ──────────────────────────────────────────
+function startGame() {
+  const numLanes = DIFFICULTY[currentDiff].lanes;
+  buildLanes(numLanes);
+  buildObstacle(numLanes);
+
+  // 2跑道随机开局跑道；3跑道默认中间道
+  const startLane = numLanes === 2 ? Math.floor(Math.random() * 2) : 1;
+  gs = {
+    status: 'playing',
+    score: 0, lives: MAX_LIVES,
+    qi: 0, correctCount: 0,
+    selectedLane: startLane,
+    startTs: Date.now(),
+    questions: makeQuestions(),
+  };
+  stopBoost();
+  isAnswering = false;
+
+  showScreen('screen-game');
+
+  // 等 DOM 布局稳定后再出题（双帧不足，改用 100ms）
+  setTimeout(showQ, 100);
+}
+
+function endGame(win, reason) {
+  gs.status = 'result';
+  stopObstacle();
+
+  const elapsed = Math.round((Date.now() - gs.startTs) / 1000);
+  const total   = gs.score;
+  const diffKey = BEST_KEY + '_' + currentDiff;
+  const prev    = parseInt(localStorage.getItem(diffKey) || '0');
+  const isNew   = total > prev;
+  if (isNew) localStorage.setItem(diffKey, total);
+
+  showResult(win, total, elapsed, reason || '', isNew);
+}
+
+function showResult(win, total, elapsed, reason, isNew) {
+  $('result-emoji').textContent = win ? '🎉' : '😢';
+  const titleEl = $('result-title');
+  titleEl.textContent = win ? '通关！🎊' : (reason || '游戏结束');
+  titleEl.className = 'result-title-text ' + (win ? 'win' : 'lose');
+
+  const diff = DIFFICULTY[currentDiff];
+  if (win) {
+    $('result-table').innerHTML = `
+      <div class="stat-row"><span class="stat-label">难度</span><span class="stat-value">${diff.label}</span></div>
+      <div class="stat-row"><span class="stat-label">答对题数</span><span class="stat-value">${gs.correctCount} / ${TOTAL_Q}</span></div>
+      <div class="stat-row"><span class="stat-label">用时</span><span class="stat-value">${elapsed} 秒</span></div>
+      <div class="stat-row"><span class="stat-label">总得分</span><span class="stat-value big">${total}</span></div>
+    `;
+  } else {
+    $('result-table').innerHTML = `
+      <div class="stat-row"><span class="stat-label">难度</span><span class="stat-value">${diff.label}</span></div>
+      <div class="stat-row"><span class="stat-label">已答题数</span><span class="stat-value">${gs.qi} / ${TOTAL_Q}</span></div>
+      <div class="stat-row"><span class="stat-label">答对题数</span><span class="stat-value">${gs.correctCount}</span></div>
+      <div class="stat-row"><span class="stat-label">得分</span><span class="stat-value big">${total}</span></div>
+    `;
+  }
+  $('new-record').style.display = isNew ? 'block' : 'none';
+  showScreen('screen-result');
+}
+
+function resetGame() {
+  showScreen('screen-start');
+  updateBestBadge();
+}
+
+function updateBestBadge() {
+  const best = Math.max(
+    parseInt(localStorage.getItem(BEST_KEY + '_easy') || '0'),
+    parseInt(localStorage.getItem(BEST_KEY + '_hard') || '0')
+  );
+  $('best-badge').style.display = best > 0 ? 'block' : 'none';
+  $('best-val').textContent = best;
+}
+
+// ── 加速 ──────────────────────────────────────────────
+function startBoost() {
+  if (spaceBoost) return;
+  spaceBoost = true;
+  $('boost-btn').classList.add('boosting');
+  $('runner-wrap').classList.add('boost-active');
+  $('hud-speed').classList.add('boost-on');
+  $('road-area').style.setProperty('--scroll-dur', '0.28s');
+  refreshHUD();
+}
+
+function stopBoost() {
+  if (!spaceBoost) return;
+  spaceBoost = false;
+  $('boost-btn')?.classList.remove('boosting');
+  $('runner-wrap')?.classList.remove('boost-active');
+  $('hud-speed')?.classList.remove('boost-on');
+  $('road-area')?.style.setProperty('--scroll-dur', '0.65s');
+  if (gs.status === 'playing') refreshHUD();
+}
+
+// 加速按钮（移动端）
+const boostBtn = $('boost-btn');
+boostBtn.addEventListener('touchstart', e => { e.preventDefault(); startBoost(); }, { passive: false });
+boostBtn.addEventListener('touchend',   stopBoost);
+boostBtn.addEventListener('touchcancel', stopBoost);
+boostBtn.addEventListener('mousedown',  startBoost);
+boostBtn.addEventListener('mouseup',    stopBoost);
+boostBtn.addEventListener('mouseleave', stopBoost);
+
+// ── 触摸交互：选跑道（不立即判断）─────────────────────
+$('screen-game').addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+}, { passive: true });
+
+$('screen-game').addEventListener('touchend', e => {
+  if (isAnswering || !obsActive) return;
+  if (e.target.closest('#boost-btn')) return;
+  const endX = e.changedTouches[0].clientX;
+  const dx = endX - touchStartX;
+  const numLanes = DIFFICULTY[currentDiff].lanes;
+  let lane;
+
+  if (numLanes === 2) {
+    // 2跑道：滑动方向或点击位置绝对定位
+    const rect = $('road-area').querySelector('.lanes-wrap').getBoundingClientRect();
+    lane = Math.floor((endX - rect.left) / (rect.width / 2));
+    if (Math.abs(dx) > 25) lane = dx < 0 ? 0 : 1;
+    lane = Math.max(0, Math.min(1, lane));
+  } else {
+    // 3跑道：相对移动（左划−1，右划+1），像 Subway Surfers
+    if (Math.abs(dx) > 20) {
+      lane = Math.max(0, Math.min(2, gs.selectedLane + (dx < 0 ? -1 : 1)));
+    } else {
+      // 短促点击：按触点所在格绝对定位
+      const rect = $('road-area').querySelector('.lanes-wrap').getBoundingClientRect();
+      lane = Math.max(0, Math.min(2, Math.floor((endX - rect.left) / (rect.width / 3))));
+    }
+  }
+
+  selectLane(lane);
+}, { passive: true });
+
+// 桌面键盘
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); startBoost(); return; }
+  if (gs.status !== 'playing') return;
+  const n = DIFFICULTY[currentDiff].lanes;
+  if (n === 2) {
+    if (e.key === 'ArrowLeft')  selectLane(0);
+    if (e.key === 'ArrowRight') selectLane(1);
+  } else {
+    // 3跑道：方向键相对移动，↓↑ 直跳中间
+    if (e.key === 'ArrowLeft')  selectLane(Math.max(0, gs.selectedLane - 1));
+    if (e.key === 'ArrowRight') selectLane(Math.min(2, gs.selectedLane + 1));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') selectLane(1);
+  }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === ' ' || e.code === 'Space') stopBoost();
+});
+
+// ── 按钮 ──────────────────────────────────────────────
+$('btn-start').addEventListener('click', startGame);
+$('btn-replay').addEventListener('click', resetGame);
+
+// ── 初始化 ────────────────────────────────────────────
+updateBestBadge();
+</script>
+</body>
+</html>
