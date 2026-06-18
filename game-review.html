@@ -102,6 +102,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica
 .game-comment-row:last-child { border-bottom: none; }
 .loading { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
 .error-msg { background: #FAECE7; color: #993C1D; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; display: none; }
+
+/* 创意来源 */
+.source-box { margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0; text-align: left; }
+.source-label { font-size: 11px; color: #bbb; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+.source-text { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 8px; }
+.source-img { width: 100%; border-radius: 10px; object-fit: cover; max-height: 180px; display: block; }
+
+/* 游戏 iframe 全屏遮罩 */
+#iframe-overlay { position: fixed; inset: 0; z-index: 999; background: #000; display: none; flex-direction: column; }
+#iframe-overlay.visible { display: flex; }
+.iframe-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #1a1a1a; flex-shrink: 0; }
+.iframe-topbar-title { font-size: 14px; font-weight: 600; color: #fff; }
+.iframe-close { font-size: 13px; color: #aaa; background: none; border: none; cursor: pointer; padding: 4px 8px; }
+#game-iframe { flex: 1; border: none; width: 100%; background: #fff; }
+.iframe-bottombar { display: flex; padding: 10px 16px; background: #1a1a1a; flex-shrink: 0; }
+.iframe-done-btn { flex: 1; padding: 12px; background: #7F77DD; border: none; border-radius: 10px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -139,6 +155,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica
     <div class="preview-emoji" id="detail-emoji"></div>
     <div class="preview-title" id="detail-title"></div>
     <div class="preview-desc" id="detail-desc"></div>
+    <div id="detail-source"></div>
   </div>
   <button class="btn-play" id="play-btn" onclick="playGame()">▶ 试玩游戏</button>
   <div class="rating-card">
@@ -178,6 +195,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica
     <div class="tab" onclick="switchTab('all')" id="tab-all">全部评论</div>
   </div>
   <div id="admin-content"><div class="loading">加载中…</div></div>
+</div>
+
+<!-- 游戏 iframe 全屏遮罩 -->
+<div id="iframe-overlay">
+  <div class="iframe-topbar">
+    <span class="iframe-topbar-title" id="iframe-title"></span>
+    <button class="iframe-close" onclick="closeIframe()">✕ 关闭</button>
+  </div>
+  <iframe id="game-iframe" src="" allowfullscreen></iframe>
+  <div class="iframe-bottombar">
+    <button class="iframe-done-btn" onclick="closeIframe()">玩完了，去评分 →</button>
+  </div>
 </div>
 
 <script>
@@ -299,6 +328,17 @@ function openGame(id) {
   document.getElementById("detail-emoji").textContent = g.emoji;
   document.getElementById("detail-title").textContent = g.title;
   document.getElementById("detail-desc").textContent = g.desc;
+  // 渲染创意来源
+  const sourceEl = document.getElementById("detail-source");
+  if (g.source && (g.source.text || g.source.img)) {
+    let html = '<div class="source-box"><div class="source-label">创意来源</div>';
+    if (g.source.text) html += `<div class="source-text">${g.source.text}</div>`;
+    if (g.source.img)  html += `<img class="source-img" src="${g.source.img}" alt="参考图" />`;
+    html += '</div>';
+    sourceEl.innerHTML = html;
+  } else {
+    sourceEl.innerHTML = "";
+  }
   renderScoreGrid();
   document.getElementById("comment-input").value = "";
   document.getElementById("submit-btn").disabled = true;
@@ -326,7 +366,14 @@ function selectScore(n) {
 
 function playGame() {
   const g = GAMES.find(x => x.id === currentGameId);
-  window.open(g.url, "_blank");
+  document.getElementById("iframe-title").textContent = g.emoji + "  " + g.title;
+  document.getElementById("game-iframe").src = g.url;
+  document.getElementById("iframe-overlay").classList.add("visible");
+}
+
+function closeIframe() {
+  document.getElementById("iframe-overlay").classList.remove("visible");
+  document.getElementById("game-iframe").src = "";
 }
 
 async function submitReview() {
