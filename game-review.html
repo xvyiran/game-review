@@ -147,6 +147,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica
   </div>
   <div class="section-label">游戏列表</div>
   <div id="game-list"></div>
+  <button id="toggle-all-btn" onclick="toggleAllBatches()" style="width:100%;margin-top:4px;padding:12px;background:none;border:1px dashed #ddd;border-radius:12px;color:#aaa;font-size:13px;cursor:pointer;">查看全部历史游戏 ↓</button>
 </div>
 
 <div id="screen-game" class="screen">
@@ -245,6 +246,7 @@ let selectedScore = null;
 let localReviews = [];
 let logoTapCount = 0;
 let currentAdminTab = "by-game";
+let showAllBatches = false;
 
 document.getElementById("game-count-welcome").textContent = ACTIVE_GAMES.length;
 
@@ -304,22 +306,48 @@ async function startReview() {
 function updateList() {
   const scoredIds = localReviews.filter(r => r.score !== null).map(r => r.game_id);
   const scoredCount = ACTIVE_GAMES.filter(g => scoredIds.includes(g.id)).length;
-  document.getElementById("progress-text").textContent = scoredCount + " / " + ACTIVE_GAMES.length + " 已评价";
+  document.getElementById("progress-text").textContent = scoredCount + " / " + ACTIVE_GAMES.length + " 已评价（本期）";
   document.getElementById("progress-big").textContent = scoredCount + "/" + ACTIVE_GAMES.length;
+  const displayGames = showAllBatches ? GAMES : ACTIVE_GAMES;
   const list = document.getElementById("game-list");
   list.innerHTML = "";
-  ACTIVE_GAMES.forEach(g => {
-    const rev = localReviews.find(r => r.game_id === g.id);
-    let badge = `<span class="badge badge-todo">待体验</span>`;
-    if (rev && rev.score !== null) badge = `<span class="badge badge-done">已评 ${rev.score} 分</span>`;
-    else if (rev) badge = `<span class="badge badge-skip">已跳过</span>`;
-    const card = document.createElement("div");
-    card.className = "game-card";
-    card.innerHTML = `<div class="game-thumb">${g.emoji}</div><div class="game-info"><div class="game-title">${g.title}</div><div class="game-desc">${g.desc}</div></div>${badge}`;
-    card.onclick = () => openGame(g.id);
-    list.appendChild(card);
-  });
+  // 展开全部时按批次分组显示
+  if (showAllBatches) {
+    const batches = [...new Set(GAMES.map(g => g.batch))].sort((a, b) => b - a);
+    batches.forEach(batch => {
+      const batchGames = GAMES.filter(g => g.batch === batch);
+      const batchLabel = document.createElement("div");
+      batchLabel.className = "section-label";
+      batchLabel.style.marginTop = batch === batches[0] ? "0" : "16px";
+      batchLabel.textContent = batch === CURRENT_BATCH ? `第 ${batch} 批（本期）` : `第 ${batch} 批`;
+      list.appendChild(batchLabel);
+      batchGames.forEach(g => appendGameCard(g, list));
+    });
+  } else {
+    displayGames.forEach(g => appendGameCard(g, list));
+  }
+  const btn = document.getElementById("toggle-all-btn");
+  btn.textContent = showAllBatches ? "收起历史游戏 ↑" : "查看全部历史游戏 ↓";
 }
+
+function appendGameCard(g, list) {
+  const scoredIds = localReviews.filter(r => r.score !== null).map(r => r.game_id);
+  const rev = localReviews.find(r => r.game_id === g.id);
+  let badge = `<span class="badge badge-todo">待体验</span>`;
+  if (rev && rev.score !== null) badge = `<span class="badge badge-done">已评 ${rev.score} 分</span>`;
+  else if (rev) badge = `<span class="badge badge-skip">已跳过</span>`;
+  const card = document.createElement("div");
+  card.className = "game-card";
+  card.innerHTML = `<div class="game-thumb">${g.emoji}</div><div class="game-info"><div class="game-title">${g.title}</div><div class="game-desc">${g.desc}</div></div>${badge}`;
+  card.onclick = () => openGame(g.id);
+  list.appendChild(card);
+}
+
+function toggleAllBatches() {
+  showAllBatches = !showAllBatches;
+  updateList();
+}
+
 
 function openGame(id) {
   currentGameId = id;
