@@ -267,11 +267,19 @@ async function dbInsert(data) {
 async function dbSelect(filter) {
   let url = `${SUPABASE_URL}/rest/v1/reviews?order=created_at.asc`;
   if (filter) url += "&" + filter;
-  const res = await fetch(url, {
-    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    return [];
+  }
 }
 
 function showScreen(id) {
