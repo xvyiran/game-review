@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>小小推理家 · 校长失踪的盒饭</title>
+<style>
+/* ============ 主题变量 ============ */
+:root{
+  --bg:#FFF1EC; --bg-dot:#FBDDD2;
+  --card:#FFF6D9; --card-bd:#F0DFAE;
+  --ink:#5A4632; --ink-dim:#A8907A;
+  --accent:#F2799B; --accent-deep:#D95F82;
+  --ok:#58C472; --ok-bg:#EAF9EE;
+  --bad:#F26D6D; --bad-bg:#FDE8E8;
+  --radius:16px; --tap-min:72px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none}
+body{font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;color:var(--ink)}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer}
+
+#app{position:relative;width:100vw;height:100vh;height:100dvh;overflow:hidden;
+  background:var(--bg);
+  background-image:radial-gradient(var(--bg-dot) 1.5px, transparent 1.5px);
+  background-size:24px 24px}
+
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity .3s}
+.screen.active{opacity:1;pointer-events:auto}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:var(--tap-min);padding:10px 24px;border-radius:var(--radius);
+  background:var(--accent);color:#fff;font-size:18px;font-weight:700;
+  box-shadow:0 4px 0 var(--accent-deep)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--accent-deep)}
+.btn.ghost{background:#fff;color:var(--ink);box-shadow:0 4px 0 #E5D5C5}
+.btn:disabled{opacity:.5;filter:grayscale(.5)}
+
+/* ============ 地图屏 ============ */
+#screen-map{align-items:center;justify-content:center;gap:14px;padding:24px 16px}
+.map-title{font-size:30px;font-weight:900;letter-spacing:1px;text-align:center}
+.map-sub{font-size:14px;color:var(--ink-dim);text-align:center;margin-bottom:8px;
+  padding:0 10px;line-height:1.5}
+.case-card{width:min(330px,90vw);background:#fff;border-radius:18px;padding:16px;
+  box-shadow:0 4px 0 #E5D5C5;margin-bottom:6px}
+.case-name{font-size:16px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.lv-grid{display:flex;gap:10px;flex-wrap:wrap}
+.lv-btn{width:56px;height:56px;border-radius:14px;background:var(--card);
+  border:2px solid var(--card-bd);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:20px;font-weight:800;box-shadow:0 3px 0 #E8D9A0;position:relative}
+.lv-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #E8D9A0}
+.lv-btn.locked{opacity:.45;filter:grayscale(.6)}
+.lv-btn .lv-stars{font-size:9px;position:absolute;bottom:4px;letter-spacing:-1px}
+.map-note{font-size:12px;color:var(--ink-dim);text-align:center}
+
+/* ============ 故事过渡屏 ============ */
+#screen-story{align-items:center;justify-content:center;padding:24px}
+.story-box{width:min(330px,90vw);background:#fff;border-radius:20px;padding:24px 20px;
+  box-shadow:0 6px 24px rgba(90,70,50,.12);text-align:center}
+.story-emoji{font-size:52px;margin-bottom:10px}
+.story-name{font-size:20px;font-weight:900;margin-bottom:12px}
+.story-text{font-size:15px;line-height:1.7;color:var(--ink);margin-bottom:18px}
+.story-skip{font-size:12px;color:var(--ink-dim);margin-top:10px}
+
+/* ============ 游戏主屏 ============ */
+#screen-play{padding:calc(8px + env(safe-area-inset-top)) 10px 0}
+.hud{display:flex;align-items:center;gap:8px;height:52px}
+.hud-btn{min-width:44px;min-height:44px;font-size:19px;border-radius:12px;background:#fff;
+  box-shadow:0 2px 0 #E5D5C5;display:flex;align-items:center;justify-content:center}
+.hud-btn:active{transform:translateY(2px);box-shadow:0 0 0 #E5D5C5}
+.hud-btn.on{background:var(--bad-bg);box-shadow:0 2px 0 #E7B7B7}
+.hud-name{font-size:15px;font-weight:800;flex:1;text-align:center;line-height:1.2}
+.hud-stars{font-size:14px;letter-spacing:-1px}
+
+.board-wrap{padding:8px 0 6px}
+.board{display:grid;gap:5px}
+.bh{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:48px;background:#fff;border-radius:10px;font-weight:700;padding:3px}
+.bh .be{font-size:20px;line-height:1.1}
+.bh .bt{font-size:11px}
+.bh.rowlab{background:var(--card);border:2px solid var(--card-bd)}
+.bh.corner{background:transparent}
+.cell{min-height:var(--tap-min);background:#fff;border:2px dashed #E8C9A8;border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:22px;color:#C9A886;position:relative;padding:2px;transition:transform .15s}
+.cell:active{transform:scale(.96)}
+.cell.filled{border:2px solid var(--card-bd);background:var(--card);color:var(--ink)}
+.cell.correct{border:2px solid var(--ok);background:var(--ok-bg)}
+.cell.wrong{border:2px solid var(--bad);background:var(--bad-bg);animation:shake .4s}
+.cell.hl{box-shadow:0 0 0 3px rgba(242,121,155,.5)}
+.cell .oe{font-size:22px;line-height:1.1}
+.cell .ot{font-size:11px}
+.cell.pop{animation:pop .35s ease}
+.cell.eraserable.filled::after{content:"✕";position:absolute;top:2px;right:5px;
+  font-size:11px;color:var(--bad);font-weight:900}
+
+.clues{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:2px 0 8px;display:flex;flex-direction:column;gap:8px}
+.clues-head{display:flex;align-items:center;justify-content:space-between;
+  padding:2px 4px;font-size:13px;color:var(--ink-dim)}
+.clue{display:flex;gap:10px;align-items:center;width:100%;min-height:var(--tap-min);
+  background:var(--card);border:2px solid var(--card-bd);border-radius:14px;
+  padding:10px 12px;font-size:15px;line-height:1.45;transition:opacity .3s,transform .3s}
+.clue .cnum{flex:none;width:26px;height:26px;border-radius:50%;background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--ink-dim)}
+.clue .ctext{flex:1;text-align:left}
+.clue .cchk{flex:none;width:24px;height:24px;border:2px solid #D9C48F;border-radius:7px;
+  background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:transparent}
+.clue.checked .cchk{background:var(--ok);border-color:var(--ok);color:#fff}
+.clue.isnew{animation:slideIn .35s ease}
+.clue.dismissed{opacity:.45}
+.clue.dismissed .ctext{text-decoration:line-through}
+.clue.dismissed .cchk{background:var(--ok);border-color:var(--ok);color:#fff}
+.hl-name{color:var(--accent-deep);font-weight:800}
+.hl-item{color:#2b7bbd;font-weight:800}
+.hint-box{margin:0 0 8px;padding:10px 12px;border-radius:14px;background:#fff;
+  border:2px solid rgba(242,121,155,.35);box-shadow:0 3px 0 #F4C7D5;
+  font-size:14px;line-height:1.55;color:var(--ink)}
+.hint-box[hidden]{display:none}
+.hint-box b{color:var(--accent-deep)}
+
+.actions{padding:6px 0 calc(12px + env(safe-area-inset-bottom))}
+#btn-submit{width:100%}
+
+/* ============ 气泡选择器（贴附格子） ============ */
+#bubble{position:absolute;z-index:40;width:min(300px,92vw);opacity:0;pointer-events:none;
+  transition:opacity .15s,transform .15s;transform:scale(.9)}
+#bubble.on{opacity:1;pointer-events:auto;transform:scale(1)}
+#bubble .bubble-inner{background:#fff;border:2px solid var(--card-bd);border-radius:16px;
+  padding:12px;box-shadow:0 8px 24px rgba(90,70,50,.22)}
+#bubble .bubble-title{font-size:14px;font-weight:800;text-align:center;margin-bottom:10px;color:var(--ink)}
+#bubble .bubble-chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.bchip{min-height:60px;background:var(--card);border:2px solid var(--card-bd);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:700;padding:4px}
+.bchip:active{background:#FFF0C2;transform:scale(.96)}
+.bchip .ce{font-size:22px}
+#bubble .bubble-arrow{position:absolute;width:16px;height:16px;background:#fff;
+  border:2px solid var(--card-bd);transform:rotate(45deg);left:calc(50% - 8px)}
+#bubble.arrow-down .bubble-arrow{bottom:-9px;border-top:none;border-left:none}
+#bubble.arrow-up .bubble-arrow{top:-9px;border-bottom:none;border-right:none}
+#bubble-scrim{position:absolute;inset:0;z-index:39;background:transparent;
+  opacity:0;pointer-events:none}
+#bubble-scrim.on{opacity:1;pointer-events:auto}
+
+/* ============ 结算/证据/报告 覆盖层 ============ */
+#modal{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(74,50,38,.4);opacity:0;pointer-events:none;transition:opacity .25s}
+#modal.on{opacity:1;pointer-events:auto}
+.modal-box{width:min(330px,90vw);background:#fff;border-radius:22px;padding:24px 20px;
+  text-align:center;box-shadow:0 10px 30px rgba(90,70,50,.2);transform:scale(.85);transition:transform .3s}
+#modal.on .modal-box{transform:scale(1)}
+.modal-title{font-size:22px;font-weight:900;margin-bottom:8px}
+.modal-stars{font-size:30px;margin:6px 0;letter-spacing:2px}
+.modal-evidence{background:var(--bg);border-radius:12px;padding:12px 14px;margin:12px 0;
+  font-size:14px;line-height:1.6;text-align:left;color:var(--ink)}
+.modal-evidence b{color:var(--accent-deep)}
+.modal-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+
+#toast{position:absolute;left:50%;top:16%;transform:translateX(-50%);z-index:60;
+  background:rgba(90,70,50,.9);color:#fff;padding:10px 18px;border-radius:14px;
+  font-size:15px;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;max-width:90vw}
+#toast.on{opacity:1}
+#confetti{position:absolute;inset:0;z-index:55;pointer-events:none;overflow:hidden}
+#confetti span{position:absolute;top:-40px;animation:fall linear forwards}
+
+#verify-report{position:absolute;inset:0;z-index:99;background:#fff;color:#222;
+  overflow:auto;padding:16px;display:none;font:13px/1.6 ui-monospace,Menlo,monospace}
+#verify-report.on{display:block}
+#verify-report .pass{color:#0a7d33;font-weight:700}
+#verify-report .fail{color:#c22;font-weight:700}
+
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes fall{0%{transform:translateY(-5vh) rotate(0)}100%{transform:translateY(110vh) rotate(340deg)}}
+@keyframes slideIn{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){
+  .cell.pop,.cell.wrong,.clue.isnew{animation:none}
+  #confetti{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 地图屏 -->
+  <div id="screen-map" class="screen active">
+    <div class="map-title">🍱 校长失踪的盒饭</div>
+    <div class="map-sub">校庆日，校长的爱心盒饭不见了！<br>跟着线索一关关追查真相吧。</div>
+    <div id="case-list"></div>
+    <div class="map-note" id="map-note"></div>
+  </div>
+
+  <!-- 故事过渡屏 -->
+  <div id="screen-story" class="screen">
+    <div class="story-box">
+      <div class="story-emoji" id="story-emoji">🔍</div>
+      <div class="story-name" id="story-name"></div>
+      <div class="story-text" id="story-text"></div>
+      <button class="btn" id="btn-story-go">开始推理</button>
+      <div class="story-skip">点击空白处跳过 ▸</div>
+    </div>
+  </div>
+
+  <!-- 游戏主屏 -->
+  <div id="screen-play" class="screen">
+    <div class="hud">
+      <button class="hud-btn" id="btn-back" aria-label="返回">🏠</button>
+      <span class="hud-name" id="hud-name"></span>
+      <button class="hud-btn" id="btn-eraser" aria-label="橡皮擦">🧽</button>
+      <button class="hud-btn" id="btn-hint" aria-label="提示">💡</button>
+    </div>
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <div class="clues-head">
+      <span>🔍 线索</span><span id="clue-counter"></span>
+    </div>
+    <div class="hint-box" id="hint-box" hidden></div>
+    <div class="clues" id="clues"></div>
+    <div class="actions"><button class="btn" id="btn-submit">✓ 核对推理</button></div>
+  </div>
+
+  <!-- 气泡选择器 -->
+  <div id="bubble-scrim"></div>
+  <div id="bubble">
+    <div class="bubble-inner">
+      <div class="bubble-title" id="bubble-title"></div>
+      <div class="bubble-chips" id="bubble-chips"></div>
+    </div>
+    <div class="bubble-arrow"></div>
+  </div>
+
+  <!-- 覆盖层 -->
+  <div id="modal"><div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-stars" id="modal-stars"></div>
+    <div class="modal-evidence" id="modal-evidence"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div></div>
+  <div id="toast"></div>
+  <div id="confetti"></div>
+  <div id="verify-report"></div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================
+ * 小小推理家 v2.0 · 校长失踪的盒饭
+ * 交互内核（MEAL-001~003）：泛化引擎 + 气泡贴附 + 橡皮擦 +
+ * 提交式判定 + 星级 + 渐进线索 + ?verify=1
+ * 注：本文件为 v2 开发产物，正式 12 关题库见 MEAL-006。
+ * ===================================================== */
+
+/* ============ 1. 关卡数据（内核阶段：3 关临时匹配题验证手感） ============ */
+/* level: {id, chapter, name, story, emoji, evidence, type, columns, rows, answer, clues}
+   cellKey = `${col}_${row}`；answer[cellKey]=optId；clue.targets=[cellKey] */
+const LEVELS = [
+  {
+    id:1, chapter:1, name:"案件1：食堂窗口", emoji:"🍚",
+    story:"校长的盒饭在食堂不见了！三位值日生淘气、笑笑、奇思分别在一号、二号、三号窗口帮忙。先弄清谁在哪个窗口，才好继续查。",
+    evidence:"二号窗口的奇思说：有人抱着盒饭盒往操场跑了。",
+    type:"match",
+    columns:[{id:'w1',name:'一号窗',icon:'1️⃣'},{id:'w2',name:'二号窗',icon:'2️⃣'},{id:'w3',name:'三号窗',icon:'3️⃣'}],
+    rows:[{id:'duty',label:'值日生',options:[
+      {id:'taoqi',label:'淘气',isText:true},{id:'xiaoxiao',label:'笑笑',isText:true},{id:'qisi',label:'奇思',isText:true}]}],
+    answer:{'w1_duty':'taoqi','w2_duty':'qisi','w3_duty':'xiaoxiao'},
+    clues:[
+      {kind:'direct', cell:'w2_duty', opt:'qisi', targets:['w2_duty'],
+       text:"<span class='hl-name'>奇思</span>正在 <span class='hl-item'>2️⃣二号窗</span> 帮忙打饭。"},
+      {kind:'neg', cell:'w3_duty', opt:'taoqi', targets:['w3_duty'],
+       text:"<span class='hl-name'>淘气</span>摆手：我可没去 <span class='hl-item'>3️⃣三号窗</span>！"},
+    ]
+  },
+  {
+    id:2, chapter:1, name:"案件2：操场四人组", emoji:"🏃",
+    story:"追到操场时，明明、红红、乐乐、丁丁各拿着一样东西。不能只盯着盒饭盒，要先把其他东西归位，最后才能知道盒饭盒在谁手里。",
+    evidence:"排除掉皮球、图画书和风筝后，剩下拿着盒饭盒的红红，往图书馆方向走了。",
+    type:"match",
+    columns:[{id:'p1',name:'明明',icon:'👦'},{id:'p2',name:'红红',icon:'👧'},{id:'p3',name:'乐乐',icon:'🧒'},{id:'p4',name:'丁丁',icon:'👶'}],
+    rows:[{id:'item',label:'拿着',options:[
+      {id:'box',label:'盒饭盒',icon:'🍱'},{id:'ball',label:'皮球',icon:'⚽'},{id:'book',label:'图画书',icon:'📔'},{id:'kite',label:'风筝',icon:'🪁'}]}],
+    answer:{'p1_item':'ball','p2_item':'box','p3_item':'kite','p4_item':'book'},
+    clues:[
+      {kind:'direct', cell:'p1_item', opt:'ball', targets:['p1_item'],
+       text:"<span class='hl-name'>明明</span>在球门边来回踢 <span class='hl-item'>⚽皮球</span>，手里没拿盒饭盒。"},
+      {kind:'direct', cell:'p4_item', opt:'book', targets:['p4_item'],
+       text:"<span class='hl-name'>丁丁</span>把 <span class='hl-item'>📔图画书</span> 夹在胳膊下，正准备去图书馆还书。"},
+      {kind:'neg2', cell:'p3_item', opt1:'box', opt2:'book', targets:['p3_item'],
+       text:"<span class='hl-name'>乐乐</span>说：我没有拿 <span class='hl-item'>🍱盒饭盒</span>，也没有拿 <span class='hl-item'>📔图画书</span>。"},
+    ]
+  },
+  {
+    id:3, chapter:1, name:"案件3：图书馆书架", emoji:"📚",
+    story:"盒饭盒被放到了图书馆！冬冬、小美、阿力、乐乐四位同学正在四个书架借书。弄清谁在哪个书架，就能找到目击者。",
+    evidence:"科学书架的同学看到：盒饭盒被偷偷塞进了失物招领箱。",
+    type:"match",
+    columns:[{id:'s1',name:'故事架',icon:'📖'},{id:'s2',name:'科学架',icon:'🔬'},{id:'s3',name:'绘画架',icon:'🎨'},{id:'s4',name:'漫画架',icon:'💥'}],
+    rows:[{id:'kid',label:'同学',options:[
+      {id:'dong',label:'冬冬',isText:true},{id:'mei',label:'小美',isText:true},{id:'ali',label:'阿力',isText:true},{id:'le',label:'乐乐',isText:true}]}],
+    answer:{'s1_kid':'mei','s2_kid':'ali','s3_kid':'dong','s4_kid':'le'},
+    clues:[
+      {kind:'direct', cell:'s2_kid', opt:'ali', targets:['s2_kid'],
+       text:"<span class='hl-name'>阿力</span>在 <span class='hl-item'>🔬科学架</span> 找恐龙书。"},
+      {kind:'direct', cell:'s4_kid', opt:'le', targets:['s4_kid'],
+       text:"<span class='hl-name'>乐乐</span>在 <span class='hl-item'>💥漫画架</span> 哈哈大笑。"},
+      {kind:'neg', cell:'s1_kid', opt:'dong', targets:['s1_kid'],
+       text:"<span class='hl-name'>冬冬</span>不在 <span class='hl-item'>📖故事架</span>。"},
+    ]
+  },
+];
+const CHAPTERS = [{id:1, name:'食堂疑云', icon:'🍳'}];
+const LS = {progress:'mealcase.progress', star:id=>'mealcase.star.'+id};
+
+/* ============ 2. 线索谓词（求解 / verify 共用） ============ */
+function evalClue(c, asg){
+  switch(c.kind){
+    case 'direct': return asg[c.cell] === c.opt;
+    case 'neg':    return asg[c.cell] !== c.opt;
+    case 'neg2':   return asg[c.cell] !== c.opt1 && asg[c.cell] !== c.opt2;
+    /* v2.1 序关系：before / immediatelyBefore / adjacent —— 内核阶段暂不用 */
+  }
+  return false;
+}
+
+/* 候选集传播求解器（移植自 v1 propagateSolve，适配 v2 泛化模型）。
+   模拟小学生排除法：direct 锁定 / neg·neg2 删候选 / 同 row 内列互斥 /
+   格内唯一候选→锁定 / 无干扰时选项唯一可放列→锁定。
+   驱动：渐进解锁 / 推理式提示 / 纯传播可解校验，三处共用。
+   返回 { locked:{cellKey:optId|null}, lockedCount, dead, solved } */
+function deduce(level, clues){
+  const cand={}, locked={};
+  level.rows.forEach(row=>{
+    const optIds=row.options.map(o=>o.id);
+    level.columns.forEach(col=>{
+      const key=col.id+'_'+row.id;
+      cand[key]={}; optIds.forEach(o=>cand[key][o]=true); locked[key]=null;
+    });
+  });
+  let changed=false, dead=false;
+  function remove(key,opt){ if(cand[key]&&cand[key][opt]){ cand[key][opt]=false; changed=true; } }
+  function lock(key,opt,rowId){
+    if(dead||locked[key]===opt) return;
+    if(locked[key]!==null || !cand[key][opt]){ dead=true; return; }
+    locked[key]=opt; changed=true;
+    for(const o in cand[key]) cand[key][o]=(o===opt);
+    level.columns.forEach(col=>{ const k=col.id+'_'+rowId; if(k!==key) remove(k,opt); });
+  }
+  let guard=0;
+  do{
+    changed=false; guard++;
+    for(const c of clues){
+      if(dead) break;
+      const rowId=c.cell?c.cell.split('_').slice(1).join('_'):null;
+      if(c.kind==='direct') lock(c.cell,c.opt,rowId);
+      else if(c.kind==='neg') remove(c.cell,c.opt);
+      else if(c.kind==='neg2'){ remove(c.cell,c.opt1); remove(c.cell,c.opt2); }
+    }
+    level.rows.forEach(row=>{
+      if(dead) return;
+      const optIds=row.options.map(o=>o.id);
+      const M=optIds.length, N=level.columns.length;
+      /* 格内唯一候选→锁定 */
+      level.columns.forEach(col=>{
+        const key=col.id+'_'+row.id;
+        if(locked[key]!==null) return;
+        let cnt=0,last=null;
+        optIds.forEach(o=>{ if(cand[key][o]){ cnt++; last=o; } });
+        if(cnt===0){ dead=true; return; }
+        if(cnt===1) lock(key,last,row.id);
+      });
+      if(dead) return;
+      /* 无干扰（选项数==列数）时：某选项唯一可放列→锁定 */
+      if(M===N) optIds.forEach(o=>{
+        let cnt=0,at=null;
+        level.columns.forEach(col=>{ const key=col.id+'_'+row.id; if(cand[key][o]){ cnt++; at=col.id; } });
+        if(cnt===0){ dead=true; return; }
+        if(cnt===1){ const key=at+'_'+row.id; if(locked[key]===null) lock(key,o,row.id); }
+      });
+    });
+  } while(changed && !dead && guard<200);
+  let lockedCount=0;
+  for(const k in locked) if(locked[k]!==null) lockedCount++;
+  const total=level.columns.length*level.rows.length;
+  return {locked, lockedCount, dead, solved:!dead && lockedCount===total};
+}
+
+/* 全排列（每 row 内 columns→options 双射），返回候选赋值数组 */
+function permutations(arr){
+  if (arr.length <= 1) return [arr.slice()];
+  const res = [];
+  arr.forEach((v,i) => {
+    const rest = arr.slice(0,i).concat(arr.slice(i+1));
+    permutations(rest).forEach(p => res.push([v].concat(p)));
+  });
+  return res;
+}
+function buildSpace(level){
+  /* 每个 row 独立枚举 columns→options 的排列，做笛卡尔积 */
+  let space = [{}];
+  level.rows.forEach(row => {
+    const cols = level.columns.map(c => c.id);
+    const perms = permutations(row.options.map(o => o.id));
+    const next = [];
+    space.forEach(partial => {
+      perms.forEach(perm => {
+        const asg = Object.assign({}, partial);
+        cols.forEach((col,i) => { asg[col + '_' + row.id] = perm[i]; });
+        next.push(asg);
+      });
+    });
+    space = next;
+  });
+  return space;
+}
+function solveUnique(level){
+  const space = buildSpace(level);
+  const sols = space.filter(asg => level.clues.every(c => evalClue(c, asg)));
+  return sols;
+}
+
+/* ============ 3. ?verify=1 唯一解离线校验 ============ */
+function verifyLevel(level){
+  const fails = [];
+  const sols = solveUnique(level);
+  if (sols.length !== 1) fails.push('解数=' + sols.length);
+  else {
+    for (const k in level.answer)
+      if (sols[0][k] !== level.answer[k]) { fails.push('解≠预设answer'); break; }
+  }
+  /* answer 完整性：每个 col_row 都有 */
+  level.rows.forEach(row => level.columns.forEach(col => {
+    if (!(col.id + '_' + row.id in level.answer)) fails.push('缺answer:' + col.id + '_' + row.id);
+  }));
+  /* 纯传播可解：保证玩家不需盲猜（问题3 拦截） */
+  if (!deduce(level, level.clues).solved) fails.push('非纯传播可解(需盲猜)');
+  /* 线索无冗余：去掉任一条后仍唯一且仍纯传播可解 → 该线索无贡献（问题2 拦截） */
+  level.clues.forEach((c,i)=>{
+    const rest=level.clues.filter((_,j)=>j!==i);
+    if (solveUnique(Object.assign({},level,{clues:rest})).length===1 && deduce(level,rest).solved)
+      fails.push('线索'+(i+1)+'冗余');
+  });
+  return {id:level.id, name:level.name, ok:fails.length === 0, fails};
+}
+window.__verify = function(){ return LEVELS.map(verifyLevel); };
+function runVerifyPage(){
+  const box = document.getElementById('verify-report');
+  box.classList.add('on');
+  const rs = LEVELS.map(verifyLevel);
+  const allPass = rs.every(r => r.ok);
+  document.title = (allPass ? 'VERIFY PASS ' : 'VERIFY FAIL ') + rs.filter(r=>r.ok).length + '/' + rs.length;
+  console.log(document.title);
+  box.innerHTML = '<h2>关卡唯一解校验</h2><p class="' + (allPass?'pass':'fail') + '">' +
+    document.title + '</p>' + rs.map(r =>
+    '<div class="' + (r.ok?'pass':'fail') + '">关' + r.id + ' ' + r.name + '：' +
+    (r.ok ? 'PASS' : 'FAIL ' + r.fails.join(';')) + '</div>').join('');
+}
+
+/* ============ 4. UI 基础 ============ */
+const $ = id => document.getElementById(id);
+const SCREENS = ['map','story','play'];
+function showScreen(n){ SCREENS.forEach(s => $('screen-'+s).classList.toggle('active', s===n)); }
+let toastTimer=null;
+function showToast(t){ const e=$('toast'); e.textContent=t; e.classList.add('on');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>e.classList.remove('on'),1400); }
+const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function confetti(){ if(reduced) return; const box=$('confetti'), pool=['🎉','🎊','✨','🍱','⭐','💛'];
+  for(let i=0;i<40;i++){ const s=document.createElement('span');
+    s.textContent=pool[Math.floor(Math.random()*pool.length)];
+    s.style.left=(Math.random()*96)+'vw'; s.style.fontSize=(16+Math.random()*18)+'px';
+    s.style.animationDuration=(2.2+Math.random()*1.4)+'s'; s.style.animationDelay=(Math.random()*.4)+'s';
+    box.appendChild(s);} setTimeout(()=>box.innerHTML='',4200); }
+function lsGet(k){ try{return localStorage.getItem(k);}catch(e){return null;} }
+function lsSet(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
+
+/* ============ 5. 游戏状态 ============ */
+const state = {
+  status:'map', levelIdx:0, level:null,
+  placements:{}, clueState:[], eraser:false,
+  errorSubmits:0, hintsUsed:0, bubbleFor:null, hintTimer:null, lastActionAt:0, hintPulsed:false
+};
+
+function unlockedMax(){ return parseInt(lsGet(LS.progress) || '1', 10); }
+
+/* ---- 地图 ---- */
+function renderMap(){
+  const list = $('case-list'); list.innerHTML='';
+  const maxUnlock = unlockedMax();
+  CHAPTERS.forEach(ch => {
+    const card = document.createElement('div'); card.className='case-card';
+    const levs = LEVELS.filter(l => l.chapter===ch.id);
+    let grid = '';
+    levs.forEach(l => {
+      const locked = l.id > maxUnlock;
+      const star = parseInt(lsGet(LS.star(l.id))||'0',10);
+      grid += '<button class="lv-btn'+(locked?' locked':'')+'" data-lid="'+l.id+'">'+l.id+
+        '<span class="lv-stars">'+(star?'⭐'.repeat(star):'')+'</span></button>';
+    });
+    card.innerHTML = '<div class="case-name">'+ch.icon+' 卷宗一 · '+ch.name+'</div><div class="lv-grid">'+grid+'</div>';
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.lv-btn').forEach(b => b.addEventListener('click', () => {
+    const id = +b.dataset.lid;
+    if (id > unlockedMax()){ showToast('先破解前面的案件哦 🔒'); return; }
+    enterStory(LEVELS.findIndex(l=>l.id===id));
+  }));
+  $('map-note').textContent = '内核试玩版 · 共 '+LEVELS.length+' 关（正式主线 12 关开发中）';
+}
+
+/* ---- 故事过渡 ---- */
+function enterStory(idx){
+  state.levelIdx = idx; state.level = LEVELS[idx];
+  state.status='story';
+  $('story-emoji').textContent = state.level.emoji;
+  $('story-name').textContent = state.level.name;
+  $('story-text').textContent = state.level.story;
+  showScreen('story');
+}
+
+/* ---- 进入关卡 ---- */
+function startLevel(){
+  const lv = state.level;
+  state.status='play'; state.placements={}; state.eraser=false;
+  state.errorSubmits=0; state.hintsUsed=0; state.bubbleFor=null;
+  state.hintPulsed=false; state.lastActionAt=Date.now();
+  /* 渐进线索：全部 hidden，由 recomputeReveal 按「能推进推理」逐条解锁 */
+  state.clueState = lv.clues.map((c,i)=>({index:i, status:'hidden', isNew:false, checked:false}));
+  clearHintBox();
+  deactivateEraser();
+  hideBubble();
+  recomputeReveal();
+  renderHud(); renderBoard(); renderClues();
+  showScreen('play');
+  clearInterval(state.hintTimer);
+  state.hintTimer = setInterval(checkIdleHint, 1000);
+}
+function renderHud(){
+  $('hud-name').textContent = state.level.name;
+}
+function cellKey(col,row){ return col+'_'+row; }
+function renderBoard(){
+  const lv = state.level, board = $('board');
+  board.style.gridTemplateColumns = '54px repeat('+lv.columns.length+',1fr)';
+  board.innerHTML='';
+  board.appendChild(mk('div','bh corner',''));
+  lv.columns.forEach(c => {
+    const h=mk('div','bh'); h.innerHTML='<span class="be">'+(c.icon||'')+'</span><span class="bt">'+c.name+'</span>';
+    board.appendChild(h);
+  });
+  lv.rows.forEach(row => {
+    const lab=mk('div','bh rowlab'); lab.innerHTML='<span class="bt">'+row.label+'</span>';
+    board.appendChild(lab);
+    lv.columns.forEach(col => {
+      const key=cellKey(col.id,row.id);
+      const optId=state.placements[key];
+      const cell=mk('button','cell'+(optId?' filled':'')+(state.eraser?' eraserable':''));
+      cell.dataset.key=key; cell.dataset.row=row.id;
+      if (optId){ const o=row.options.find(o=>o.id===optId);
+        cell.innerHTML='<span class="oe">'+(o.icon||'')+'</span><span class="ot">'+o.label+'</span>'; }
+      else cell.textContent='＋';
+      cell.addEventListener('click', ()=>onCellTap(key,row.id,cell));
+      board.appendChild(cell);
+    });
+  });
+}
+function mk(tag,cls,txt){ const e=document.createElement(tag); if(cls)e.className=cls;
+  if(txt!=null&&txt!=='')e.textContent=txt; return e; }
+
+/* ---- 渐进线索渲染 ---- */
+function renderClues(){
+  const lv=state.level, box=$('clues'); box.innerHTML='';
+  const remaining = state.clueState.filter(c=>c.status!=='dismissed').length;
+  $('clue-counter').textContent = '剩余 '+remaining+'/'+lv.clues.length;
+  state.clueState.forEach(cs => {
+    if (cs.status==='hidden') return;
+    const clue=lv.clues[cs.index];
+    const card=mk('div','clue'+(cs.isNew?' isnew':'')+(cs.status==='dismissed'?' dismissed':'')+(cs.checked?' checked':''));
+    card.innerHTML='<span class="cnum">'+(cs.index+1)+'</span><span class="ctext">'+clue.text+
+      '</span><span class="cchk">✓</span>';
+    card.addEventListener('click', ()=>{
+      if (cs.status==='dismissed') return;
+      touchAction(); cs.checked=!cs.checked; card.classList.toggle('checked',cs.checked);
+      if (cs.checked && revealNextAfterReading()) return;
+    });
+    box.appendChild(card);
+    cs.isNew=false;
+  });
+  if (remaining===0)
+    box.innerHTML += '<div style="text-align:center;padding:16px;color:var(--accent);font-weight:800">🎉 线索都理清了，核对一下推理！</div>';
+}
+
+/* 读完当前可见线索后的防卡兜底：玩家把可见线索都打勾时，也给下一条线索。
+   主要推进仍由填对格子后的 recomputeReveal 负责，这里只解决“读完却不知道下一步”的体感问题。 */
+function revealNextAfterReading(){
+  const visible = state.clueState.filter(c=>c.status==='visible');
+  if (!visible.length || !visible.every(c=>c.checked)) return false;
+  const next = state.clueState.find(c=>c.status==='hidden');
+  if (!next) return false;
+  next.status='visible'; next.isNew=true;
+  showToast('新的线索出现啦，继续推理 🔍');
+  renderClues();
+  return true;
+}
+
+/* ---- 气泡贴附选择器 ---- */
+function onCellTap(key,rowId,cellEl){
+  if (state.eraser){
+    if (state.placements[key]){ delete state.placements[key]; touchAction();
+      renderBoard(); refreshClueProgress(); }
+    return;
+  }
+  touchAction();
+  openBubble(key,rowId,cellEl);
+}
+function openBubble(key,rowId,cellEl){
+  const lv=state.level, row=lv.rows.find(r=>r.id===rowId);
+  state.bubbleFor={key,rowId};
+  const col=lv.columns.find(c=>key===cellKey(c.id,rowId));
+  $('bubble-title').textContent = (col?col.name:'') + ' · ' + row.label + '是谁？';
+  const chips=$('bubble-chips'); chips.innerHTML='';
+  /* 同 row 已填入的 option 不重复出现（双射池移除） */
+  const taken=new Set(lv.columns.map(c=>state.placements[cellKey(c.id,rowId)]).filter(Boolean));
+  const self=state.placements[key];
+  row.options.forEach(o=>{
+    if (taken.has(o.id) && o.id!==self) return;
+    const chip=mk('button','bchip');
+    chip.innerHTML='<span class="ce">'+(o.icon||'')+'</span>'+o.label;
+    chip.addEventListener('click', ()=>{ pickOption(key,o.id); });
+    chips.appendChild(chip);
+  });
+  positionBubble(cellEl);
+  $('bubble-scrim').classList.add('on');
+  $('bubble').classList.add('on');
+}
+function positionBubble(cellEl){
+  const bubble=$('bubble');
+  bubble.style.visibility='hidden'; bubble.classList.add('on');
+  const app=$('app').getBoundingClientRect();
+  const r=cellEl.getBoundingClientRect();
+  const bw=bubble.offsetWidth, bh=bubble.offsetHeight;
+  const gap=12;
+  /* 水平：以格子中心对齐，clamp 进视口 */
+  let left=r.left - app.left + r.width/2 - bw/2;
+  left=Math.max(8, Math.min(left, app.width - bw - 8));
+  /* 垂直：优先下方，空间不足翻转上方 */
+  const belowTop=r.bottom - app.top + gap;
+  const aboveTop=r.top - app.top - bh - gap;
+  let top, arrowDown;
+  if (belowTop + bh <= app.height - 8){ top=belowTop; arrowDown=false; }
+  else if (aboveTop >= 8){ top=aboveTop; arrowDown=true; }
+  else { top=Math.max(8, Math.min(belowTop, app.height - bh - 8)); arrowDown=false; }
+  bubble.style.left=left+'px'; bubble.style.top=top+'px';
+  bubble.classList.toggle('arrow-up', !arrowDown);
+  bubble.classList.toggle('arrow-down', arrowDown);
+  /* 箭头水平对准格子中心 */
+  const arrow=bubble.querySelector('.bubble-arrow');
+  let ax=(r.left - app.left + r.width/2) - left - 8;
+  ax=Math.max(12, Math.min(ax, bw-28));
+  arrow.style.left=ax+'px';
+  bubble.style.visibility='';
+}
+function pickOption(key,optId){
+  state.placements[key]=optId;
+  touchAction(); hideBubble();
+  renderBoard();
+  const cell=document.querySelector('.cell[data-key="'+key+'"]');
+  if (cell && !reduced) cell.classList.add('pop');
+  refreshClueProgress();
+}
+function hideBubble(){ state.bubbleFor=null;
+  $('bubble').classList.remove('on'); $('bubble-scrim').classList.remove('on'); }
+
+/* ---- 线索进度：自动划掉 + 推理驱动解锁 ---- */
+function refreshClueProgress(){
+  const lv=state.level;
+  /* 1. dismiss：线索约束的格已全部正确锁定 → 兑现划掉（仍保留信息用于后续推导） */
+  state.clueState.forEach(cs=>{
+    if (cs.status==='visible'){
+      const clue=lv.clues[cs.index];
+      if (clue.targets.every(t=>state.placements[t]===lv.answer[t])) cs.status='dismissed';
+    }
+  });
+  /* 2. 推理驱动解锁 */
+  recomputeReveal();
+  renderClues();
+}
+/* 当「已解锁线索能逻辑推出的格」都被玩家正确填入时，解锁下一条能带来新推导的线索。
+   不变量：任何时刻玩家用已解锁线索总能推进 ≥1 格，杜绝盲猜。 */
+function recomputeReveal(){
+  const lv=state.level;
+  let guard=0;
+  while (guard++ < 30){
+    const revealed=state.clueState.filter(c=>c.status!=='hidden').map(c=>lv.clues[c.index]);
+    const ded=deduce(lv, revealed);
+    const deducible=Object.keys(ded.locked).filter(k=>ded.locked[k]!==null);
+    const allDeducedFilled=deducible.every(k=>state.placements[k]===lv.answer[k]);
+    const hidden=state.clueState.filter(c=>c.status==='hidden');
+    if (!(allDeducedFilled && hidden.length)) break;
+    /* 优先解锁「能扩大推导」的隐藏线索；都不能则顺序解锁一条继续累积 */
+    let pick=null;
+    for (const cs of hidden){
+      const d2=deduce(lv, revealed.concat([lv.clues[cs.index]]));
+      if (d2.lockedCount > ded.lockedCount){ pick=cs; break; }
+    }
+    if (!pick) pick=hidden[0];
+    pick.status='visible'; pick.isNew=true;
+  }
+}
+
+/* ---- 橡皮擦 ---- */
+function toggleEraser(){ state.eraser=!state.eraser; touchAction();
+  $('btn-eraser').classList.toggle('on',state.eraser);
+  hideBubble(); renderBoard();
+  if (state.eraser) showToast('🧽 橡皮擦：点格子可清空');
+}
+function deactivateEraser(){ state.eraser=false; $('btn-eraser').classList.remove('on'); }
+
+/* ---- 核对推理判定（零惩罚：错了标红可改，不失败） ---- */
+function submitCase(){
+  const lv=state.level;
+  const allFilled=lv.rows.every(row=>lv.columns.every(col=>state.placements[cellKey(col.id,row.id)]));
+  if (!allFilled){ showToast('还有空格没填哦 📝'); return; }
+  document.querySelectorAll('.cell').forEach(c=>c.classList.remove('wrong','correct'));
+  const wrongKeys=[];
+  for (const k in lv.answer) if (state.placements[k]!==lv.answer[k]) wrongKeys.push(k);
+  if (wrongKeys.length===0){ onSolved(); return; }
+  state.errorSubmits++;
+  wrongKeys.forEach(k=>{ const c=document.querySelector('.cell[data-key="'+k+'"]');
+    if(c) c.classList.add('wrong'); });
+  showToast('有 '+wrongKeys.length+' 处还不对，再想想 🤔');
+}
+function starRating(){
+  const penalty=state.errorSubmits+state.hintsUsed;
+  return penalty===0?3:(penalty<=2?2:1);
+}
+function onSolved(){
+  clearInterval(state.hintTimer);
+  document.querySelectorAll('.cell').forEach(c=>c.classList.add('correct'));
+  confetti();
+  const lv=state.level, stars=starRating();
+  const prev=parseInt(lsGet(LS.star(lv.id))||'0',10);
+  if (stars>prev) lsSet(LS.star(lv.id), String(stars));
+  const nextId=lv.id+1;
+  if (LEVELS.some(l=>l.id===nextId) && nextId>unlockedMax()) lsSet(LS.progress,String(nextId));
+  const hasNext=LEVELS.some(l=>l.id===nextId);
+  $('modal-title').textContent='🔎 线索理清！';
+  $('modal-stars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  $('modal-evidence').innerHTML='🧾 下一步追查线索：<br><b>'+lv.evidence+'</b>';
+  const acts=$('modal-actions'); acts.innerHTML='';
+  if (hasNext){
+    const b=mk('button','btn','继续追查 ▸');
+    b.addEventListener('click',()=>{ closeModal(); enterStory(LEVELS.findIndex(l=>l.id===nextId)); });
+    acts.appendChild(b);
+  } else {
+    const tip=mk('div',null,'🎉 内核试玩关卡到此结束！正式主线 12 关开发中。');
+    tip.style.cssText='font-size:14px;color:var(--ink-dim);margin-bottom:6px';
+    acts.appendChild(tip);
+  }
+  const home=mk('button','btn ghost','回到地图'); home.addEventListener('click',()=>{ closeModal(); goMap(); });
+  acts.appendChild(home);
+  setTimeout(()=>$('modal').classList.add('on'),380);
+}
+function closeModal(){ $('modal').classList.remove('on'); }
+function goMap(){ clearInterval(state.hintTimer); hideBubble(); closeModal();
+  $('confetti').innerHTML=''; state.status='map'; renderMap(); showScreen('map'); }
+
+/* ---- 提示：给推理过程，不给答案 ---- */
+/* 用传播器找「下一个可逻辑推出、玩家尚未填对的格」，高亮该格 + 支撑它的线索卡，
+   配一句引导语，让玩家自己点。记入星级。 */
+function useHint(){
+  if (state.status!=='play') return;
+  const lv=state.level;
+  recomputeReveal();
+  const revealed=state.clueState.filter(c=>c.status!=='hidden');
+  const ded=deduce(lv, revealed.map(c=>lv.clues[c.index]));
+  let target=null;
+  for (const key in ded.locked)
+    if (ded.locked[key]!==null && state.placements[key]!==lv.answer[key]){ target=key; break; }
+  if (!target){
+    /* 逻辑能推的都填对了：若被自己填错的格挡住，引导擦除；否则提示核对 */
+    const wrong=Object.keys(lv.answer).filter(k=>state.placements[k]&&state.placements[k]!==lv.answer[k]);
+    touchAction();
+    if (wrong.length){
+      state.hintsUsed++;
+      const c=document.querySelector('.cell[data-key="'+wrong[0]+'"]');
+      if (c){ c.classList.add('hl'); setTimeout(()=>c.classList.remove('hl'),1800); }
+      showHintBox(lv, wrong[0], [], '这格和已知线索冲突。先擦掉，再重新根据线索判断。');
+      showToast('💡 高亮这格好像填得不太对，擦掉再想想～');
+    } else {
+      clearHintBox();
+      showToast('🌟 能推理的都对啦，核对一下推理！');
+    }
+    return;
+  }
+  touchAction(); state.hintsUsed++;
+  /* 支撑线索：去掉后 target 不再被推出的那些 */
+  const support=[];
+  revealed.forEach(cs=>{
+    const without=revealed.filter(x=>x!==cs).map(x=>lv.clues[x.index]);
+    if (deduce(lv, without).locked[target]===null) support.push(cs.index);
+  });
+  const cell=document.querySelector('.cell[data-key="'+target+'"]');
+  if (cell){ cell.classList.add('hl'); setTimeout(()=>cell.classList.remove('hl'),2600); }
+  const cards=$('clues').querySelectorAll('.clue');
+  support.forEach(si=>{ const pos=revealed.findIndex(c=>c.index===si);
+    if (cards[pos]) cards[pos].classList.add('isnew'); });
+  if (support.length){ const pos=revealed.findIndex(c=>c.index===support[0]);
+    if (cards[pos]) cards[pos].scrollIntoView({behavior:reduced?'auto':'smooth',block:'center'}); }
+  showHintBox(lv, target, support);
+  showToast(hintText(lv, target, support));
+}
+function stripHtml(s){ return String(s).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim(); }
+function whereLabel(lv, targetKey){
+  const colId=targetKey.split('_')[0], rowId=targetKey.split('_').slice(1).join('_');
+  const col=lv.columns.find(c=>c.id===colId), row=lv.rows.find(r=>r.id===rowId);
+  return '「'+(col?col.name:'')+' · '+(row?row.label:'')+'」';
+}
+function showHintBox(lv, targetKey, support, custom){
+  const box=$('hint-box');
+  const lines = support.length
+    ? support.map(i=>'线索'+(i+1)+'：'+stripHtml(lv.clues[i].text))
+    : ['先回看已经出现的线索，找和高亮格有关的信息。'];
+  box.innerHTML = '<b>💡 推理提示</b><br>' +
+    lines.join('<br>') + '<br>' +
+    (custom || ('所以现在可以判断 <b>'+whereLabel(lv,targetKey)+'</b> 这一格；我只提示推理方向，答案要你自己选。'));
+  box.hidden=false;
+}
+function clearHintBox(){ const box=$('hint-box'); if(box){ box.hidden=true; box.innerHTML=''; } }
+function hintText(lv, targetKey, support){
+  const where=whereLabel(lv,targetKey);
+  if (support.length===1) return '💡 看线索'+(support[0]+1)+'，'+where+'这一格能推出来啦！';
+  if (support.length>1) return '💡 结合高亮的线索，'+where+'这一格可以确定咯！';
+  return '💡 想想'+where+'，答案已经藏在线索里啦！';
+}
+
+/* ---- 15s 静置提示脉冲当前线索 ---- */
+function touchAction(){ state.lastActionAt=Date.now();
+  if (state.hintPulsed){ state.hintPulsed=false;
+    document.querySelectorAll('.clue.isnew').forEach(e=>e.classList.remove('isnew')); } }
+function checkIdleHint(){
+  if (state.status!=='play' || state.hintPulsed) return;
+  if (Date.now()-state.lastActionAt < 15000) return;
+  const firstVisible=state.clueState.find(c=>c.status==='visible');
+  if (!firstVisible) return;
+  state.hintPulsed=true;
+  const cards=$('clues').querySelectorAll('.clue');
+  const idxInDom=state.clueState.filter(c=>c.status!=='hidden').findIndex(c=>c===firstVisible);
+  const card=cards[idxInDom];
+  if (card){ card.classList.add('isnew'); card.scrollIntoView({behavior:reduced?'auto':'smooth',block:'center'}); }
+}
+
+/* ============ 6. 事件绑定与启动 ============ */
+function bind(){
+  $('btn-story-go').addEventListener('click', startLevel);
+  $('screen-story').addEventListener('click', e=>{
+    if (e.target===$('screen-story')) startLevel(); /* 点空白跳过 */
+  });
+  $('btn-back').addEventListener('click', goMap);
+  $('btn-eraser').addEventListener('click', toggleEraser);
+  $('btn-hint').addEventListener('click', useHint);
+  $('btn-submit').addEventListener('click', submitCase);
+  $('bubble-scrim').addEventListener('click', hideBubble);
+  $('board').addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+  document.addEventListener('contextmenu', e=>e.preventDefault());
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) hideBubble(); });
+  window.addEventListener('resize', ()=>{ if(state.bubbleFor){ const c=document.querySelector('.cell[data-key="'+state.bubbleFor.key+'"]'); if(c) positionBubble(c); } });
+}
+(function boot(){
+  const params=new URLSearchParams(location.search);
+  if (params.get('verify')==='1'){ runVerifyPage(); return; }
+  bind(); renderMap(); showScreen('map');
+})();
+</script>
+</body>
+</html>

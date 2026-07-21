@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>找找拼词屋 · SpotSpell</title>
+  <style>
+    /* ── CSS 变量：奶油粉紫 + 珊瑚红主题 ───────────── */
+    :root {
+      --color-bg1:      #fdf1f0;
+      --color-bg2:      #f0e4f8;
+      --color-primary:  #ff6f61;   /* 珊瑚红 */
+      --color-accent:   #a78bd0;   /* 粉紫 */
+      --color-success:  #4cb96b;
+      --color-danger:   #e8453c;
+      --color-warning:  #f5a623;
+      --color-text:     #4a3654;
+      --color-text-dim: rgba(74,54,84,0.55);
+      --color-card:     #ffffff;
+      --radius-card:    14px;
+      --radius-btn:     24px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: linear-gradient(160deg, var(--color-bg1), var(--color-bg2));
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      color: var(--color-text);
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── 屏幕管理 ─────────────────────────────────── */
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    .btn {
+      padding: 14px 32px;
+      border: none;
+      border-radius: var(--radius-btn);
+      font-size: 16px; font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.95); opacity: 0.9; }
+    .btn-primary   { background: var(--color-primary); color: #fff; box-shadow: 0 4px 0 #d95548; }
+    .btn-secondary { background: rgba(74,54,84,0.1); color: var(--color-text); }
+
+    /* ── 标题屏 ───────────────────────────────────── */
+    #screen-title { align-items: center; justify-content: center; gap: 14px; }
+    #screen-title .emoji-row { font-size: 34px; letter-spacing: 6px; }
+    #screen-title .title {
+      font-size: 34px; font-weight: 900;
+      color: var(--color-primary);
+      text-shadow: 2px 2px 0 #fff;
+    }
+    #screen-title .subtitle { font-size: 15px; color: var(--color-text-dim); }
+    #screen-title .best-line { font-size: 13px; color: var(--color-text-dim); margin-top: 8px; }
+
+    /* ── 游戏屏 ───────────────────────────────────── */
+    #screen-game {
+      padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px calc(env(safe-area-inset-bottom, 0px) + 8px);
+      gap: 6px;
+    }
+    .game-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 2px 4px; gap: 8px;
+    }
+    .hud-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .score-display { font-size: 20px; font-weight: 800; color: var(--color-primary); }
+    .combo-display { font-size: 13px; font-weight: 700; color: var(--color-accent); min-width: 52px; }
+    .level-label { font-size: 13px; color: var(--color-text-dim); }
+    .time-display { font-size: 17px; font-weight: 700; color: var(--color-text); }
+    .time-display.warning { color: var(--color-danger); }
+    .time-display.grace { color: var(--color-danger); animation: pulse 0.7s ease infinite; }
+
+    .countdown-bar {
+      width: 100%; height: 6px;
+      background: rgba(74,54,84,0.12);
+      border-radius: 3px; overflow: hidden;
+      flex-shrink: 0;
+    }
+    .countdown-bar__fill {
+      height: 100%;
+      background: var(--color-success);
+      border-radius: 3px;
+      transition: width 1s linear, background 0.3s;
+    }
+    .countdown-bar__fill.warning { background: var(--color-danger); }
+
+    .game-main {
+      flex: 1; display: flex; gap: 8px; min-height: 0;
+    }
+
+    /* 场景区：简笔画厨房底图 + 透明热区 */
+    #scene {
+      flex: 1; position: relative;
+      background: #fff9fb;
+      border: 3px solid rgba(74,54,84,0.2);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .scene-bg {
+      position: absolute; inset: 0; z-index: 0;
+      width: 100%; height: 100%;
+      object-fit: fill;
+      pointer-events: none;
+      filter: grayscale(1) opacity(0.9);   /* 未上色的厨房 */
+    }
+    .item {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      border-radius: 18px;
+      transition: transform 0.2s ease, opacity 0.25s ease;
+    }
+    .item.hotspot {
+      background: transparent;
+      outline: 0 solid transparent;
+      min-width: 44px; min-height: 44px;   /* 保证真机可点 */
+    }
+    .item.hotspot:active {
+      background: rgba(255,111,97,0.12);
+      outline: 2px dashed rgba(255,111,97,0.4);
+    }
+    /* 找到瞬间放大反馈 */
+    .item.hotspot-hit {
+      transform: translate(-50%, -50%) scale(1.14);
+      z-index: 400 !important;
+    }
+    .item.hotspot-hit::after {
+      content: ''; position: absolute; inset: -6px;
+      border: 3px solid var(--color-primary);
+      border-radius: 16px;
+      animation: found-ring 0.42s ease;
+      pointer-events: none;
+    }
+    /* 揭色：盖住原处的不透明底图裁片 + multiply 暖色染色 */
+    .item.revealed { pointer-events: none; }
+    .reveal { position: absolute; inset: -6%; isolation: isolate; animation: bloom 0.6s ease; }
+    .reveal .rc {
+      position: absolute; inset: 0;
+      background-repeat: no-repeat;
+      background-color: #fff;
+      border-radius: 12px;
+    }
+    .reveal .tint {
+      position: absolute; inset: 0;
+      background: var(--reveal-tint, #ffd15a);
+      mix-blend-mode: multiply;
+      border-radius: 12px;
+    }
+    .reveal::after {
+      content: '✓';
+      position: absolute; top: -8px; right: -6px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--color-success); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 900; z-index: 3;
+      animation: sparkle 0.8s ease forwards;
+    }
+    /* 通用底图裁片（卡片/拼词卡/提示/回顾统一用它，保证与场景一致） */
+    .crop {
+      background-repeat: no-repeat;
+      background-color: #fff;
+    }
+    .crop.colored { position: relative; isolation: isolate; }
+    .crop.colored::after {
+      content: ''; position: absolute; inset: 0;
+      background: var(--reveal-tint, #ffd15a);
+      mix-blend-mode: multiply;
+    }
+    /* 无效点击涟漪 */
+    .ripple {
+      position: absolute;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid rgba(167,139,208,0.65);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 350;
+      animation: ripple 0.5s ease forwards;
+    }
+    .hint-range {
+      position: absolute;
+      border: 4px solid var(--color-primary);
+      border-radius: 22px;
+      background: rgba(255,111,97,0.1);
+      box-shadow: 0 0 0 999px rgba(74,54,84,0.16), 0 0 18px rgba(255,111,97,0.55);
+      transform: translate(-50%, -50%);
+      z-index: 260;
+      pointer-events: none;
+      animation: hint-pulse 1s ease infinite;
+    }
+
+    /* 右侧栏 */
+    #sidebar {
+      width: 96px; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 6px;
+      overflow-y: auto;
+      touch-action: pan-y;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .card {
+      position: relative;
+      width: 100%; height: 74px; flex-shrink: 0;
+      perspective: 400px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .card.pressing { transform: scale(0.96); }
+    .card-inner {
+      position: absolute; inset: 0;
+      transform-style: preserve-3d;
+      transition: transform 0.3s ease;
+    }
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute; inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      background: var(--color-card);
+      border: 2px solid rgba(255,111,97,0.45);
+      border-radius: 10px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 2px; padding: 4px;
+      box-shadow: 0 2px 4px rgba(74,54,84,0.08);
+      overflow: hidden;
+    }
+    .card-back { transform: rotateY(180deg); background: #fdf6ff; border-color: var(--color-accent); }
+    .card-face .card-art { width: 48px; height: 42px; }
+    .card-face .card-art .crop { width: 100%; height: 100%; border-radius: 6px; filter: grayscale(1); }
+    .card-face .card-art .ink {
+      fill: #fffdf9; stroke: #4a3654; stroke-width: 5;
+      stroke-linecap: round; stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+    .card-face .card-art .soft { fill: #f5ecf8; }
+    .card-face .card-art .accent { fill: #fff7f2; }
+    .card-face .word-text {
+      font-size: 14px; font-weight: 700; letter-spacing: 1px;
+      color: var(--color-text); word-break: break-all; text-align: center;
+    }
+    .card-face .zh-text { font-size: 14px; font-weight: 700; text-align: center; }
+    .card-face .hint-label { font-size: 9px; color: var(--color-text-dim); }
+    .card-badge {
+      position: absolute; top: -5px; left: -5px;
+      font-size: 15px; z-index: 2;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));
+    }
+    .card-hint-btn {
+      position: absolute; right: -4px; bottom: -4px; z-index: 4;
+      width: 28px; height: 28px;
+      border: 2px solid rgba(74,54,84,0.18);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--color-primary);
+      font-size: 16px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(74,54,84,0.15);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .card-check {
+      position: absolute; inset: 0; z-index: 3;
+      display: none;
+      align-items: center; justify-content: center;
+      font-size: 30px; font-weight: 900; color: var(--color-success);
+      background: rgba(255,255,255,0.55);
+      border-radius: 10px;
+    }
+    .card.done { pointer-events: none; }
+    .card.done .card-face { filter: grayscale(0.7); opacity: 0.75; }
+    .card.done .card-check { display: flex; animation: pop-in 0.4s ease; }
+
+    #btn-finish {
+      display: none;
+      flex-shrink: 0;
+      padding: 10px 4px;
+      border: none; border-radius: 10px;
+      background: var(--color-success); color: #fff;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      animation: pop-in 0.4s ease;
+    }
+    #btn-finish.show { display: block; }
+
+    /* 开场提示 */
+    #level-intro {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      background: rgba(253,241,240,0.92);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #level-intro.show { opacity: 1; pointer-events: all; }
+    #level-intro .intro-theme { font-size: 28px; font-weight: 900; color: var(--color-primary); }
+    #level-intro .intro-goal  { font-size: 16px; color: var(--color-text); }
+
+    /* ── 居中拼词卡 ───────────────────────────────── */
+    #spell-panel {
+      position: absolute; inset: 0; z-index: 15;
+      background: rgba(74,54,84,0.26);
+      padding: 14px;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    #spell-panel.open { opacity: 1; pointer-events: all; }
+    .spell-card {
+      width: min(330px, calc(100vw - 42px));
+      max-height: calc(100dvh - 112px);
+      background: #fff;
+      border: 3px solid rgba(74,54,84,0.18);
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(74,54,84,0.24);
+      padding: 16px 14px 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      transform: translateY(12px) scale(0.92);
+      transition: transform 0.24s ease;
+    }
+    #spell-panel.open .spell-card { transform: translateY(0) scale(1); }
+    #spell-panel.fly-out .spell-card {
+      animation: card-dock 0.52s ease forwards;
+      transform-origin: 92% 48%;
+    }
+    #spell-panel.flash-red .spell-card { animation: shake 0.4s ease; }
+    #spell-panel.flash-red::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(232,69,60,0.18);
+      animation: fade-out 0.35s ease forwards;
+      pointer-events: none;
+    }
+    .spell-art {
+      width: min(190px, 54vw);
+      height: 138px;
+      display: flex; align-items: center; justify-content: center;
+      background:
+        linear-gradient(145deg, rgba(255,111,97,0.08), rgba(167,139,208,0.12));
+      border: 2px dashed rgba(167,139,208,0.35);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .spell-art .crop { width: 82%; height: 82%; border-radius: 10px; filter: grayscale(1); }
+    .spell-meaning {
+      display: flex; align-items: baseline; justify-content: center;
+      gap: 8px; width: 100%;
+    }
+    #spell-zh { font-size: 20px; font-weight: 900; color: var(--color-text); }
+    #grace-hint {
+      display: none;
+      font-size: 13px; font-weight: 700; color: var(--color-danger);
+      animation: pulse 0.7s ease infinite;
+    }
+    #grace-hint.show { display: block; }
+
+    .spell-slots { display: flex; gap: 5px; }
+    .slot {
+      width: 32px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800;
+      color: var(--color-text);
+      border-bottom: 3px solid rgba(74,54,84,0.25);
+      border-radius: 4px;
+    }
+    .slot.known { border-bottom-color: transparent; }
+    .slot.blank { background: rgba(167,139,208,0.12); color: var(--color-text); }
+    .slot.filled { background: rgba(76,185,107,0.14); color: #2e8b4c; border-bottom-color: var(--color-success); }
+    .slot.current { border-bottom-color: var(--color-primary); animation: pulse 0.9s ease infinite; }
+
+    #spell-tiles {
+      display: grid;
+      grid-template-columns: repeat(4, 72px);
+      gap: 8px;
+      justify-content: center;
+      transition: filter 0.2s;
+    }
+
+    #word-hint-panel {
+      position: absolute; inset: 0; z-index: 24;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(74,54,84,0.18);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+    #word-hint-panel.show { opacity: 1; }
+    .word-hint-card {
+      width: min(260px, calc(100vw - 70px));
+      padding: 14px;
+      border-radius: 16px;
+      background: #fff;
+      border: 3px solid rgba(167,139,208,0.35);
+      box-shadow: 0 14px 30px rgba(74,54,84,0.22);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      transform: scale(0.94);
+    }
+    #word-hint-panel.show .word-hint-card { transform: scale(1); }
+    .word-hint-art {
+      width: 180px; height: 128px;
+      border: 2px dashed rgba(167,139,208,0.36);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff9fb;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .word-hint-art .crop { width: 84%; height: 84%; border-radius: 10px; }
+    .word-hint-zh { font-size: 19px; font-weight: 900; color: var(--color-text); }
+    .word-hint-en { font-size: 28px; font-weight: 900; color: var(--color-primary); letter-spacing: 1px; }
+    #spell-tiles.cooldown { pointer-events: none; filter: brightness(0.6) grayscale(0.5); }
+    .tile {
+      width: 72px; height: 72px;
+      border: none; border-radius: 14px;
+      background: var(--color-accent);
+      box-shadow: 0 4px 0 #8a6cb8;
+      color: #fff;
+      font-size: 30px; font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform 0.08s, opacity 0.2s;
+    }
+    .tile:active { transform: translateY(2px); box-shadow: 0 2px 0 #8a6cb8; }
+    .tile.used {
+      background: rgba(74,54,84,0.12); color: rgba(74,54,84,0.3);
+      box-shadow: none; pointer-events: none;
+    }
+    #btn-close-panel {
+      background: none; border: none;
+      font-size: 13px; color: var(--color-text-dim);
+      padding: 6px 16px; cursor: pointer; font-family: inherit;
+    }
+
+    /* ── 结算弹窗 ─────────────────────────────────── */
+    #modal-result {
+      position: absolute; inset: 0; z-index: 30;
+      background: rgba(74,54,84,0.45);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #modal-result.visible { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: #fff;
+      border-radius: 22px;
+      padding: 30px 26px 26px;
+      width: min(320px, 88vw);
+      text-align: center;
+      transform: scale(0.8);
+      transition: transform 0.3s ease;
+    }
+    #modal-result.visible .modal-box { transform: scale(1); }
+    .modal-title { font-size: 26px; font-weight: 900; margin-bottom: 8px; }
+    .stars { font-size: 32px; letter-spacing: 6px; margin-bottom: 6px; }
+    .stars .star { color: #ddd3e6; }
+    .stars .star.lit { color: var(--color-warning); text-shadow: 0 0 8px rgba(245,166,35,0.5); }
+    .modal-score { font-size: 52px; font-weight: 900; color: var(--color-primary); line-height: 1.1; }
+    .modal-label { font-size: 13px; color: #9b8aa8; margin-bottom: 6px; }
+    .modal-bonus { font-size: 13px; color: var(--color-success); margin-bottom: 2px; min-height: 18px; }
+    .modal-progress { font-size: 13px; font-weight: 700; color: var(--color-text); margin-bottom: 4px; }
+    .modal-progress:empty { display: none; }
+    .modal-best  { font-size: 12px; color: #b8a9c4; margin-bottom: 6px; }
+    .star-caption { font-size: 11px; color: #b8a9c4; margin-bottom: 12px; }
+    /* 结算词汇回顾（点击重听发音） */
+    .review-caption { font-size: 11px; color: #b8a9c4; margin-bottom: 6px; }
+    .review-caption:empty { display: none; }
+    #result-review {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding: 2px 2px 10px; margin-bottom: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    #result-review:empty { display: none; }
+    .review-item {
+      flex: 0 0 auto; width: 60px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      cursor: pointer;
+    }
+    .review-item:active { transform: scale(0.94); }
+    .review-item .crop {
+      width: 56px; height: 46px; border-radius: 8px;
+      border: 1px solid rgba(74,54,84,0.12);
+      filter: grayscale(1);
+    }
+    .review-item .rv-en { font-size: 11px; font-weight: 800; color: var(--color-primary); letter-spacing: .3px; }
+    .review-item .rv-zh { font-size: 10px; color: var(--color-text-dim); }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn { flex: 1; padding: 12px 8px; font-size: 15px; }
+
+    /* 浮字 */
+    .float-text {
+      position: absolute; z-index: 25;
+      font-size: 16px; font-weight: 800;
+      pointer-events: none;
+      animation: float-up 0.9s ease forwards;
+      white-space: nowrap;
+    }
+    .float-text.gain { color: var(--color-success); }
+    .float-text.loss { color: var(--color-danger); }
+
+    /* ── 动画 ─────────────────────────────────────── */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      50% { transform: translateX(8px); }
+      80% { transform: translateX(-4px); }
+    }
+    @keyframes pop-in {
+      from { transform: scale(0); opacity: 0; }
+      60%  { transform: scale(1.2); }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    @keyframes bloom {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+    @keyframes sparkle {
+      0%   { transform: scale(0) rotate(0deg); opacity: 0; }
+      50%  { transform: scale(1.3) rotate(20deg); opacity: 1; }
+      100% { transform: scale(1) rotate(40deg); opacity: 0.9; }
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    @keyframes float-up {
+      from { transform: translateY(0); opacity: 1; }
+      to   { transform: translateY(-34px); opacity: 0; }
+    }
+    @keyframes fade-out {
+      from { opacity: 1; } to { opacity: 0; }
+    }
+    @keyframes card-dock {
+      0% { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(46vw,-4vh) scale(0.24); }
+    }
+    @keyframes hint-pulse {
+      0%,100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: .72; transform: translate(-50%, -50%) scale(1.04); }
+    }
+    @keyframes found-ring {
+      0% { opacity: 0; transform: scale(0.7); }
+      50% { opacity: 1; }
+      100% { opacity: 0; transform: scale(1.15); }
+    }
+    @keyframes ripple {
+      0% { opacity: 0.9; width: 12px; height: 12px; }
+      100% { opacity: 0; width: 56px; height: 56px; }
+    }
+    .anim-shake { animation: shake 0.4s ease; }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <!-- 标题屏 -->
+  <div id="screen-title" class="screen active">
+    <div class="emoji-row">🍳🧀🍋🥕🍰</div>
+    <div class="title">找找拼词屋</div>
+    <div class="subtitle">找出物品 · 拼对单词 · 点亮厨房</div>
+    <br>
+    <button class="btn btn-primary" id="btn-start">开始游戏</button>
+    <div class="best-line" id="title-best"></div>
+  </div>
+
+  <!-- 游戏屏 -->
+  <div id="screen-game" class="screen">
+    <div class="game-header">
+      <div class="hud-left">
+        <div class="score-display" id="score">0</div>
+        <div class="combo-display" id="combo"></div>
+      </div>
+      <div class="level-label" id="level-label">第1关</div>
+      <div class="time-display" id="time-display">60s</div>
+    </div>
+    <div class="countdown-bar">
+      <div class="countdown-bar__fill" id="countdown-fill" style="width:100%"></div>
+    </div>
+    <div class="game-main">
+      <div id="scene"></div>
+      <div id="sidebar"></div>
+    </div>
+
+    <!-- 开场提示 -->
+    <div id="level-intro">
+      <div class="intro-theme" id="intro-theme">厨房 · 第1关</div>
+      <div class="intro-goal" id="intro-goal"></div>
+    </div>
+
+    <!-- 拼词卡 -->
+    <div id="spell-panel">
+      <div class="spell-card">
+        <div class="spell-art" id="spell-art"></div>
+        <div class="spell-meaning">
+          <span id="spell-zh">平底锅</span>
+        </div>
+        <div class="spell-slots" id="spell-slots"></div>
+        <div id="grace-hint">时间到！拼完这个词就结算</div>
+        <div id="spell-tiles"></div>
+        <button id="btn-close-panel">收回卡片</button>
+      </div>
+    </div>
+    <div id="word-hint-panel">
+      <div class="word-hint-card">
+        <div class="word-hint-art" id="word-hint-art"></div>
+        <div class="word-hint-zh" id="word-hint-zh">平底锅</div>
+        <div class="word-hint-en" id="word-hint-en">pan</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结算弹窗 -->
+  <div id="modal-result">
+    <div class="modal-box">
+      <div class="modal-title" id="result-title">🎉 过关！</div>
+      <div class="stars" id="result-stars">
+        <span class="star">★</span><span class="star">★</span><span class="star">★</span>
+      </div>
+      <div class="modal-score" id="result-score">0</div>
+      <div class="modal-label">分</div>
+      <div class="modal-bonus" id="result-bonus"></div>
+      <div class="modal-progress" id="result-progress"></div>
+      <div class="modal-best" id="result-best"></div>
+      <div class="star-caption">★过关 · ★★悬赏全收 · ★★★零拼写错误</div>
+      <div class="review-caption" id="review-caption"></div>
+      <div id="result-review"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="btn-home">返回</button>
+        <button class="btn btn-secondary" id="btn-retry">重玩本关</button>
+        <button class="btn btn-primary"   id="btn-next">下一关</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict'
+
+// ── 词库：22 个厨房物品，按词长分桶配合难度 ──────────────
+const WORDS = [
+  { id:'pan',    emoji:'🍳',  word:'pan',    zh:'平底锅' },
+  { id:'cup',    emoji:'☕',  word:'cup',    zh:'杯子' },
+  { id:'egg',    emoji:'🥚',  word:'egg',    zh:'鸡蛋' },
+  { id:'pot',    emoji:'🍲',  word:'pot',    zh:'汤锅' },
+  { id:'tea',    emoji:'🍵',  word:'tea',    zh:'茶' },
+  { id:'fork',   emoji:'🍴',  word:'fork',   zh:'叉子' },
+  { id:'milk',   emoji:'🥛',  word:'milk',   zh:'牛奶' },
+  { id:'salt',   emoji:'🧂',  word:'salt',   zh:'盐' },
+  { id:'bowl',   emoji:'🥣',  word:'bowl',   zh:'碗' },
+  { id:'corn',   emoji:'🌽',  word:'corn',   zh:'玉米' },
+  { id:'cake',   emoji:'🍰',  word:'cake',   zh:'蛋糕' },
+  { id:'knife',  emoji:'🔪',  word:'knife',  zh:'刀' },
+  { id:'spoon',  emoji:'🥄',  word:'spoon',  zh:'勺子' },
+  { id:'plate',  emoji:'🍽️', word:'plate',  zh:'盘子' },
+  { id:'bread',  emoji:'🍞',  word:'bread',  zh:'面包' },
+  { id:'apple',  emoji:'🍎',  word:'apple',  zh:'苹果' },
+  { id:'lemon',  emoji:'🍋',  word:'lemon',  zh:'柠檬' },
+  { id:'cheese', emoji:'🧀',  word:'cheese', zh:'奶酪' },
+  { id:'tomato', emoji:'🍅',  word:'tomato', zh:'番茄' },
+  { id:'carrot', emoji:'🥕',  word:'carrot', zh:'胡萝卜' },
+  { id:'banana', emoji:'🍌',  word:'banana', zh:'香蕉' },
+  { id:'butter', emoji:'🧈',  word:'butter', zh:'黄油' },
+]
+const WORD_MAP = Object.fromEntries(WORDS.map(w => [w.id, w]))
+
+// 装饰池：纯视觉描线杂物，点击算点错
+const DECOS = [
+  'jar','mug','timer','box','cloth','soap','can','bag','ladle','whisk',
+  'toast','pepper','napkin','tray','basket','mat','spice','towel',
+]
+
+const SCENES = {
+  beginner: {
+    src: 'spot-spell-assets/kitchen-beginner.png',
+    words: {
+      pan:[2,42,23,9], cup:[28,41,11,8], milk:[70,37,13,15], bread:[84,41,14,9],
+      pot:[4,57,20,11], bowl:[23,14,17,8], egg:[9,81,9,7], fork:[26,82,17,7],
+      apple:[50,81,13,10], carrot:[73,80,19,9],
+    },
+  },
+  intermediate: {
+    src: 'spot-spell-assets/kitchen-intermediate.png',
+    words: {
+      pan:[6,42,20,10], cup:[23,73,12,8], egg:[44,74,8,8], pot:[27,43,16,11], tea:[22,8,17,11],
+      fork:[2,91,14,7], milk:[0,70,12,16], salt:[12,72,8,10], bowl:[56,73,16,10], corn:[78,70,19,12],
+      cake:[78,5,17,10], knife:[20,91,15,7], spoon:[34,91,12,7], plate:[7,25,15,9], bread:[2,82,18,11],
+      apple:[25,82,13,11], lemon:[42,83,14,9], cheese:[58,83,13,9], tomato:[78,83,13,9],
+      carrot:[49,91,13,8], banana:[65,91,16,8], butter:[84,90,13,8],
+    },
+  },
+  advanced: {
+    src: 'spot-spell-assets/kitchen-advanced.png',
+    words: {
+      pan:[15,10,11], cup:[13,20,9], egg:[25,31,8], pot:[85,10,12], tea:[48,73,8],
+      fork:[52,41,8], milk:[23,20,9], salt:[34,20,8], bowl:[13,31,10], corn:[17,75,12],
+      cake:[36,10,11], knife:[58,64,11], spoon:[23,40,8], plate:[39,45,11], bread:[11,50,14],
+      apple:[94,21,9], lemon:[85,30,9], cheese:[85,21,10], tomato:[94,30,9],
+      carrot:[56,79,10], banana:[67,79,10], butter:[33,56,8],
+    },
+  },
+}
+
+// ── 关卡配置：5 关 = 初级 → 专家 ────────────────────────
+const LEVELS = [
+  { time:60, items:8,  normal:4, bounty:['star'],                miss:1,     tiles:4, confuse:false, face:'image',   scene:'beginner' },
+  { time:55, items:10, normal:5, bounty:['flash'],               miss:1,     tiles:4, confuse:false, face:'image',   scene:'beginner' },
+  { time:50, items:14, normal:6, bounty:['star','flash'],        miss:2,     tiles:6, confuse:false, face:'partial', scene:'intermediate' },
+  { time:48, items:18, normal:7, bounty:['star','flash'],        miss:3,     tiles:8, confuse:true,  face:'word',    scene:'intermediate' },
+  { time:45, items:22, normal:8, bounty:['star','star','flash'], miss:'all', tiles:8, confuse:true,  face:'zh',      scene:'advanced' },
+]
+
+const BASE_SCORE = { normal:100, star:250, flash:200 }
+const BADGE = { normal:'', star:'⭐', flash:'⚡' }
+const CONFUSE_MAP = { b:'d', d:'b', m:'n', n:'m', p:'q', q:'p', u:'v', v:'u', i:'l', l:'i' }
+const LONG_PRESS_MS = 450
+const BEST_KEY = 'spotspell_best'
+
+// ── 运行时状态 ──────────────────────────────────────────
+const G = {
+  status: 'title',       // title | playing | result
+  phase: 'searching',    // searching | spelling
+  grace: false,          // 超时宽限（拼词面板打开时归零）
+  levelIdx: 0,
+  cfg: LEVELS[0],
+  timeLeft: 0,
+  score: 0, combo: 0, spellErrors: 0,
+  consecWrong: 0, inputLockUntil: 0, cooldownUntil: 0,
+  hintsLeft: 3, lastTick: 0,
+  cards: [],             // { wordId, type, done, missingIdx, el }
+  items: [],             // { wordId, isTarget, small, colored, el }
+  spelling: null,        // { cardIdx, itemIdx, word, missingIdx, cursor, tiles }
+  timers: { game:null, longPress:null, cooldown:null, intro:null, complete:null, hint:null },
+  best: parseInt(localStorage.getItem(BEST_KEY) || '0', 10),
+}
+
+// ── DOM 引用 ────────────────────────────────────────────
+const $ = id => document.getElementById(id)
+const screens = { title: $('screen-title'), game: $('screen-game') }
+const sceneEl = $('scene'), sidebarEl = $('sidebar')
+const panelEl = $('spell-panel'), tilesEl = $('spell-tiles'), slotsEl = $('spell-slots')
+const modalEl = $('modal-result')
+
+// ── 工具 ────────────────────────────────────────────────
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+
+// 触摸 + 鼠标双绑：touchstart preventDefault 吞掉合成 click
+function bindTap(el, fn) {
+  el.addEventListener('touchstart', e => { e.preventDefault(); fn(e) }, { passive: false })
+  el.addEventListener('click', fn)
+}
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'))
+  screens[name].classList.add('active')
+}
+
+function floatText(anchorEl, text, kind) {
+  const rect = anchorEl.getBoundingClientRect()
+  const host = $('game-container').getBoundingClientRect()
+  const el = document.createElement('div')
+  el.className = `float-text ${kind}`
+  el.textContent = text
+  el.style.left = (rect.left - host.left + rect.width / 2 - 20) + 'px'
+  el.style.top = (rect.top - host.top - 6) + 'px'
+  $('game-container').appendChild(el)
+  setTimeout(() => el.remove(), 950)
+}
+
+function showWordHint(card) {
+  if (G.status !== 'playing' || card.done) return
+  const w = WORD_MAP[card.wordId]
+  $('word-hint-art').innerHTML = cropHTML(card.wordId, 'colored')
+  $('word-hint-zh').textContent = w.zh
+  $('word-hint-en').textContent = w.word
+  $('word-hint-panel').classList.add('show')
+}
+
+// 位置提示（🔍 在场景框出物品）——每关限次，用完禁用
+function useHint(card) {
+  if (G.status !== 'playing' || card.done) return
+  if (G.hintsLeft <= 0) { floatText(card.el, '提示已用完', 'loss'); return }
+  G.hintsLeft -= 1
+  hideWordHint()
+  showRangeHint(card)
+  updateHintButtons()
+  floatText(card.el, `提示剩${G.hintsLeft}次`, 'gain')
+}
+function updateHintButtons() {
+  const disabled = G.hintsLeft <= 0
+  document.querySelectorAll('.card-hint-btn').forEach(b => {
+    b.disabled = disabled
+    b.style.opacity = disabled ? '0.32' : ''
+    b.textContent = disabled ? '🚫' : '🔍'
+  })
+}
+
+function hideWordHint() {
+  $('word-hint-panel').classList.remove('show')
+}
+
+function showRangeHint(card) {
+  if (G.status !== 'playing' || card.done) return
+  const box = wordBox(card.wordId, 1.65)
+  if (!box) return
+  clearTimeout(G.timers.hint)
+  document.querySelectorAll('.hint-range').forEach(el => el.remove())
+  const range = document.createElement('div')
+  range.className = 'hint-range'
+  range.style.left = box.cx + '%'
+  range.style.top = box.cy + '%'
+  range.style.width = clamp(box.w, 18, 36) + '%'
+  range.style.height = clamp(box.h, 12, 32) + '%'
+  sceneEl.appendChild(range)
+  G.timers.hint = setTimeout(() => range.remove(), 1800)
+}
+
+function wordBox(wordId, scale = 1) {
+  const scene = SCENES[G.cfg.scene]
+  const pos = scene.words[wordId]
+  if (!pos) return null
+  let left, top, w, h
+  if (pos.length >= 4) {
+    ;[left, top, w, h] = pos
+  } else {
+    const [cx, cy, size] = pos
+    w = size
+    h = size
+    left = cx - w / 2
+    top = cy - h / 2
+  }
+  const cx = left + w / 2
+  const cy = top + h / 2
+  w *= scale
+  h *= scale
+  left = clamp(cx - w / 2, 0, 100 - w)
+  top = clamp(cy - h / 2, 0, 100 - h)
+  return { left, top, w, h, cx:left + w / 2, cy:top + h / 2 }
+}
+
+function patchVars(scene, box) {
+  const bgW = (100 / box.w * 100).toFixed(3)
+  const bgH = (100 / box.h * 100).toFixed(3)
+  const posX = box.w >= 100 ? 50 : box.left / (100 - box.w) * 100
+  const posY = box.h >= 100 ? 50 : box.top / (100 - box.h) * 100
+  return {
+    src: `url('${scene.src}')`,
+    size: `${bgW}% ${bgH}%`,
+    pos: `${posX.toFixed(3)}% ${posY.toFixed(3)}%`,
+  }
+}
+
+// 从底图裁剪某物品的线稿片 → 卡片/拼词卡/提示/回顾统一用它，与场景 100% 一致
+function cropStyle(wordId, scale = 1) {
+  const box = wordBox(wordId, scale)
+  if (!box) return ''
+  const scene = SCENES[G.cfg.scene]
+  const bgW = (100 / box.w * 100).toFixed(2)
+  const bgH = (100 / box.h * 100).toFixed(2)
+  const posX = box.w >= 100 ? 50 : (box.left / (100 - box.w) * 100).toFixed(2)
+  const posY = box.h >= 100 ? 50 : (box.top / (100 - box.h) * 100).toFixed(2)
+  return `background-image:url('${scene.src}');background-size:${bgW}% ${bgH}%;background-position:${posX}% ${posY}%;`
+}
+function cropHTML(wordId, cls = '') {
+  const s = cropStyle(wordId)
+  return s ? `<div class="crop ${cls}" style="${s}"></div>` : ''
+}
+// 揭色：盖住原处的不透明裁片（遮住灰底图）+ multiply 暖色染色
+function revealHTML(wordId) {
+  return `<div class="reveal"><div class="rc" style="${cropStyle(wordId)}"></div><div class="tint"></div></div>`
+}
+
+// ── WebAudio 合成音效（无外部资源）─────────────────────
+let AC = null
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)() } catch (e) { return null } }
+  if (AC.state === 'suspended') AC.resume()
+  return AC
+}
+function tone(freq, dur, type = 'sine', vol = 0.18, delay = 0) {
+  const c = ac(); if (!c) return
+  const t0 = c.currentTime + delay
+  const o = c.createOscillator(), g = c.createGain()
+  o.type = type; o.frequency.value = freq
+  g.gain.setValueAtTime(0.0001, t0)
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.012)
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+  o.connect(g); g.connect(c.destination)
+  o.start(t0); o.stop(t0 + dur + 0.03)
+}
+const SFX = {
+  tap()     { tone(340, 0.07, 'triangle', 0.10) },
+  found()   { tone(540, 0.10, 'sine', 0.18); tone(810, 0.12, 'sine', 0.15, 0.06) },
+  correct() { [523, 659, 784].forEach((f, i) => tone(f, 0.15, 'triangle', 0.17, i * 0.07)) },
+  wrong()   { tone(196, 0.18, 'sawtooth', 0.14); tone(147, 0.22, 'sawtooth', 0.12, 0.05) },
+  tick()    { tone(900, 0.05, 'square', 0.08) },
+  win()     { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'triangle', 0.2, i * 0.1)) },
+  lose()    { [392, 330, 262].forEach((f, i) => tone(f, 0.26, 'sine', 0.17, i * 0.12)) },
+}
+
+// 无效点击涟漪（点空白 → 有响应但不扣时）
+function spawnRipple(clientX, clientY) {
+  const r = sceneEl.getBoundingClientRect()
+  const el = document.createElement('div')
+  el.className = 'ripple'
+  el.style.left = (clientX - r.left) + 'px'
+  el.style.top = (clientY - r.top) + 'px'
+  sceneEl.appendChild(el)
+  setTimeout(() => el.remove(), 520)
+}
+
+function iconSvg(id, colored = false) {
+  const tone = colored ? ' colored-svg' : ''
+  const shapes = {
+    pan: '<ellipse class="soft" cx="45" cy="62" rx="32" ry="18"/><ellipse class="ink" cx="45" cy="58" rx="33" ry="20"/><path class="ink" d="M75 58H112"/><circle class="accent" cx="39" cy="54" r="8"/>',
+    cup: '<path class="soft" d="M30 38H78L71 94H37Z"/><path class="ink" d="M30 38H78L71 94H37Z"/><path class="ink" d="M78 50C102 49 104 79 74 77"/>',
+    egg: '<path class="accent" d="M57 20C82 41 85 82 58 98C30 82 33 42 57 20Z"/><path class="ink" d="M57 20C82 41 85 82 58 98C30 82 33 42 57 20Z"/>',
+    pot: '<path class="soft" d="M24 49H91L83 91H32Z"/><path class="ink" d="M24 49H91L83 91H32Z"/><path class="ink" d="M35 43H80M46 36H69M20 60H10M95 60H108"/>',
+    tea: '<path class="soft" d="M29 48H82L74 89H37Z"/><path class="ink" d="M29 48H82L74 89H37Z"/><path class="ink" d="M82 58C103 58 102 83 77 79"/><path class="ink" d="M42 29C38 20 48 18 43 10M58 29C54 20 64 18 59 10"/>',
+    fork: '<path class="ink" d="M44 15V46M56 15V46M68 15V46M44 46C44 60 68 60 68 46M56 58V108"/>',
+    milk: '<path class="soft" d="M35 32L49 18H78L90 32V100H35Z"/><path class="ink" d="M35 32L49 18H78L90 32V100H35Z"/><path class="ink" d="M49 18L56 34H90M47 57H78"/>',
+    salt: '<path class="soft" d="M42 35H76L83 100H35Z"/><path class="ink" d="M42 35H76L83 100H35Z"/><path class="ink" d="M45 27H73M48 47H77"/><circle class="ink" cx="51" cy="65" r="1"/><circle class="ink" cx="61" cy="63" r="1"/><circle class="ink" cx="70" cy="67" r="1"/>',
+    bowl: '<path class="soft" d="M25 56H91C85 89 76 99 58 99S31 89 25 56Z"/><path class="ink" d="M25 56H91C85 89 76 99 58 99S31 89 25 56Z"/><ellipse class="ink" cx="58" cy="56" rx="34" ry="11"/>',
+    corn: '<path class="accent" d="M57 20C76 37 79 82 58 101C37 82 39 38 57 20Z"/><path class="ink" d="M57 20C76 37 79 82 58 101C37 82 39 38 57 20Z"/><path class="ink" d="M47 39H67M44 55H72M46 72H70M57 25V97"/>',
+    cake: '<path class="soft" d="M25 53H91V96H25Z"/><path class="accent" d="M25 53C36 42 48 63 60 52S80 44 91 53V68H25Z"/><path class="ink" d="M25 53H91V96H25Z"/><path class="ink" d="M25 68H91M42 34V52M58 31V52M74 35V52"/>',
+    knife: '<path class="ink" d="M35 103L89 20C97 39 91 58 73 72L49 109Z"/><path class="accent" d="M26 88L51 105L42 115L18 99Z"/>',
+    spoon: '<ellipse class="soft" cx="52" cy="37" rx="19" ry="25"/><ellipse class="ink" cx="52" cy="37" rx="19" ry="25"/><path class="ink" d="M58 60L78 109"/>',
+    plate: '<ellipse class="soft" cx="58" cy="61" rx="43" ry="31"/><ellipse class="ink" cx="58" cy="61" rx="43" ry="31"/><ellipse class="ink" cx="58" cy="61" rx="25" ry="17" opacity=".6"/>',
+    bread: '<path class="accent" d="M25 50C22 22 48 18 58 36C69 18 95 23 91 51V96H25Z"/><path class="ink" d="M25 50C22 22 48 18 58 36C69 18 95 23 91 51V96H25Z"/>',
+    apple: '<path class="accent" d="M57 43C77 24 102 44 91 76C82 103 62 100 57 91C51 101 31 103 23 76C13 44 38 24 57 43Z"/><path class="ink" d="M57 43C77 24 102 44 91 76C82 103 62 100 57 91C51 101 31 103 23 76C13 44 38 24 57 43Z"/><path class="ink" d="M58 39C56 28 62 20 72 17M65 31C78 27 84 20 86 13"/>',
+    lemon: '<path class="accent" d="M23 62C37 28 78 20 95 48C79 83 39 96 23 62Z"/><path class="ink" d="M23 62C37 28 78 20 95 48C79 83 39 96 23 62Z"/><path class="ink" d="M43 61H75"/>',
+    cheese: '<path class="accent" d="M23 83L91 35V96H23Z"/><path class="ink" d="M23 83L91 35V96H23Z"/><circle class="ink" cx="65" cy="75" r="5"/><circle class="ink" cx="80" cy="55" r="4"/><circle class="ink" cx="43" cy="86" r="3"/>',
+    tomato: '<circle class="accent" cx="58" cy="62" r="35"/><circle class="ink" cx="58" cy="62" r="35"/><path class="ink" d="M58 29L49 17M58 29L69 17M58 29L38 27M58 29L78 27"/>',
+    carrot: '<path class="accent" d="M49 37L91 28L63 101Z"/><path class="ink" d="M49 37L91 28L63 101Z"/><path class="ink" d="M51 36C44 24 36 19 25 20M56 35C53 21 56 12 65 7M60 35C71 24 83 20 95 21"/>',
+    banana: '<path class="accent" d="M21 72C60 93 91 61 91 25C79 62 50 72 24 57Z"/><path class="ink" d="M21 72C60 93 91 61 91 25C79 62 50 72 24 57Z"/>',
+    butter: '<path class="accent" d="M25 58L77 40L96 59L45 79Z"/><path class="ink" d="M25 58L77 40L96 59L45 79Z"/><path class="ink" d="M45 79V99L96 78V59M25 58V78L45 99"/>',
+  }
+  const body = shapes[id] || '<path class="soft" d="M28 42H88V94H28Z"/><path class="ink" d="M28 42H88V94H28Z"/>'
+  return `<svg class="${tone}" viewBox="0 0 116 116" aria-hidden="true">${body}</svg>`
+}
+
+function decoSvg(id) {
+  const variants = {
+    jar:'<path class="soft" d="M39 35H77L83 98H33Z"/><path class="ink" d="M39 35H77L83 98H33Z"/><path class="ink" d="M43 25H73V35H43Z"/>',
+    mug:'<path class="soft" d="M31 45H75V91H31Z"/><path class="ink" d="M31 45H75V91H31Z"/><path class="ink" d="M75 55C96 55 96 83 75 81"/>',
+    timer:'<circle class="soft" cx="58" cy="65" r="31"/><circle class="ink" cx="58" cy="65" r="31"/><path class="ink" d="M48 24H68M58 34V48M58 65L72 56"/>',
+    box:'<path class="soft" d="M24 48H92V92H24Z"/><path class="ink" d="M24 48H92V92H24Z"/><path class="ink" d="M24 48L41 31H106L92 48M58 48V92"/>',
+    cloth:'<path class="accent" d="M28 36C47 48 68 24 90 38L80 94C59 83 41 104 25 89Z"/><path class="ink" d="M28 36C47 48 68 24 90 38L80 94C59 83 41 104 25 89Z"/>',
+    soap:'<rect class="soft" x="31" y="52" width="55" height="35" rx="15"/><rect class="ink" x="31" y="52" width="55" height="35" rx="15"/><circle class="ink" cx="75" cy="36" r="5"/><circle class="ink" cx="91" cy="25" r="3"/>',
+    can:'<ellipse class="ink" cx="58" cy="34" rx="27" ry="10"/><path class="soft" d="M31 34V91C31 97 85 97 85 91V34Z"/><path class="ink" d="M31 34V91C31 97 85 97 85 91V34"/>',
+    bag:'<path class="soft" d="M34 42H82L90 100H26Z"/><path class="ink" d="M34 42H82L90 100H26Z"/><path class="ink" d="M43 42C43 24 73 24 73 42"/>',
+    ladle:'<circle class="soft" cx="45" cy="76" r="20"/><circle class="ink" cx="45" cy="76" r="20"/><path class="ink" d="M59 62L94 27"/>',
+    whisk:'<path class="ink" d="M35 19C66 35 82 55 70 73C59 91 31 72 35 19ZM49 96L66 73M49 96L38 108"/>',
+  }
+  const body = variants[id] || variants.jar
+  return `<svg viewBox="0 0 116 116" aria-hidden="true">${body}</svg>`
+}
+
+function playWordAudio(word) {
+  if (!('speechSynthesis' in window)) return
+  window.speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(word)
+  u.lang = 'en-US'
+  u.rate = 0.85
+  window.speechSynthesis.speak(u)
+}
+
+// ── 倒计时 ──────────────────────────────────────────────
+function startInterval() {
+  clearInterval(G.timers.game)
+  G.timers.game = setInterval(() => {
+    G.timeLeft -= 1
+    updateTimerUI()
+    if (G.timeLeft <= 10 && G.timeLeft > 0) SFX.tick()
+    if (G.timeLeft <= 0) { stopTimer(); onTimeUp() }
+  }, 1000)
+}
+function stopTimer() { clearInterval(G.timers.game); G.timers.game = null }
+
+function updateTimerUI() {
+  const pct = clamp(G.timeLeft / G.cfg.time * 100, 0, 100)
+  $('countdown-fill').style.width = pct + '%'
+  const disp = $('time-display')
+  disp.textContent = Math.max(0, G.timeLeft) + 's'
+  const warn = G.timeLeft <= 10
+  $('countdown-fill').classList.toggle('warning', warn)
+  disp.classList.toggle('warning', warn && !G.grace)
+  disp.classList.toggle('grace', G.grace)
+}
+
+// 扣时统一入口：clamp 到 0 后触发超时判定
+function applyPenalty(sec) {
+  if (G.status !== 'playing' || G.timeLeft <= 0) return
+  G.timeLeft = Math.max(0, G.timeLeft - sec)
+  updateTimerUI()
+  if (G.timeLeft <= 0) { stopTimer(); onTimeUp() }
+}
+
+// 超时判定（幂等）：拼词中 → 宽限；否则结算
+function onTimeUp() {
+  if (G.status !== 'playing' || G.grace) return
+  if (G.phase === 'spelling') {
+    G.grace = true
+    $('grace-hint').classList.add('show')
+    updateTimerUI()
+    return
+  }
+  endGame(allNormalDone())
+}
+
+// ── 关卡生成 ────────────────────────────────────────────
+function canSpell(w, miss) {
+  const len = w.word.length
+  if (miss === 'all') return len <= 6
+  if (miss === 1) return len <= 4
+  if (miss === 2) return len >= 4 && len <= 5
+  return len >= 5 && len <= 6   // miss === 3
+}
+
+function pickMissing(word, miss) {
+  const len = word.length
+  if (miss === 'all' || miss >= len) return Array.from({ length: len }, (_, i) => i)
+  let idx
+  do {
+    idx = shuffle(Array.from({ length: len }, (_, i) => i)).slice(0, miss).sort((a, b) => a - b)
+  } while (idx.every(i => i === 0))   // 至少一个非首位
+  return idx
+}
+
+function buildTiles(word, missingIdx, cfg) {
+  const required = missingIdx.map(i => word[i])
+  const reqSet = new Set(required)
+  const count = cfg.tiles - required.length
+  const distractors = []
+  if (cfg.confuse) {
+    const maxConf = Math.ceil(count / 2)
+    for (const ch of required) {
+      if (distractors.length >= maxConf) break
+      const c = CONFUSE_MAP[ch]
+      if (c && !reqSet.has(c) && !distractors.includes(c)) distractors.push(c)
+    }
+  }
+  const alpha = 'abcdefghijklmnopqrstuvwxyz'
+  while (distractors.length < count) {
+    const c = alpha[Math.floor(Math.random() * 26)]
+    if (!reqSet.has(c) && !distractors.includes(c)) distractors.push(c)
+  }
+  return shuffle([...required, ...distractors]).map(ch => ({ ch, used: false }))
+}
+
+function genLevel() {
+  const cfg = G.cfg
+  const scene = SCENES[cfg.scene]
+  let pool = shuffle(Object.keys(scene.words).map(id => WORD_MAP[id]).filter(Boolean))
+  const take = (pred, n) => {
+    const out = []
+    pool = pool.filter(w => (out.length < n && pred(w)) ? (out.push(w), false) : true)
+    return out
+  }
+  const starCount = cfg.bounty.filter(b => b === 'star').length
+  const flashCount = cfg.bounty.filter(b => b === 'flash').length
+  const starWords = take(w => w.word.length >= 6, starCount)
+  const flashWords = take(w => canSpell(w, cfg.miss), flashCount)
+  const normalWords = take(w => canSpell(w, cfg.miss), cfg.normal)
+  const decoWords = take(() => true, Math.max(0, cfg.items - starCount - flashCount - cfg.normal))
+
+  G.cards = [
+    ...normalWords.map(w => ({ wordId: w.id, type: 'normal' })),
+    ...starWords.map(w => ({ wordId: w.id, type: 'star' })),
+    ...flashWords.map(w => ({ wordId: w.id, type: 'flash' })),
+  ].map(c => ({ ...c, done: false, missingIdx: pickMissing(WORD_MAP[c.wordId].word, cfg.miss), el: null }))
+
+  G.items = [
+    ...G.cards.map(c => ({ wordId: c.wordId, isTarget: true, small: c.type === 'flash' })),
+    ...decoWords.map(w => ({ wordId: w.id, isTarget: false, small: false })),
+  ].map(it => ({ ...it, colored: false, el: null }))
+}
+
+// ── 场景渲染：2.5D 厨房线稿 + 热区 ─────────────────────
+function renderScene() {
+  const scene = SCENES[G.cfg.scene]
+  sceneEl.innerHTML = `<img class="scene-bg" src="${scene.src}" alt="厨房寻物场景">`
+  G.items.forEach((it, idx) => {
+    const box = wordBox(it.wordId, it.isTarget ? 1.06 : 1)
+    if (!box) return
+    const patch = patchVars(scene, box)
+    const el = document.createElement('div')
+    el.className = 'item hotspot'
+    el.style.left = box.cx + '%'
+    el.style.top = box.cy + '%'
+    el.style.width = box.w + '%'
+    el.style.height = box.h + '%'
+    el.style.zIndex = 100 + Math.round(box.cy)
+    el.style.setProperty('--scene-src', patch.src)
+    el.style.setProperty('--patch-size', patch.size)
+    el.style.setProperty('--patch-pos', patch.pos)
+    if (it.colored) { el.classList.add('revealed'); el.innerHTML = revealHTML(it.wordId) }
+    bindTap(el, () => onItemTap(idx))
+    it.el = el
+    sceneEl.appendChild(el)
+  })
+}
+
+// 点场景空白（非物品）→ 涟漪反馈，不扣时
+function onSceneBlankTap(e) {
+  if (G.status !== 'playing' || G.phase !== 'searching') return
+  if (e.target !== sceneEl && !e.target.classList.contains('scene-bg')) return
+  const p = e.touches ? e.touches[0] : e
+  spawnRipple(p.clientX, p.clientY)
+}
+
+// 点中装饰 = 点错：与非目标物品同样 -2s + 抖动
+function onDecoTap(el) {
+  if (G.status !== 'playing' || G.phase !== 'searching') return
+  const now = Date.now()
+  if (now < G.inputLockUntil) return
+  G.inputLockUntil = now + 300
+  applyPenalty(2)
+  el.classList.remove('anim-shake'); void el.offsetWidth
+  el.classList.add('anim-shake')
+  floatText(el, '-2s', 'loss')
+}
+
+// ── 侧栏渲染 ────────────────────────────────────────────
+function maskWord(word, missingIdx) {
+  return word.split('').map((ch, i) => missingIdx.includes(i) ? '_' : ch).join('')
+}
+
+function cardFaces(card) {
+  const w = WORD_MAP[card.wordId]
+  const art = `<span class="card-art">${cropHTML(w.id)}</span>`
+  const silhouette = `<span class="card-art" style="filter:grayscale(1) brightness(0.5) contrast(1.4);opacity:.5">${cropHTML(w.id)}</span>`
+  switch (G.cfg.face) {
+    case 'image':
+      return { front: art,
+               back:  `<span class="word-text">${w.word}</span><span class="hint-label">单词</span>` }
+    case 'partial':
+      return { front: `<span class="word-text">${maskWord(w.word, card.missingIdx)}</span><span class="card-art">${cropHTML(w.id)}</span>`,
+               back:  `${art}<span class="hint-label">完整图</span>` }
+    case 'word':
+      return { front: `<span class="word-text">${w.word}</span>`,
+               back:  `${silhouette}<span class="hint-label">剪影</span>` }
+    case 'zh':
+      return { front: `<span class="zh-text">${w.zh}</span>`,
+               back:  `${art}<span class="word-text">${w.word}</span>` }
+  }
+}
+
+function bindCardPress(el, card) {
+  let sx = 0, sy = 0
+  const start = e => {
+    if (e.type === 'touchstart') { const t = e.touches[0]; sx = t.clientX; sy = t.clientY }
+    el.classList.add('pressing')
+    showWordHint(card)
+  }
+  const move = e => {
+    const t = e.touches[0]
+    if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) end()
+  }
+  const end = () => {
+    el.classList.remove('pressing')
+    hideWordHint()
+  }
+  el.addEventListener('touchstart', start, { passive: true })
+  el.addEventListener('touchmove', move, { passive: true })
+  el.addEventListener('touchend', end)
+  el.addEventListener('touchcancel', end)
+  el.addEventListener('mousedown', start)
+  el.addEventListener('mouseup', end)
+  el.addEventListener('mouseleave', end)
+}
+
+function renderSidebar() {
+  sidebarEl.innerHTML = ''
+  G.cards.forEach(card => {
+    const faces = cardFaces(card)
+    const el = document.createElement('div')
+    el.className = 'card'
+    el.innerHTML = `
+      <div class="card-inner">
+        <div class="card-face card-front">${faces.front}</div>
+        <div class="card-face card-back">${faces.back}</div>
+      </div>
+      ${BADGE[card.type] ? `<span class="card-badge">${BADGE[card.type]}</span>` : ''}
+      <button class="card-hint-btn" aria-label="提示">🔍</button>
+      <span class="card-check">✓</span>`
+    bindCardPress(el, card)
+    const hintBtn = el.querySelector('.card-hint-btn')
+    hintBtn.addEventListener('mousedown', e => e.stopPropagation())
+    hintBtn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true })
+    bindTap(hintBtn, e => {
+      e.stopPropagation()
+      useHint(card)
+    })
+    card.el = el
+    sidebarEl.appendChild(el)
+  })
+  const finishBtn = document.createElement('button')
+  finishBtn.id = 'btn-finish'
+  finishBtn.textContent = '提前结算 ✓'
+  bindTap(finishBtn, () => { if (G.status === 'playing' && allNormalDone()) endGame(true) })
+  sidebarEl.appendChild(finishBtn)
+}
+
+// ── 场景点击分发 ────────────────────────────────────────
+function onItemTap(idx) {
+  if (G.status !== 'playing' || G.phase !== 'searching') return
+  const now = Date.now()
+  if (now < G.inputLockUntil) return   // 300ms 判定锁
+  G.inputLockUntil = now + 300
+  const it = G.items[idx]
+  if (it.colored) return               // 已上色：忽略，无惩罚
+  const cardIdx = G.cards.findIndex(c => !c.done && c.wordId === it.wordId)
+  if (it.isTarget && cardIdx >= 0) {
+    G.phase = 'spelling'               // 立即锁相，防 240ms 反馈期内重入
+    SFX.found()
+    it.el.classList.add('hotspot-hit')
+    clearTimeout(G.timers.found)
+    G.timers.found = setTimeout(() => {
+      it.el.classList.remove('hotspot-hit')
+      openPanel(cardIdx, idx)
+    }, 240)
+  } else {
+    SFX.wrong()
+    applyPenalty(2)
+    it.el.classList.remove('anim-shake'); void it.el.offsetWidth
+    it.el.classList.add('anim-shake')
+    floatText(it.el, '-2s', 'loss')
+  }
+}
+
+// ── 拼词面板 ────────────────────────────────────────────
+function openPanel(cardIdx, itemIdx) {
+  const card = G.cards[cardIdx]
+  const w = WORD_MAP[card.wordId]
+  clearTimeout(G.timers.hint)
+  document.querySelectorAll('.hint-range').forEach(el => el.remove())
+  G.phase = 'spelling'
+  G.spelling = {
+    cardIdx, itemIdx,
+    word: w.word,
+    missingIdx: card.missingIdx,
+    cursor: 0,
+    tiles: buildTiles(w.word, card.missingIdx, G.cfg),
+  }
+  $('spell-art').innerHTML = iconSvg(w.id)
+  $('spell-zh').textContent = w.zh
+  renderSlots()
+  renderTiles()
+  tilesEl.style.gridTemplateColumns = `repeat(4, 72px)`
+  panelEl.classList.remove('fly-out', 'flash-red')
+  panelEl.classList.add('open')
+}
+
+function renderSlots() {
+  const sp = G.spelling
+  slotsEl.innerHTML = ''
+  const filledCount = sp.cursor
+  sp.word.split('').forEach((ch, i) => {
+    const mIdx = sp.missingIdx.indexOf(i)
+    const slot = document.createElement('div')
+    if (mIdx === -1) {
+      slot.className = 'slot known'
+      slot.textContent = ch
+    } else if (mIdx < filledCount) {
+      slot.className = 'slot blank filled'
+      slot.textContent = ch
+    } else {
+      slot.className = 'slot blank' + (mIdx === filledCount ? ' current' : '')
+      slot.textContent = ''
+    }
+    slotsEl.appendChild(slot)
+  })
+}
+
+function renderTiles() {
+  tilesEl.innerHTML = ''
+  G.spelling.tiles.forEach((tile, i) => {
+    const btn = document.createElement('button')
+    btn.className = 'tile' + (tile.used ? ' used' : '')
+    btn.textContent = tile.ch
+    bindTap(btn, () => onTileTap(i))
+    tilesEl.appendChild(btn)
+  })
+}
+
+function onTileTap(i) {
+  const sp = G.spelling
+  if (!sp || G.status !== 'playing') return
+  const now = Date.now()
+  if (now < G.cooldownUntil || now < G.inputLockUntil) return
+  const tile = sp.tiles[i]
+  if (tile.used || sp.cursor >= sp.missingIdx.length) return
+  G.inputLockUntil = now + 300
+  const graceBefore = G.grace
+  const expect = sp.word[sp.missingIdx[sp.cursor]]
+  if (tile.ch === expect) {
+    tile.used = true
+    sp.cursor += 1
+    G.consecWrong = 0
+    renderSlots(); renderTiles()
+    if (sp.cursor >= sp.missingIdx.length) {
+      G.timers.complete = setTimeout(wordComplete, 300)   // 稍停，让玩家看到完整词
+    }
+  } else {
+    G.spellErrors += 1
+    G.combo = 0
+    updateComboUI()
+    G.consecWrong += 1
+    applyPenalty(3)
+    panelEl.classList.remove('flash-red'); void panelEl.offsetWidth
+    panelEl.classList.add('flash-red')
+    floatText(tilesEl, '-3s', 'loss')
+    if (G.consecWrong >= 3) {   // 连错 3 次：1s 输入冷却
+      G.cooldownUntil = now + 1000
+      tilesEl.classList.add('cooldown')
+      clearTimeout(G.timers.cooldown)
+      G.timers.cooldown = setTimeout(() => {
+        tilesEl.classList.remove('cooldown')
+        G.consecWrong = 0
+      }, 1000)
+    }
+    if (graceBefore) { closePanel(); endGame(allNormalDone()) }   // 宽限中拼错 → 结算
+  }
+}
+
+function wordComplete() {
+  if (G.status !== 'playing' || !G.spelling) return
+  const sp = G.spelling
+  const card = G.cards[sp.cardIdx]
+  card.done = true
+  card.el.classList.add('done')
+  const item = G.items[sp.itemIdx]
+  item.colored = true
+  item.el.classList.add('colored')
+  item.el.innerHTML = iconSvg(item.wordId, true)
+  playWordAudio(sp.word)
+
+  G.combo += 1
+  const mult = G.combo >= 4 ? 1.3 : G.combo === 3 ? 1.2 : G.combo === 2 ? 1.1 : 1
+  const gained = Math.round(BASE_SCORE[card.type] * mult)
+  G.score += gained
+  updateScoreUI()
+  updateComboUI()
+  floatText($('score'), `+${gained}` + (mult > 1 ? ` ×${mult}` : ''), 'gain')
+
+  const graceNow = G.grace
+  panelEl.classList.add('fly-out')
+  setTimeout(() => {
+    closePanel()
+    if (graceNow) return endGame(allNormalDone())
+    if (allDone()) return endGame(true)
+    if (allNormalDone()) $('btn-finish').classList.add('show')
+  }, 520)
+}
+
+function closePanel() {
+  clearTimeout(G.timers.complete)
+  panelEl.classList.remove('open', 'flash-red', 'fly-out')
+  tilesEl.classList.remove('cooldown')
+  $('grace-hint').classList.remove('show')
+  G.spelling = null
+  G.phase = 'searching'
+}
+
+// ── HUD ────────────────────────────────────────────────
+function updateScoreUI() { $('score').textContent = G.score }
+function updateComboUI() { $('combo').textContent = G.combo >= 2 ? `连击 ×${G.combo >= 4 ? 1.3 : G.combo === 3 ? 1.2 : 1.1}` : '' }
+
+const allNormalDone = () => G.cards.filter(c => c.type === 'normal').every(c => c.done)
+const allDone = () => G.cards.every(c => c.done)
+
+// ── 关卡生命周期 ────────────────────────────────────────
+function clearAllTimers() {
+  stopTimer()
+  clearTimeout(G.timers.longPress)
+  clearTimeout(G.timers.cooldown)
+  clearTimeout(G.timers.intro)
+  clearTimeout(G.timers.complete)
+  clearTimeout(G.timers.hint)
+  document.querySelectorAll('.hint-range').forEach(el => el.remove())
+  hideWordHint()
+}
+
+function startLevel(idx) {
+  clearAllTimers()
+  G.levelIdx = idx
+  G.cfg = LEVELS[idx]
+  G.status = 'playing'
+  G.phase = 'searching'
+  G.grace = false
+  G.score = 0; G.combo = 0; G.spellErrors = 0
+  G.consecWrong = 0; G.inputLockUntil = 0; G.cooldownUntil = 0
+  G.timeLeft = G.cfg.time
+
+  modalEl.classList.remove('visible')
+  closePanel()
+  genLevel()
+  renderSidebar()
+  renderScene()
+  updateScoreUI(); updateComboUI(); updateTimerUI()
+  $('level-label').textContent = `第${idx + 1}关`
+  showScreen('game')
+
+  // 开场提示 1.5s 后开始计时
+  const bountyN = G.cfg.bounty.length
+  $('intro-theme').textContent = `厨房 · 第${idx + 1}关`
+  $('intro-goal').textContent = `${G.cfg.normal} 张普通卡 + ${bountyN} 张悬赏卡`
+  $('level-intro').classList.add('show')
+  G.timers.intro = setTimeout(() => {
+    $('level-intro').classList.remove('show')
+    if (!document.hidden) startInterval()   // 隐藏时由 visibilitychange 恢复
+  }, 1500)
+}
+
+// 结算唯一入口（幂等）
+function endGame(win) {
+  if (G.status !== 'playing') return
+  G.status = 'result'
+  clearAllTimers()
+  closePanel()
+
+  const bonus = win ? Math.max(0, G.timeLeft) * 10 : 0
+  G.score += bonus
+  updateScoreUI()
+
+  const stars = win ? 1 + (allDone() ? 1 : 0) + (G.spellErrors === 0 ? 1 : 0) : 0
+  if (G.score > G.best) {
+    G.best = G.score
+    localStorage.setItem(BEST_KEY, String(G.best))
+  }
+  if (win && navigator.vibrate) navigator.vibrate(100)
+
+  $('result-title').textContent = win
+    ? (G.levelIdx >= LEVELS.length - 1 ? '🏆 通关厨房章！' : '🎉 过关！')
+    : '⏰ 时间到！'
+  $('result-score').textContent = G.score
+  $('result-bonus').textContent = win && bonus > 0 ? `剩余时间奖励 +${bonus}` : ''
+  $('result-best').textContent = `历史最高：${G.best} 分`
+  document.querySelectorAll('#result-stars .star').forEach((el, i) => {
+    el.classList.toggle('lit', i < stars)
+  })
+  $('btn-next').style.display = win && G.levelIdx < LEVELS.length - 1 ? '' : 'none'
+  modalEl.classList.add('visible')
+}
+
+// ── 事件绑定 ────────────────────────────────────────────
+$('btn-start').addEventListener('click', () => startLevel(0))
+$('btn-retry').addEventListener('click', () => startLevel(G.levelIdx))
+$('btn-next').addEventListener('click', () => startLevel(G.levelIdx + 1))
+$('btn-home').addEventListener('click', () => {
+  clearAllTimers()
+  modalEl.classList.remove('visible')
+  G.status = 'title'
+  $('title-best').textContent = G.best > 0 ? `历史最高：${G.best} 分` : ''
+  showScreen('title')
+})
+bindTap($('btn-close-panel'), () => {
+  if (G.phase !== 'spelling') return
+  const graceNow = G.grace
+  closePanel()
+  if (graceNow) endGame(allNormalDone())
+})
+
+// 防滚动穿透（侧栏 pan-y 除外）
+sceneEl.addEventListener('touchmove', e => e.preventDefault(), { passive: false })
+panelEl.addEventListener('touchmove', e => e.preventDefault(), { passive: false })
+document.addEventListener('contextmenu', e => e.preventDefault())
+
+// 切后台停表 / 回前台续表
+document.addEventListener('visibilitychange', () => {
+  if (G.status !== 'playing') return
+  if (document.hidden) stopTimer()
+  else if (!G.grace && G.timeLeft > 0 && !G.timers.game && !$('level-intro').classList.contains('show')) {
+    startInterval()
+  }
+})
+
+// ── 调试钩子：?debug=1 ─────────────────────────────────
+if (/[?&]debug=1/.test(location.search)) {
+  window.G = G
+  G.debug = {
+    setTime(s) { G.timeLeft = s; updateTimerUI() },
+    gotoLevel(n) { startLevel(clamp(n - 1, 0, LEVELS.length - 1)) },
+    winNow() { G.cards.forEach(c => { c.done = true; c.el.classList.add('done') }); endGame(true) },
+  }
+}
+
+$('title-best').textContent = G.best > 0 ? `历史最高：${G.best} 分` : ''
+showScreen('title')
+</script>
+</body>
+</html>

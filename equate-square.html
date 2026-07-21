@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>等式魔方阵 · EquateSquare</title>
+  <style>
+    /* ── 主题：深夜解谜 ─────────────────────────────── */
+    :root {
+      --bg-deep:   #0b1026;
+      --bg-panel:  #141b3c;
+      --cell-bg:   #1a2248;
+      --cell-edge: #27306a;
+      --coral:     #ff7a6e;
+      --coral-dim: #b3564e;
+      --cyan:      #35e0d8;
+      --cyan-dim:  rgba(53, 224, 216, 0.35);
+      --static:    #5a6491;   /* 固定元素统一色：锁定格数字、运算符、等号 */
+      --text:      #e8ecff;
+      --text-dim:  rgba(232, 236, 255, 0.55);
+      --danger:    #ff5d5d;
+      --gold:      #ffd166;
+      --cs: min(20vw, 86px);        /* 数字格边长 */
+      --radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg-deep);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 120% 60% at 50% -10%, #1b2452 0%, transparent 60%),
+        var(--bg-deep);
+    }
+
+    .screen {
+      position: absolute; inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px
+               calc(env(safe-area-inset-bottom, 0px) + 16px);
+    }
+    .screen.active { display: flex; }
+
+    /* ── 开始屏 ─────────────────────────────────────── */
+    #screen-start { justify-content: center; gap: 10px; }
+    .logo-eq { font-size: 15px; letter-spacing: 6px; color: var(--cyan); opacity: .8; }
+    .game-title { font-size: 34px; font-weight: 800; letter-spacing: 4px; }
+    .game-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 18px; }
+    .tier-card {
+      width: min(78vw, 320px);
+      background: var(--bg-panel);
+      border: 1px solid var(--cell-edge);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer;
+      transition: transform .12s, border-color .2s;
+    }
+    .tier-card:active { transform: scale(0.97); border-color: var(--cyan); }
+    .tier-name { font-size: 18px; font-weight: 700; }
+    .tier-desc { font-size: 14px; color: var(--text-dim); margin-top: 3px; }
+    .tier-best { font-size: 14px; color: var(--cyan); text-align: right; }
+    .rule-hint { margin-top: 16px; font-size: 14px; color: var(--text-dim); }
+
+    /* ── 游戏屏 ─────────────────────────────────────── */
+    #screen-playing { justify-content: flex-start; gap: 8px; }
+
+    .game-header {
+      width: min(92vw, 460px);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 0;
+      font-size: 15px;
+    }
+    .pips { display: flex; gap: 6px; align-items: center; }
+    .pip {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--cell-edge); transition: background .3s;
+    }
+    .pip.done { background: var(--cyan); }
+    .pip.now  { background: var(--coral); }
+    #hud-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    #hud-time.warning { color: var(--danger); animation: blink 1s step-end infinite; }
+    #hud-time.dim { opacity: .45; }
+    @keyframes blink { 50% { opacity: .45; } }
+    #hud-score { color: var(--gold); font-weight: 700; }
+
+    .level-caption {
+      font-size: 14px; color: var(--text-dim);
+      height: 20px;
+    }
+    .level-caption b { color: var(--cyan); font-weight: 600; }
+
+    .board-wrap { position: relative; margin-top: 4px; }
+    .diag-lines {
+      position: absolute; inset: 0; z-index: 0;
+      opacity: 0; transition: opacity .4s;
+    }
+    .board-wrap.diags .diag-lines { opacity: 1; }
+    .diag-lines line {
+      stroke: var(--cyan-dim); stroke-width: 1.5;
+      stroke-dasharray: 4 5;
+      vector-effect: non-scaling-stroke;
+      transition: stroke .3s;
+    }
+    .diag-lines line.ok { stroke: var(--cyan); }
+
+    #board {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: var(--cs) calc(var(--cs) * .5) var(--cs) calc(var(--cs) * .5) var(--cs);
+      grid-template-rows:    var(--cs) calc(var(--cs) * .5) var(--cs) calc(var(--cs) * .5) var(--cs);
+      gap: 6px;
+    }
+
+    .cell {
+      position: relative;
+      width: var(--cs); height: var(--cs);
+      background: var(--cell-bg);
+      border: 2px solid rgba(255, 122, 110, .4);   /* 可移动格：珊瑚色语言 */
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: clamp(22px, 7vw, 34px);
+      font-weight: 800;
+      color: var(--coral);
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s, transform .18s ease;
+    }
+    .cell.sel {
+      border-color: var(--coral);
+      box-shadow: 0 0 0 3px rgba(255, 122, 110, .25), 0 0 18px rgba(255, 122, 110, .35);
+    }
+    .cell.shake { animation: shake .4s ease; }
+    @keyframes shake {
+      0%, 100% { translate: 0; }
+      25% { translate: -6px 0; }
+      55% { translate: 6px 0; }
+      80% { translate: -3px 0; }
+    }
+    .cell.locked {
+      background: #10162f;
+      border-color: #1b2350;
+      color: var(--static);
+      cursor: default;
+    }
+    /* 拼对锁定：在 .locked 之后声明，静态格所在算式成立时同样变青 */
+    .cell.done {
+      background: rgba(53, 224, 216, .10);
+      border-color: rgba(53, 224, 216, .5);
+      color: var(--cyan);
+      cursor: default;
+    }
+    .cell.pop { animation: donePop .35s ease; }
+    @keyframes donePop {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.14); }
+      100% { transform: scale(1); }
+    }
+    .cell.hint { animation: hintPulse 1.2s ease 3; }
+    @keyframes hintPulse {
+      0%, 100% { border-color: var(--cell-edge); box-shadow: none; }
+      50% { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim), 0 0 20px var(--cyan-dim); }
+    }
+
+    .sym {
+      align-self: center; justify-self: center;
+      font-size: clamp(15px, 4.5vw, 24px);
+      font-weight: 700;
+      color: var(--static);
+      transition: color .25s, text-shadow .25s;
+      line-height: 1;
+    }
+    .sym.ok { color: var(--cyan); text-shadow: 0 0 12px var(--cyan-dim); }
+
+    .toolbar {
+      width: min(92vw, 460px);
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 10px;
+      font-size: 14px; color: var(--text-dim);
+    }
+    .steps-box b { color: var(--text); font-size: 16px; }
+    .btn {
+      border: none; border-radius: 22px;
+      padding: 10px 20px;
+      font-size: 15px; font-weight: 700;
+      cursor: pointer;
+      transition: transform .1s, opacity .1s;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(.95); }
+    .btn-hint {
+      background: var(--bg-panel); color: var(--cyan);
+      border: 1px solid var(--cyan-dim);
+    }
+    .btn-hint[disabled] { opacity: .35; pointer-events: none; }
+    .btn-exit { background: none; color: var(--text-dim); font-size: 14px; padding: 10px 6px; }
+    .hint-cost { font-size: 12px; opacity: .7; display: block; }
+
+    /* ── 过关闪现 ───────────────────────────────────── */
+    #level-flash {
+      position: absolute; inset: 0; z-index: 30;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(11, 16, 38, .72);
+      pointer-events: none;
+    }
+    #level-flash.show { display: flex; }
+    .flash-box { text-align: center; }
+    #level-flash.show .flash-box { animation: flashPop .85s ease both; }
+    .flash-check {
+      width: 92px; height: 92px; margin: 0 auto 14px;
+      border-radius: 50%;
+      border: 3px solid var(--cyan);
+      color: var(--cyan);
+      font-size: 52px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 30px var(--cyan-dim);
+    }
+    .flash-text { font-size: 20px; font-weight: 700; color: var(--text); }
+    @keyframes flashPop {
+      0%   { transform: scale(.4); opacity: 0; }
+      35%  { transform: scale(1.08); opacity: 1; }
+      55%  { transform: scale(1); }
+      82%  { opacity: 1; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    /* ── 结算弹窗 ───────────────────────────────────── */
+    #modal-result {
+      position: absolute; inset: 0; z-index: 40;
+      background: rgba(0, 0, 0, .66);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s ease;
+    }
+    #modal-result.visible { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--cell-edge);
+      border-radius: 18px;
+      padding: 26px 22px 22px;
+      width: min(340px, 88vw);
+      text-align: center;
+      transform: scale(.85);
+      transition: transform .3s ease;
+    }
+    #modal-result.visible .modal-box { transform: scale(1); }
+    .modal-title { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+    .modal-badge { font-size: 16px; margin: 6px 0 2px; min-height: 22px; }
+    .modal-badge .chip {
+      display: inline-block; padding: 2px 10px; margin: 0 3px;
+      border-radius: 12px; background: rgba(255, 209, 102, .12);
+      color: var(--gold); font-size: 14px; font-weight: 700;
+    }
+    .modal-score { font-size: 52px; font-weight: 800; color: var(--gold); line-height: 1.15; }
+    .modal-detail {
+      margin: 12px 0; padding: 10px 12px;
+      background: rgba(0, 0, 0, .22);
+      border-radius: 10px;
+      font-size: 14px; text-align: left;
+      color: var(--text-dim);
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .modal-detail .row { display: flex; justify-content: space-between; }
+    .modal-detail .row b { color: var(--text); font-weight: 600; }
+    .modal-meta { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn { flex: 1; }
+    .btn-primary { background: var(--coral); color: #fff; }
+    .btn-secondary { background: rgba(255, 255, 255, .12); color: var(--text); }
+  </style>
+</head>
+<body>
+<div id="game-container">
+
+  <!-- 开始屏 -->
+  <div id="screen-start" class="screen active">
+    <div class="logo-eq">3 + 4 = 7</div>
+    <div class="game-title">等式魔方阵</div>
+    <div class="game-sub">三关递进 · 交换数字让所有等式成立</div>
+    <div class="tier-card" data-tier="G1">
+      <div><div class="tier-name">一年级</div><div class="tier-desc">加减 1~10 · 只找 4 个亮格 · 不限时</div></div>
+      <div class="tier-best">最高<br><b id="best-G1">0</b></div>
+    </div>
+    <div class="tier-card" data-tier="G2">
+      <div><div class="tier-name">二年级</div><div class="tier-desc">加减 1~20 · 乘法口诀 · 不限时</div></div>
+      <div class="tier-best">最高<br><b id="best-G2">0</b></div>
+    </div>
+    <div class="tier-card" data-tier="G3">
+      <div><div class="tier-name">三年级</div><div class="tier-desc">挑战 · 终关 8 条等式 · 限时 240 秒</div></div>
+      <div class="tier-best">最高<br><b id="best-G3">0</b></div>
+    </div>
+    <div class="rule-hint">挪动数字，让算式成立</div>
+  </div>
+
+  <!-- 游戏屏 -->
+  <div id="screen-playing" class="screen">
+    <div class="game-header">
+      <div class="pips" id="pips">
+        <span class="pip" data-l="1"></span><span class="pip" data-l="2"></span><span class="pip" data-l="3"></span>
+        <span id="tier-label" style="margin-left:6px;font-size:14px;color:var(--text-dim)"></span>
+      </div>
+      <div id="hud-time">--:--</div>
+      <div id="hud-score">0</div>
+    </div>
+    <div class="level-caption" id="level-caption"></div>
+    <div class="board-wrap" id="board-wrap">
+      <svg class="diag-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <line id="dline-d0" x1="12.5" y1="12.5" x2="87.5" y2="87.5"></line>
+        <line id="dline-d1" x1="87.5" y1="12.5" x2="12.5" y2="87.5"></line>
+      </svg>
+      <div id="board"></div>
+    </div>
+    <div class="toolbar">
+      <div style="display:flex;align-items:center;gap:2px">
+        <button class="btn btn-exit" id="btn-exit">‹ 退出</button>
+        <button class="btn btn-exit" id="btn-mute" aria-label="声音开关">🔊</button>
+      </div>
+      <div class="steps-box">步数 <b id="hud-steps">0</b> / par <span id="hud-par">1</span></div>
+      <button class="btn btn-hint" id="btn-hint">提示<span class="hint-cost">本关效率分清零</span></button>
+    </div>
+  </div>
+
+  <!-- 过关闪现 -->
+  <div id="level-flash">
+    <div class="flash-box">
+      <div class="flash-check">✓</div>
+      <div class="flash-text" id="flash-text">第 1 关完成</div>
+    </div>
+  </div>
+
+  <!-- 结算弹窗 -->
+  <div id="modal-result">
+    <div class="modal-box">
+      <div class="modal-title" id="result-title">🎉 通关！</div>
+      <div class="modal-badge" id="result-badge"></div>
+      <div class="modal-score" id="result-score">0</div>
+      <div class="modal-detail" id="result-detail"></div>
+      <div class="modal-meta" id="result-meta"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="btn-again">再来一局</button>
+        <button class="btn btn-secondary" id="btn-home">换难度</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/*GEN-START*/
+// ═══ 出题生成器：纯逻辑模块，无 DOM 依赖，可被 node 压测脚本提取执行 ═══
+
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// 年级三档（面向小学 1~3 年级）
+// open: 开放格数（其余上锁）；shapes: 每关等式形态；mulCap: 乘法因数上限（口诀内）
+// failOnTimeout: 倒计时归零是否判负；hintFree: 提示是否免罚
+const TIERS = {
+  G1: { key: 'G1', name: '一年级', N: 10, time: 180, par: [1, 2, 2], open: 4,
+        shapes: ['R', 'RC1', 'RC'], ops: ['+', '-'], mulCap: 9, biasNoMul: true,
+        failOnTimeout: false, hintFree: true, hintsPerLevel: 2 },
+  G2: { key: 'G2', name: '二年级', N: 20, time: 180, par: [1, 2, 3], open: 6,
+        shapes: ['R', 'RC1', 'RC'], ops: ['+', '-', '*'], mulCap: 9, biasNoMul: true,
+        failOnTimeout: false, hintFree: true, hintsPerLevel: 2 },
+  G3: { key: 'G3', name: '三年级', N: 20, time: 240, par: [1, 2, 3], open: 9,
+        shapes: ['R', 'RC', 'ALL'], ops: ['+', '-', '*'], mulCap: 9, biasNoMul: true,
+        failOnTimeout: true, hintFree: false, hintsPerLevel: 1 },
+};
+
+// 方阵 a b c / d e f / g h i，等式形式：cells[0] op cells[1] = cells[2]
+const LINE_DEFS = [
+  { key: 'r0', cells: [0, 1, 2], group: 'rows' },
+  { key: 'r1', cells: [3, 4, 5], group: 'rows' },
+  { key: 'r2', cells: [6, 7, 8], group: 'rows' },
+  { key: 'c0', cells: [0, 3, 6], group: 'cols' },
+  { key: 'c1', cells: [1, 4, 7], group: 'cols' },
+  { key: 'c2', cells: [2, 5, 8], group: 'cols' },
+  { key: 'd0', cells: [0, 4, 8], group: 'diags' },
+  { key: 'd1', cells: [2, 4, 6], group: 'diags' },
+];
+
+// 等式形态 → 激活线集合：R=行3 / RC1=行3+中列 / RC=行列6 / ALL=全8
+const SHAPE_LINES = {
+  R:   ['r0', 'r1', 'r2'],
+  RC1: ['r0', 'r1', 'r2', 'c1'],
+  RC:  ['r0', 'r1', 'r2', 'c0', 'c1', 'c2'],
+  ALL: ['r0', 'r1', 'r2', 'c0', 'c1', 'c2', 'd0', 'd1'],
+};
+
+function applyOp(a, op, b, N) {
+  let v;
+  if (op === '+') v = a + b;
+  else if (op === '-') v = a - b;
+  else if (op === '*') v = a * b;
+  else { if (b === 0 || a % b !== 0) return null; v = a / b; }
+  return (Number.isInteger(v) && v >= 1 && v <= N) ? v : null;
+}
+
+// 出题专用：乘法因数限制在口诀内（判定仍用 applyOp，玩家拼出任意合法等式都算对）
+function genApply(a, op, b, N, mulCap) {
+  if (op === '*' && (a > mulCap || b > mulCap)) return null;
+  return applyOp(a, op, b, N);
+}
+
+// 激活线 = ops 携带的 key 集合
+function checkAll(grid, ops, N) {
+  const res = {}; let all = true;
+  for (const l of LINE_DEFS) {
+    if (!(l.key in ops)) continue;
+    const ok = applyOp(grid[l.cells[0]], ops[l.key], grid[l.cells[1]], N) === grid[l.cells[2]];
+    res[l.key] = ok;
+    if (!ok) all = false;
+  }
+  return { res, all };
+}
+
+function shuffled(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function ri(rng, N) { return 1 + Math.floor(rng() * N); }
+
+// x op y 的全部合法结果；biasNoMul 时把乘法排后（少出乘法）
+function opResults(x, y, tier, rng) {
+  let list = [];
+  for (const op of tier.ops) {
+    const v = genApply(x, op, y, tier.N, tier.mulCap);
+    if (v !== null) list.push({ op, v });
+  }
+  list = shuffled(list, rng);
+  if (tier.biasNoMul) list.sort((p, q) => (p.op === '*' ? 1 : 0) - (q.op === '*' ? 1 : 0));
+  return list;
+}
+
+// 构造一张该形态全部激活等式成立的解
+function construct(rng, tier, shape) {
+  const N = tier.N;
+  if (shape === 'R' || shape === 'RC1') {
+    // 行独立；RC1 先定中列 b,e→h，再逐行以中列值为第二操作数补全
+    for (let t = 0; t < 400; t++) {
+      const grid = [], ops = {};
+      let ok = true;
+      if (shape === 'RC1') {
+        ok = false;
+        for (let k = 0; k < 800; k++) {
+          const b = ri(rng, N), e = ri(rng, N);
+          const cands = opResults(b, e, tier, rng);
+          if (cands.length) {
+            grid[1] = b; grid[4] = e; grid[7] = cands[0].v;
+            ops.c1 = cands[0].op;
+            ok = true; break;
+          }
+        }
+      }
+      for (let r = 0; r < 3 && ok; r++) {
+        ok = false;
+        for (let k = 0; k < 800; k++) {
+          const mid = shape === 'RC1' ? grid[r * 3 + 1] : ri(rng, N);
+          const a = ri(rng, N);
+          const cands = opResults(a, mid, tier, rng);
+          if (cands.length) {
+            grid[r * 3] = a; grid[r * 3 + 1] = mid; grid[r * 3 + 2] = cands[0].v;
+            ops['r' + r] = cands[0].op;
+            ok = true; break;
+          }
+        }
+      }
+      if (ok && new Set(grid).size >= 4) return { solution: grid, ops };
+    }
+    return null;
+  }
+  // RC / ALL：随机 a,b,d,e，枚举各线运算符组合求交集
+  for (let t = 0; t < 200000; t++) {
+    const a = ri(rng, N), b = ri(rng, N), d = ri(rng, N), e = ri(rng, N);
+    for (const R1 of opResults(a, b, tier, rng)) {
+      const c = R1.v;
+      for (const C1 of opResults(a, d, tier, rng)) {
+        const g = C1.v;
+        let d2op = null;
+        if (shape === 'ALL') {
+          d2op = tier.ops.find(op => genApply(c, op, e, N, tier.mulCap) === g);
+          if (d2op === undefined) continue;
+        }
+        for (const R2 of opResults(d, e, tier, rng)) {
+          const f = R2.v;
+          const s2 = opResults(c, f, tier, rng);
+          if (!s2.length) continue;
+          const s3 = shape === 'ALL' ? opResults(a, e, tier, rng) : null;
+          if (shape === 'ALL' && !s3.length) continue;
+          for (const C2 of opResults(b, e, tier, rng)) {
+            const h = C2.v;
+            for (const R3 of opResults(g, h, tier, rng)) {
+              const i = R3.v;
+              const m2 = s2.find(x => x.v === i);
+              if (!m2) continue;
+              let m3 = null;
+              if (shape === 'ALL') {
+                m3 = s3.find(x => x.v === i);
+                if (!m3) continue;
+              }
+              const grid = [a, b, c, d, e, f, g, h, i];
+              if (new Set(grid).size < 5) continue;
+              const ops = { r0: R1.op, r1: R2.op, r2: R3.op, c0: C1.op, c1: C2.op, c2: m2.op };
+              if (shape === 'ALL') { ops.d0 = m3.op; ops.d1 = d2op; }
+              return { solution: grid, ops };
+            }
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// 反向打乱 par 步：随机选 open 个开放格，交换全部发生在开放格内
+// （交换对互不重叠、两格值不同）；打乱后必须不成立；开放格之外即锁定格
+function scramble(rng, sol, ops, N, par, open) {
+  const all = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  for (let t = 0; t < 120; t++) {
+    const openSet = shuffled(all, rng).slice(0, open);
+    const g = sol.slice();
+    const order = shuffled(openSet, rng);
+    let ok = true;
+    for (let k = 0; k < par; k++) {
+      const p = order[2 * k], q = order[2 * k + 1];
+      if (p === undefined || q === undefined || g[p] === g[q]) { ok = false; break; }
+      const tmp = g[p]; g[p] = g[q]; g[q] = tmp;
+    }
+    if (!ok) continue;
+    if (checkAll(g, ops, N).all) continue;   // 退化：打乱后仍成立
+    return { grid: g, openSet };
+  }
+  return null;
+}
+
+function genLevel(rng, tierKey, level) {
+  const tier = TIERS[tierKey];
+  const par = tier.par[level - 1];
+  const shape = tier.shapes[level - 1];
+  for (let t = 0; t < 20; t++) {
+    const c = construct(rng, tier, shape);
+    if (!c) continue;
+    const s = scramble(rng, c.solution, c.ops, tier.N, par, tier.open);
+    if (!s) continue;
+    return { grid: s.grid, openSet: s.openSet, solution: c.solution, ops: c.ops, par, level, shape };
+  }
+  throw new Error('generation failed: ' + tierKey + ' L' + level);
+}
+
+// 回溯求解：freeIdx 上的值能否重排使全部激活线成立；返回完成后的排列或 null
+// 剪枝：某自由格填入后，所在线若已完全赋值立即校验；同深度同值只试一次
+function solveFrom(grid, ops, N, freeIdx) {
+  const lines = LINE_DEFS.filter(l => l.key in ops);
+  const order = new Map(freeIdx.map((idx, k) => [idx, k]));
+  const g = grid.slice();
+  const vals = freeIdx.map(i => grid[i]);
+  const n = freeIdx.length;
+  const lineOk = l => applyOp(g[l.cells[0]], ops[l.key], g[l.cells[1]], N) === g[l.cells[2]];
+  const byDepth = new Map();   // 深度 k 填完后可完整校验的线
+  for (const l of lines) {
+    const depths = l.cells.filter(c => order.has(c)).map(c => order.get(c));
+    if (!depths.length) { if (!lineOk(l)) return null; continue; }   // 全固定线必须已成立
+    const d = Math.max(...depths);
+    if (!byDepth.has(d)) byDepth.set(d, []);
+    byDepth.get(d).push(l);
+  }
+  const used = new Array(n).fill(false);
+  function rec(k) {
+    if (k === n) return true;
+    const tried = new Set();
+    for (let t = 0; t < n; t++) {
+      if (used[t] || tried.has(vals[t])) continue;
+      tried.add(vals[t]);
+      used[t] = true;
+      g[freeIdx[k]] = vals[t];
+      let ok = true;
+      for (const l of (byDepth.get(k) || [])) if (!lineOk(l)) { ok = false; break; }
+      if (ok && rec(k + 1)) return true;
+      used[t] = false;
+    }
+    return false;
+  }
+  return rec(0) ? g : null;
+}
+
+const GEN = { mulberry32, TIERS, LINE_DEFS, SHAPE_LINES, applyOp, genApply, checkAll, genLevel, construct, scramble, solveFrom };
+/*GEN-END*/
+
+// ═══ 游戏状态与 UI ═══════════════════════════════════
+
+const OP_CHAR = { '+': '+', '-': '−', '*': '×', '/': '÷', '=': '=' };
+const BASE_SCORE = [100, 200, 300];
+
+// ── 音频：WebAudio 纯合成，零外部资源 ─────────────────
+const AudioSys = {
+  ctx: null, master: null, musicGain: null, bgmTimer: null,
+  muted: localStorage.getItem('eqsq_muted') === '1',
+  ensure() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.muted ? 0 : 1;
+      this.master.connect(this.ctx.destination);
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.value = 1;
+      this.musicGain.connect(this.master);
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return true;
+  },
+  note(freq, opt) {
+    if (!this.ctx) return;
+    const { t = 0, dur = .18, type = 'sine', vol = .2, dest = null } = opt || {};
+    const at = this.ctx.currentTime + t;
+    const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    gn.gain.setValueAtTime(0, at);
+    gn.gain.linearRampToValueAtTime(vol, at + .015);
+    gn.gain.exponentialRampToValueAtTime(.001, at + dur);
+    o.connect(gn); gn.connect(dest || this.master);
+    o.start(at); o.stop(at + dur + .05);
+  },
+  toggle() {
+    this.muted = !this.muted;
+    localStorage.setItem('eqsq_muted', this.muted ? '1' : '0');
+    if (this.master) this.master.gain.value = this.muted ? 0 : 1;
+    return this.muted;
+  },
+  // 氛围垫：2.4s 一小节，低音五度垫 + 五声音阶轻拨；WebAudio 时钟提前 4s 调度，
+  // hidden 下 setInterval 节流到 1s 也不断档
+  startBgm() {
+    if (!this.ensure()) return;
+    this.stopBgm();
+    const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+    const roots = [130.81, 174.61, 196.00, 146.83];
+    let bar = 0, nextAt = this.ctx.currentTime + .1;
+    const sched = () => {
+      while (nextAt < this.ctx.currentTime + 4) {
+        const dt = nextAt - this.ctx.currentTime;
+        const root = roots[bar % roots.length];
+        this.note(root, { t: dt, dur: 2.3, type: 'triangle', vol: .05, dest: this.musicGain });
+        this.note(root * 1.5, { t: dt, dur: 2.3, vol: .03, dest: this.musicGain });
+        this.note(scale[Math.floor(Math.random() * scale.length)],
+                  { t: dt + .6 + Math.random() * .9, dur: .5, vol: .05, dest: this.musicGain });
+        nextAt += 2.4; bar++;
+      }
+    };
+    sched();
+    this.bgmTimer = setInterval(sched, 900);
+  },
+  stopBgm() { clearInterval(this.bgmTimer); this.bgmTimer = null; },
+};
+
+const SFX = {
+  select() { if (AudioSys.ensure()) AudioSys.note(880, { dur: .08, vol: .1 }); },
+  swap()   { if (AudioSys.ensure()) { AudioSys.note(523, { dur: .09, vol: .13 }); AudioSys.note(659, { t: .06, dur: .11, vol: .13 }); } },
+  deny()   { if (AudioSys.ensure()) AudioSys.note(160, { dur: .14, type: 'triangle', vol: .16 }); },
+  lock()   { if (AudioSys.ensure()) { AudioSys.note(784, { dur: .22, vol: .18 }); AudioSys.note(1175, { t: .08, dur: .28, vol: .14 }); } },
+  hint()   { if (AudioSys.ensure()) { AudioSys.note(1318, { dur: .1, vol: .1 }); AudioSys.note(1760, { t: .09, dur: .14, vol: .09 }); } },
+  level()  { if (AudioSys.ensure()) [523, 659, 784, 1046].forEach((f, i) => AudioSys.note(f, { t: i * .09, dur: .2, vol: .18 })); },
+  win()    { if (AudioSys.ensure()) [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => AudioSys.note(f, { t: i * .12, dur: .28, vol: .18 })); },
+  lose()   { if (AudioSys.ensure()) [392, 330, 262].forEach((f, i) => AudioSys.note(f, { t: i * .18, dur: .32, type: 'triangle', vol: .14 })); },
+};
+
+const G = {
+  status: 'start',        // start | playing | flash | won | timeout
+  tier: null, seed: 0, rng: null,
+  level: 1, grid: [], solution: [], ops: {}, par: 1,
+  openSet: [], shape: 'R', doneSet: new Set(),
+  selected: -1, steps: 0, locked: false,
+  hintUsed: [false, false, false], hintsLeft: 0,
+  levelScores: [], score: 0, timeBonus: 0,
+  timeLeft: 0, timer: null,
+  flashToken: 0,
+};
+
+let cellEls = [], symEls = {};
+
+const $ = id => document.getElementById(id);
+const screens = { start: $('screen-start'), playing: $('screen-playing') };
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+
+// ── 最高分（按难度分 key）──────────────────────────
+function bestKey(t) { return 'eqsq_best_' + t; }
+function getBest(t) { return parseInt(localStorage.getItem(bestKey(t)) || '0', 10); }
+function saveBest() {
+  if (G.score > getBest(G.tier.key)) localStorage.setItem(bestKey(G.tier.key), String(G.score));
+}
+function refreshStartBests() {
+  for (const t of ['G1', 'G2', 'G3']) $('best-' + t).textContent = getBest(t);
+}
+
+// ── 倒计时 ─────────────────────────────────────────
+function startTimer() {
+  stopTimer();
+  if (document.hidden) return;   // 隐藏页不起表，visibilitychange 恢复
+  G.timer = setInterval(tick, 1000);
+}
+function stopTimer() { clearInterval(G.timer); G.timer = null; }
+function tick() {
+  if (G.status !== 'playing' && G.status !== 'flash') { stopTimer(); return; }
+  G.timeLeft--;
+  updateTimerUI();
+  if (G.timeLeft <= 0) {
+    if (G.tier.failOnTimeout) onTimeout();
+    else { G.timeLeft = 0; stopTimer(); $('hud-time').classList.add('dim'); }  // 无失败档：静默停表继续玩
+  }
+}
+function updateTimerUI() {
+  const t = Math.max(0, G.timeLeft);
+  const mm = String(Math.floor(t / 60)).padStart(2, '0');
+  const ss = String(t % 60).padStart(2, '0');
+  $('hud-time').textContent = mm + ':' + ss;
+  $('hud-time').classList.toggle('warning', t <= 30 && !!(G.tier && G.tier.failOnTimeout));
+}
+
+// ── 计分 ───────────────────────────────────────────
+function calcLevelScore(level, steps, par, hinted) {
+  const base = BASE_SCORE[level - 1];
+  let eff = 0, god = 0;
+  if (!hinted) {
+    eff = steps <= par ? 150 : Math.max(0, 150 - 50 * (steps - par));
+    if (steps < par) god = 100;
+  }
+  return { base, eff, god, total: base + eff + god };
+}
+function calcBadge() {
+  if (G.status !== 'won') return null;
+  const hint = G.hintUsed.some(Boolean);
+  const over = G.levelScores.reduce((s, l) => s + Math.max(0, l.steps - l.par), 0);
+  const badge = !hint ? (over <= 2 ? 'gold' : 'silver')
+                      : (over <= 2 ? 'silver' : 'bronze');
+  const zero = G.levelScores.length === 3 && G.levelScores.every(l => l.steps === l.par);
+  return { badge, zero };
+}
+
+// ── 棋盘渲染 ───────────────────────────────────────
+const SYM_POS = {  // [gridRow, gridCol] 1-indexed
+  r0: { op: [1, 2], eq: [1, 4] }, r1: { op: [3, 2], eq: [3, 4] }, r2: { op: [5, 2], eq: [5, 4] },
+  c0: { op: [2, 1], eq: [4, 1] }, c1: { op: [2, 3], eq: [4, 3] }, c2: { op: [2, 5], eq: [4, 5] },
+  d0: { op: [2, 2], eq: [4, 4] }, d1: { op: [2, 4], eq: [4, 2] },
+};
+
+function buildBoard() {
+  const board = $('board');
+  board.innerHTML = '';
+  board.className = '';
+  $('board-wrap').className = 'board-wrap' + ('d0' in G.ops ? ' diags' : '');
+  cellEls = []; symEls = {};
+  const openSet = new Set(G.openSet);
+  for (let idx = 0; idx < 9; idx++) {
+    const el = document.createElement('div');
+    el.className = 'cell' + (openSet.has(idx) ? '' : ' locked');
+    el.dataset.idx = idx;
+    el.style.gridRowStart = 2 * Math.floor(idx / 3) + 1;
+    el.style.gridColumnStart = 2 * (idx % 3) + 1;
+    el.textContent = G.grid[idx];
+    board.appendChild(el);
+    cellEls.push(el);
+  }
+  for (const l of LINE_DEFS) {
+    const has = l.key in G.ops;
+    const mk = (kind, ch) => {
+      const el = document.createElement('div');
+      el.className = 'sym g-' + l.group;
+      const pos = SYM_POS[l.key][kind];
+      el.style.gridRowStart = pos[0];
+      el.style.gridColumnStart = pos[1];
+      el.style.visibility = has ? '' : 'hidden';   // 未激活线占位不占显示
+      el.textContent = has ? ch : '';
+      $('board').appendChild(el);
+      return el;
+    };
+    symEls[l.key] = {
+      op: mk('op', has ? OP_CHAR[G.ops[l.key]] : ''),
+      eq: mk('eq', '='),
+    };
+  }
+  validate(false);
+}
+
+function validate(judge = true) {
+  const { res, all } = checkAll(G.grid, G.ops, G.tier.N);
+  for (const key in symEls) {
+    if (!(key in G.ops)) continue;
+    const ok = !!res[key];
+    symEls[key].op.classList.toggle('ok', ok);
+    symEls[key].eq.classList.toggle('ok', ok);
+    if (key === 'd0' || key === 'd1') {
+      const line = $('dline-' + key);
+      if (line) line.classList.toggle('ok', ok);
+    }
+  }
+  updateDoneLocks(res, !judge);
+  if (judge && all && G.status === 'playing') levelComplete();
+}
+
+function movableCell(i) { return G.openSet.includes(i) && !G.doneSet.has(i); }
+
+// 拼对即锁定：成立线上的可动格，经可完成性检查通过后锁定并变青；
+// 成立且已无可动格的线，整条（含初始锁定格）加 done 样式
+function updateDoneLocks(res, silent) {
+  const satLines = LINE_DEFS.filter(l => l.key in G.ops && res[l.key]);
+  const proposed = new Set();
+  for (const l of satLines) for (const c of l.cells) if (movableCell(c)) proposed.add(c);
+  if (proposed.size) {
+    const free = G.openSet.filter(i => !G.doneSet.has(i) && !proposed.has(i));
+    if (GEN.solveFrom(G.grid, G.ops, G.tier.N, free)) {
+      for (const c of proposed) G.doneSet.add(c);
+    }
+    // 检查不过（巧合成立但锁定会导致死局）：本轮不锁，符号照常变青
+  }
+  const doneCells = new Set(G.doneSet);
+  for (const l of satLines) {
+    if (l.cells.every(c => !movableCell(c))) l.cells.forEach(c => doneCells.add(c));
+  }
+  let newly = 0;
+  cellEls.forEach((el, i) => {
+    const was = el.classList.contains('done');
+    const is = doneCells.has(i);
+    el.classList.toggle('done', is);
+    if (is && !was) {
+      newly++;
+      if (!silent) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+    }
+  });
+  if (newly && !silent) SFX.lock();
+}
+
+// ── 交互 ───────────────────────────────────────────
+function tapCell(i) {
+  if (G.locked || G.status !== 'playing') return;
+  if (!movableCell(i)) { shakeCell(i); SFX.deny(); return; }   // 初始锁定格 / 已拼对格：抖动拒绝
+  if (G.selected === -1) { G.selected = i; cellEls[i].classList.add('sel'); SFX.select(); return; }
+  if (G.selected === i) { cellEls[i].classList.remove('sel'); G.selected = -1; return; }
+  const j = G.selected;
+  cellEls[j].classList.remove('sel');
+  G.selected = -1;
+  if (G.grid[i] === G.grid[j]) {        // 同值交换：局面不变，不计步
+    shakeCell(i); shakeCell(j); SFX.deny();
+    return;
+  }
+  SFX.swap();
+  const r1 = cellEls[i].getBoundingClientRect();
+  const r2 = cellEls[j].getBoundingClientRect();
+  const tmp = G.grid[i]; G.grid[i] = G.grid[j]; G.grid[j] = tmp;
+  G.steps++;
+  $('hud-steps').textContent = G.steps;
+  cellEls[i].textContent = G.grid[i];
+  cellEls[j].textContent = G.grid[j];
+  flipAnim(cellEls[i], r2.left - r1.left, r2.top - r1.top);
+  flipAnim(cellEls[j], r1.left - r2.left, r1.top - r2.top);
+  validate();
+}
+
+function flipAnim(el, dx, dy) {
+  el.style.transition = 'none';
+  el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  void el.offsetWidth;
+  el.style.transition = '';
+  el.style.transform = '';
+}
+
+function shakeCell(i) {
+  const el = cellEls[i];
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+}
+
+function useHint() {
+  if (G.locked || G.status !== 'playing' || G.hintsLeft <= 0) return;
+  // 以「当前可完成排列」为目标（锁定可能已偏离出题原解，原解对比会给出不可行建议）
+  const free = G.openSet.filter(movableCell);
+  const target = GEN.solveFrom(G.grid, G.ops, G.tier.N, free);
+  if (!target) return;
+  let p = -1;
+  for (const k of free) if (G.grid[k] !== target[k]) { p = k; break; }
+  if (p < 0) return;
+  let q = -1;
+  for (const k of free) {
+    if (k !== p && G.grid[k] === target[p] && G.grid[k] !== target[k]) { q = k; break; }
+  }
+  if (q < 0) return;
+  SFX.hint();
+  G.hintsLeft--;
+  G.hintUsed[G.level - 1] = true;   // 徽章判据：用过提示即失去银/金资格
+  updateHintUI();
+  const ep = cellEls[p], eq2 = cellEls[q];
+  ep.classList.add('hint'); eq2.classList.add('hint');
+  setTimeout(() => { ep.classList.remove('hint'); eq2.classList.remove('hint'); }, 3800);
+}
+
+function updateHintUI() {
+  const btn = $('btn-hint');
+  btn.disabled = G.hintsLeft <= 0;
+  btn.innerHTML = '提示 ×' + G.hintsLeft +
+    '<span class="hint-cost">' + (G.tier.hintFree ? '免费' : '本关效率分清零') + '</span>';
+}
+
+// ── 关卡流程 ───────────────────────────────────────
+function startLevel(n) {
+  G.level = n;
+  const p = genLevel(G.rng, G.tier.key, n);
+  G.grid = p.grid.slice();
+  G.solution = p.solution.slice();
+  G.ops = p.ops;
+  G.par = p.par;
+  G.openSet = p.openSet.slice();
+  G.shape = p.shape;
+  G.doneSet = new Set();
+  G.steps = 0;
+  G.selected = -1;
+  G.locked = false;
+  G.status = 'playing';
+  G.hintsLeft = G.tier.hintsPerLevel;
+  $('hud-steps').textContent = '0';
+  $('hud-par').textContent = G.par;
+  $('level-caption').textContent = '挪动数字，让算式成立';
+  document.querySelectorAll('.pip').forEach(pip => {
+    const l = +pip.dataset.l;
+    pip.classList.toggle('done', l < n);
+    pip.classList.toggle('now', l === n);
+  });
+  updateHintUI();
+  buildBoard();
+}
+
+function levelComplete() {
+  G.locked = true;
+  const hinted = G.hintUsed[G.level - 1] && !G.tier.hintFree;   // 免罚档提示不清零效率分
+  const ls = calcLevelScore(G.level, G.steps, G.par, hinted);
+  G.levelScores.push({ level: G.level, steps: G.steps, par: G.par, hinted, ...ls });
+  G.score += ls.total;
+  $('hud-score').textContent = G.score;
+  document.querySelectorAll('.pip')[G.level - 1].classList.add('done');
+  if (G.level === 3) {
+    G.status = 'won';
+    stopTimer();
+    G.timeBonus = Math.max(0, G.timeLeft) * 5;
+    G.score += G.timeBonus;
+    $('hud-score').textContent = G.score;
+    saveBest();
+    AudioSys.stopBgm();
+    SFX.win();
+    showFlash('通关！', () => showResult(true));
+  } else {
+    G.status = 'flash';
+    SFX.level();
+    const next = G.level + 1;
+    showFlash('第 ' + G.level + ' 关完成', () => {
+      if (G.status !== 'flash') return;   // 闪现期间超时则不再推进
+      startLevel(next);
+    });
+  }
+}
+
+// 过关闪现：animationend + setTimeout 双路径，token 幂等
+function showFlash(text, done) {
+  const token = ++G.flashToken;
+  $('flash-text').textContent = text;
+  const flash = $('level-flash');
+  flash.classList.remove('show');
+  void flash.offsetWidth;
+  flash.classList.add('show');
+  let fired = false;
+  const finish = () => {
+    if (fired || token !== G.flashToken) return;
+    fired = true;
+    flash.classList.remove('show');
+    done();
+  };
+  flash.querySelector('.flash-box').addEventListener('animationend', finish, { once: true });
+  setTimeout(finish, 950);
+}
+
+function onTimeout() {
+  if (G.status !== 'playing' && G.status !== 'flash') return;
+  G.timeLeft = 0;
+  updateTimerUI();
+  stopTimer();
+  G.status = 'timeout';
+  G.locked = true;
+  G.flashToken++;                    // 作废进行中的闪现回调
+  $('level-flash').classList.remove('show');
+  saveBest();
+  AudioSys.stopBgm();
+  SFX.lose();
+  showResult(false);
+}
+
+// ── 结算 ───────────────────────────────────────────
+const BADGE_TEXT = { gold: '🥇 金牌', silver: '🥈 银牌', bronze: '🥉 铜牌' };
+
+function showResult(won) {
+  $('result-title').textContent = won ? '🎉 通关！' : '⏰ 时间到';
+  $('result-score').textContent = G.score;
+  const badgeBox = $('result-badge');
+  badgeBox.innerHTML = '';
+  if (won) {
+    const b = calcBadge();
+    let html = '<span class="chip">' + BADGE_TEXT[b.badge] + '</span>';
+    if (b.zero) html += '<span class="chip">✨ 零步差</span>';
+    badgeBox.innerHTML = html;
+  }
+  const detail = $('result-detail');
+  detail.innerHTML = '';
+  for (let l = 1; l <= 3; l++) {
+    const ls = G.levelScores.find(x => x.level === l);
+    const row = document.createElement('div');
+    row.className = 'row';
+    if (ls) {
+      const parts = ['基础 ' + ls.base];
+      parts.push(ls.hinted ? '效率 0（提示）' : '效率 ' + ls.eff);
+      if (ls.god) parts.push('神之一手 +' + ls.god);
+      row.innerHTML = '<span>关 ' + l + ' · ' + ls.steps + ' 步 / par ' + ls.par + '</span><b>+' + ls.total + '</b>';
+      row.title = parts.join(' · ');
+      detail.appendChild(row);
+      const sub = document.createElement('div');
+      sub.className = 'row';
+      sub.style.fontSize = '13px';
+      sub.style.opacity = '.75';
+      sub.innerHTML = '<span style="padding-left:12px">' + parts.join(' + ') + '</span><span></span>';
+      detail.appendChild(sub);
+    } else {
+      row.innerHTML = '<span>关 ' + l + '</span><b style="opacity:.5">未完成</b>';
+      detail.appendChild(row);
+    }
+  }
+  if (won) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<span>时间奖励 · 剩 ' + (G.timeBonus / 5) + ' 秒 ×5</span><b>+' + G.timeBonus + '</b>';
+    detail.appendChild(row);
+  }
+  $('result-meta').textContent =
+    G.tier.name + ' · 种子 #' + G.seed + ' · 历史最高 ' + getBest(G.tier.key);
+  $('modal-result').classList.add('visible');
+}
+
+// ── 生命周期 ───────────────────────────────────────
+function startGame(tierKey, seed) {
+  G.tier = TIERS[tierKey];
+  G.seed = (seed === undefined) ? (Math.floor(Math.random() * 900000) + 100000) : seed;
+  G.rng = mulberry32(G.seed);
+  G.score = 0;
+  G.timeBonus = 0;
+  G.levelScores = [];
+  G.hintUsed = [false, false, false];
+  G.timeLeft = G.tier.time;
+  $('hud-score').textContent = '0';
+  $('tier-label').textContent = G.tier.name;
+  $('hud-time').classList.remove('dim');
+  $('modal-result').classList.remove('visible');
+  updateTimerUI();
+  showScreen('playing');
+  startLevel(1);
+  startTimer();
+  AudioSys.startBgm();
+}
+
+function exitToStart() {
+  stopTimer();
+  AudioSys.stopBgm();
+  G.status = 'start';
+  G.flashToken++;
+  $('level-flash').classList.remove('show');
+  $('modal-result').classList.remove('visible');
+  refreshStartBests();
+  showScreen('start');
+}
+
+// ── 事件绑定（触摸 + 鼠标）──────────────────────────
+function bindTap(el, fn) {
+  let moved = false, sx = 0, sy = 0;
+  el.addEventListener('touchstart', e => {
+    moved = false;
+    const t = e.touches[0]; sx = t.clientX; sy = t.clientY;
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) moved = true;
+  }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!moved) { e.preventDefault(); fn(e); }   // preventDefault 抑制合成 click，防双触发
+  }, { passive: false });
+  el.addEventListener('click', fn);
+}
+
+bindTap($('board'), e => {
+  const cell = e.target.closest('.cell');
+  if (cell) tapCell(+cell.dataset.idx);
+});
+document.querySelectorAll('.tier-card').forEach(card =>
+  bindTap(card, () => startGame(card.dataset.tier)));
+bindTap($('btn-hint'), useHint);
+bindTap($('btn-exit'), exitToStart);
+bindTap($('btn-mute'), () => { $('btn-mute').textContent = AudioSys.toggle() ? '🔇' : '🔊'; });
+$('btn-mute').textContent = AudioSys.muted ? '🔇' : '🔊';
+bindTap($('btn-again'), () => startGame(G.tier.key));
+bindTap($('btn-home'), exitToStart);
+
+$('board-wrap').addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopTimer();
+    if (AudioSys.ctx) AudioSys.ctx.suspend();
+  } else {
+    if ((G.status === 'playing' || G.status === 'flash') && G.timeLeft > 0) startTimer();
+    if (AudioSys.ctx && (G.status === 'playing' || G.status === 'flash')) AudioSys.ctx.resume();
+  }
+});
+window.addEventListener('pagehide', () => { stopTimer(); AudioSys.stopBgm(); });
+
+refreshStartBests();
+
+// 调试钩子（预览环境注入测试用）
+window.__eqsq = { G, GEN, startGame, startLevel, tapCell, useHint, onTimeout, calcLevelScore, calcBadge };
+</script>
+</body>
+</html>

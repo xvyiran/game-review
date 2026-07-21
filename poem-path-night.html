@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>诗路夜行</title>
+<style>
+/* ── 主题变量：深夜童话 ─────────────────────────── */
+:root {
+  --night-1:   #100e24;            /* 夜色底（深） */
+  --night-2:   #221c44;            /* 夜色底（浅） */
+  --cell-dark: #232047;            /* 黑暗中的格子 */
+  --cell-line: #33305e;            /* 格子描边 */
+  --cand-text: #8b97c4;            /* 候选字暗淡灰蓝 */
+  --gold:      #ffc94d;            /* 踩对点亮暖金 */
+  --gold-deep: #b97f1e;
+  --warm-bg1:  #4d3a6e;            /* 亮灯房间背景 */
+  --warm-bg2:  #6e5490;
+  --warm-cell: #fdf1cf;            /* 亮灯格子 */
+  --warm-text: #6b4712;            /* 亮灯诗字 */
+  --danger:    #ff6b6b;
+  --text:      #f3efff;
+  --text-dim:  rgba(243,239,255,0.55);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--night-1);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Serif SC', serif;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none; -webkit-user-select: none;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, var(--night-2) 0%, var(--night-1) 70%);
+}
+/* 静态星空底纹 */
+#game-container::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 11% 16%, rgba(255,255,255,0.55), transparent),
+    radial-gradient(1px 1px at 27% 42%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1.5px 1.5px at 41% 9%, rgba(255,240,200,0.5), transparent),
+    radial-gradient(1px 1px at 58% 30%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(2px 2px at 72% 13%, rgba(255,235,180,0.45), transparent),
+    radial-gradient(1px 1px at 85% 38%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 16% 68%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1.5px 1.5px at 90% 62%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 48% 82%, rgba(255,255,255,0.22), transparent),
+    radial-gradient(1.5px 1.5px at 68% 91%, rgba(255,240,200,0.3), transparent);
+}
+
+/* ── 屏幕管理 ──────────────────────────────────── */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.35s ease;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+.screen.active { opacity: 1; pointer-events: all; }
+
+.btn {
+  padding: 13px 30px;
+  border: none; border-radius: 26px;
+  font-size: 17px; font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  color: #3a2a08;
+  background: linear-gradient(180deg, #ffd970, #f0ad2e);
+  box-shadow: 0 4px 14px rgba(240,173,46,0.35);
+  transition: transform 0.1s, opacity 0.1s;
+}
+.btn:active { transform: scale(0.95); }
+.btn.btn-ghost {
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+  box-shadow: none;
+}
+
+/* ── 标题页 ───────────────────────────────────── */
+#screen-title { justify-content: center; gap: 14px; text-align: center; }
+#screen-title .moon { font-size: 56px; animation: floaty 3.2s ease-in-out infinite; }
+#screen-title h1 {
+  font-size: 42px; letter-spacing: 10px; margin-left: 10px;
+  text-shadow: 0 0 24px rgba(255,201,77,0.45);
+}
+#screen-title .tagline { font-size: 15px; color: var(--text-dim); letter-spacing: 2px; }
+#screen-title .total { font-size: 14px; color: var(--gold); margin-top: 6px; }
+#screen-title .btn { margin-top: 22px; }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+/* ── 引导页 ───────────────────────────────────── */
+#screen-guide { justify-content: center; gap: 12px; }
+#screen-guide h2 { font-size: 22px; letter-spacing: 6px; margin-bottom: 6px; }
+.guide-card {
+  width: min(330px, 90vw);
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.guide-card .ico { font-size: 30px; flex: none; }
+.guide-card .g-title { font-size: 16px; font-weight: bold; color: var(--gold); margin-bottom: 3px; }
+.guide-card .g-desc { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+#btn-guide-start { margin-top: 16px; }
+#btn-help { padding: 8px 14px; font-size: 13px; }
+
+/* ── 选关页 ───────────────────────────────────── */
+#screen-levels { gap: 10px; overflow: hidden; }
+#screen-levels .top {
+  width: 100%; max-width: 420px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+#screen-levels h2 { font-size: 20px; letter-spacing: 4px; }
+#screen-levels .total { font-size: 13px; color: var(--gold); }
+#level-list {
+  width: 100%; max-width: 420px; flex: 1;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px;
+}
+.tier-label { font-size: 13px; color: var(--text-dim); letter-spacing: 3px; margin-top: 6px; }
+.level-card {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 12px 14px;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+}
+.level-card:active { transform: scale(0.98); background: rgba(255,255,255,0.1); }
+.level-card.locked { opacity: 0.45; }
+.level-card .num {
+  width: 40px; height: 40px; flex: none;
+  border-radius: 50%;
+  background: rgba(255,201,77,0.15);
+  color: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: bold;
+}
+.level-card .info { flex: 1; min-width: 0; }
+.level-card .name { font-size: 17px; }
+.level-card .meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.level-card .stars { font-size: 15px; letter-spacing: 1px; color: var(--gold); white-space: nowrap; }
+.level-card .stars .off { color: rgba(255,255,255,0.18); }
+.level-card .badge { font-size: 15px; }
+
+/* ── 游戏页 ───────────────────────────────────── */
+#screen-game { gap: 8px; }
+.game-header {
+  width: 100%; max-width: 460px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 38px;
+}
+#btn-back {
+  background: rgba(255,255,255,0.1); border: none; color: var(--text);
+  width: 38px; height: 38px; border-radius: 50%; font-size: 17px; cursor: pointer;
+  font-family: inherit;
+}
+.game-title { font-size: 16px; text-align: center; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.err-display { font-size: 15px; letter-spacing: 2px; white-space: nowrap; min-width: 58px; text-align: right; }
+.rt-display { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+
+/* 诗句进度 */
+#poem-progress {
+  width: 100%; max-width: 460px;
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 2px 14px;
+  min-height: 40px;
+}
+#poem-progress .line { display: flex; gap: 2px; }
+#poem-progress .pchar {
+  font-size: 15px; color: rgba(255,255,255,0.18);
+  transition: color 0.4s, text-shadow 0.4s;
+  min-width: 16px; text-align: center;
+}
+#poem-progress .pchar.walked { color: var(--gold); text-shadow: 0 0 8px rgba(255,201,77,0.6); }
+#poem-progress .pchar.shown  { color: var(--text-dim); }
+/* 诗句引路：怠速时点亮下一个字 */
+#poem-progress .pchar.hint-next {
+  color: #ffe9b0;
+  text-shadow: 0 0 10px rgba(255,220,150,0.9);
+  animation: hint-breathe 1.4s ease-in-out infinite;
+}
+@keyframes hint-breathe { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+/* 网格（房间） */
+#grid-wrap {
+  position: relative;
+  touch-action: none;
+  margin-top: 2px;
+  border-radius: 14px;
+  padding: 6px;
+  background: rgba(255,255,255,0.03);
+  transition: background 0.8s ease, box-shadow 0.8s ease;
+}
+#screen-game.lit-room #grid-wrap {
+  background: linear-gradient(160deg, var(--warm-bg1), var(--warm-bg2));
+  box-shadow: 0 0 60px rgba(255,205,100,0.25), inset 0 0 40px rgba(255,220,150,0.15);
+}
+#grid { display: grid; gap: 4px; position: relative; touch-action: none; }
+/* 观察阶段路径连线 */
+#path-svg {
+  position: absolute; inset: 0; z-index: 3;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+#path-svg.hidden-line { opacity: 0; }
+.path-line {
+  fill: none;
+  stroke: rgba(255, 170, 60, 0.8);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(255, 180, 70, 0.8));
+}
+.path-line-end {
+  fill: rgba(255, 170, 60, 0.9);
+}
+.cell {
+  position: relative;
+  border-radius: 9px;
+  background: var(--cell-dark);
+  border: 1px solid var(--cell-line);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.5s, box-shadow 0.5s, border-color 0.5s;
+  cursor: pointer;
+}
+.cell span {
+  font-size: clamp(18px, 6.4vw, 30px);
+  line-height: 1;
+  transition: color 0.3s, opacity 0.3s, text-shadow 0.3s;
+}
+/* 亮灯观察：显示诗字 */
+#screen-game.lit-room .cell.on-path {
+  background: var(--warm-cell);
+  border-color: rgba(255,255,255,0.5);
+}
+#screen-game.lit-room .cell.on-path span { color: var(--warm-text); }
+/* 黑暗中：候选字 */
+.cell.cand span { color: var(--cand-text); opacity: 0.85; }
+/* 滑动预览（手指触边未进中心区，可退回） */
+.cell.near {
+  background: #2e2b58;
+  border-color: var(--cand-text);
+  box-shadow: 0 0 10px rgba(139, 151, 196, 0.35);
+}
+/* 已点亮的格子 */
+.cell.lit {
+  background: linear-gradient(180deg, #ffe6a3, var(--gold));
+  border-color: #ffe9b0;
+  box-shadow: 0 0 14px rgba(255,201,77,0.55);
+}
+.cell.lit span { color: var(--gold-deep); opacity: 1; }
+/* 点错闪现正确字（初级） */
+.cell.flash {
+  background: rgba(255,201,77,0.28);
+  border-color: var(--gold);
+}
+.cell.flash span { color: var(--gold); opacity: 1; text-shadow: 0 0 10px rgba(255,201,77,0.8); }
+/* 怠速微光脉动 */
+.cell.pulse { animation: pulse-glow 1.6s ease-in-out infinite; }
+@keyframes pulse-glow {
+  0%,100% { box-shadow: 0 0 4px rgba(255,201,77,0.15); }
+  50%     { box-shadow: 0 0 20px rgba(255,201,77,0.65); }
+}
+/* 单格抖动（点无效格） */
+.cell.shake-small { animation: shake-small 0.3s ease; }
+@keyframes shake-small {
+  0%,100% { transform: translateX(0); }
+  30% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+}
+/* 整体抖动（点错） */
+#grid-wrap.shake { animation: shake 0.4s ease; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-9px); }
+  45% { transform: translateX(9px); }
+  70% { transform: translateX(-5px); }
+}
+
+/* 玩家 */
+#player {
+  position: absolute; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(22px, 7.4vw, 34px);
+  transition: transform 0.3s ease;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(255,220,150,0.5));
+}
+/* 夜雾：连错时云层聚拢逼近 */
+#monster {
+  position: absolute; z-index: 6;
+  left: 50%; top: -6%;
+  font-size: 34px;
+  transform: translate(-50%, 0) scale(0.6);
+  opacity: 0;
+  transition: transform 0.6s ease, opacity 0.6s ease, top 0.6s ease;
+  pointer-events: none;
+  filter: drop-shadow(0 0 14px rgba(170,185,230,0.55));
+}
+
+/* 底部条：观察倒计时 / 提示 */
+#bottom-bar {
+  width: 100%; max-width: 460px;
+  min-height: 58px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  text-align: center;
+}
+#observe-count {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: bold; color: var(--gold);
+}
+#btn-ready { padding: 11px 22px; font-size: 15px; }
+#hint-text { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+
+/* ── 结果弹窗 ─────────────────────────────────── */
+.modal {
+  position: absolute; inset: 0; z-index: 20;
+  background: rgba(8,6,20,0.72);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.modal.visible { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: linear-gradient(170deg, #2c2452, #1c173a);
+  border: 1px solid rgba(255,201,77,0.25);
+  border-radius: 20px;
+  padding: 30px 26px 24px;
+  width: min(330px, 86vw);
+  text-align: center;
+  transform: scale(0.8);
+  transition: transform 0.3s ease;
+}
+.modal.visible .modal-box { transform: scale(1); }
+.modal-title { font-size: 25px; font-weight: bold; margin-bottom: 8px; }
+.modal-stars { font-size: 34px; letter-spacing: 6px; margin: 6px 0 2px; color: var(--gold); min-height: 44px; }
+.modal-stars .off { color: rgba(255,255,255,0.15); }
+.modal-stars .star { display: inline-block; animation: pop-in 0.4s ease backwards; }
+.modal-stars .star:nth-child(2) { animation-delay: 0.15s; }
+.modal-stars .star:nth-child(3) { animation-delay: 0.3s; }
+.modal-badge { font-size: 14px; color: var(--gold); min-height: 20px; margin-bottom: 4px; }
+.modal-score { font-size: 46px; font-weight: bold; color: var(--gold); line-height: 1.15; }
+.modal-label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+.modal-total { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions .btn { flex: 1; padding: 12px 8px; font-size: 15px; }
+@keyframes pop-in {
+  from { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.25); }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── 被抓演出层 ───────────────────────────────── */
+#fail-overlay {
+  position: absolute; inset: 0; z-index: 15;
+  background: #000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+#fail-overlay.visible { opacity: 1; }
+#fail-overlay .eyes {
+  font-size: 60px;
+  transform: scale(1);
+  transition: transform 0.9s cubic-bezier(0.6, 0, 0.9, 1);
+}
+#fail-overlay.visible .eyes { transform: scale(7); }
+
+/* ── 回放跳过按钮 ─────────────────────────────── */
+#btn-skip-replay {
+  position: absolute; z-index: 18;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  left: 50%; transform: translateX(-50%);
+  padding: 10px 24px; font-size: 14px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+#btn-skip-replay.visible { opacity: 1; pointer-events: all; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <!-- 标题页 -->
+  <div id="screen-title" class="screen active">
+    <div class="moon">🌙</div>
+    <h1>诗路夜行</h1>
+    <div class="tagline">记住诗的星路 · 连亮夜空的星河</div>
+    <div class="total" id="title-total"></div>
+    <button class="btn" id="btn-start">进入夜色</button>
+  </div>
+
+  <!-- 引导页 -->
+  <div id="screen-guide" class="screen">
+    <h2>夜行指南</h2>
+    <div class="guide-card">
+      <div class="ico">🌌</div>
+      <div>
+        <div class="g-title">星图显现</div>
+        <div class="g-desc">星座亮起时，记住这条路线——它只出现一小会儿</div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="ico">🌠</div>
+      <div>
+        <div class="g-title">一笔连星</div>
+        <div class="g-desc">夜雾掩星后，按住滑动连星回到月亮。越快到达终点，星速奖励越多</div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="ico">📖</div>
+      <div>
+        <div class="g-title">诗句引路</div>
+        <div class="g-desc">忘了路？停一停，点亮的诗句会提示你下一个字，跟着诗走就好</div>
+      </div>
+    </div>
+    <button class="btn" id="btn-guide-start">出发 ✨</button>
+  </div>
+
+  <!-- 选关页 -->
+  <div id="screen-levels" class="screen">
+    <div class="top">
+      <h2>选关</h2>
+      <button class="btn btn-ghost" id="btn-help">玩法</button>
+      <div class="total" id="levels-total"></div>
+    </div>
+    <div id="level-list"></div>
+  </div>
+
+  <!-- 游戏页 -->
+  <div id="screen-game" class="screen">
+    <div class="game-header">
+      <button id="btn-back" aria-label="返回">←</button>
+      <div class="game-title" id="game-title"></div>
+      <div class="rt-display" id="rt-display" hidden></div>
+      <div class="err-display" id="err-display"></div>
+    </div>
+    <div id="poem-progress"></div>
+    <div id="grid-wrap">
+      <div id="grid"></div>
+      <div id="player">🧒</div>
+      <div id="monster">☁️</div>
+    </div>
+    <div id="bottom-bar">
+      <div id="observe-count" hidden>8</div>
+      <button class="btn" id="btn-ready" hidden>我记住了 ✨</button>
+      <div id="hint-text" hidden></div>
+    </div>
+  </div>
+
+  <!-- 星图熄灭演出层 -->
+  <div id="fail-overlay"><div class="eyes">☁️</div></div>
+
+  <!-- 回放跳过 -->
+  <button class="btn btn-ghost" id="btn-skip-replay">跳过回放 ≫</button>
+
+  <!-- 结算弹窗 -->
+  <div class="modal" id="modal-result">
+    <div class="modal-box">
+      <div class="modal-title" id="result-title"></div>
+      <div class="modal-stars" id="result-stars"></div>
+      <div class="modal-badge" id="result-badge"></div>
+      <div class="modal-score" id="result-score"></div>
+      <div class="modal-label" id="result-label">本关得分</div>
+      <div class="modal-total" id="result-total"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btn-to-levels">选关</button>
+        <button class="btn btn-ghost" id="btn-retry">再玩一次</button>
+        <button class="btn" id="btn-next">下一关</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+/* ════════════════════════════════════════════════════
+   内容包：诗库 + 预置路径（数据驱动，换内容不改引擎）
+   path[0] = 门口(起点)，path[1..n] = 诗字格，末位 = 床
+   路径由离线脚本生成并校验：网格内 / 相邻步进 / 无自交
+   ════════════════════════════════════════════════════ */
+const LEVELS = [
+  { id: 1, tier: 0, title: '静夜思', author: '李白',
+    lines: ['床前明月光', '疑是地上霜', '举头望明月', '低头思故乡'],
+    cols: 5, rows: 6,
+    path: [[4,5],[4,4],[3,4],[2,4],[2,5],[1,5],[1,4],[0,4],[0,3],[0,2],[0,1],[1,1],[1,2],[2,2],[2,3],[3,3],[3,2],[4,2],[4,1],[3,1],[3,0],[4,0]] },
+  { id: 2, tier: 0, title: '春晓', author: '孟浩然',
+    lines: ['春眠不觉晓', '处处闻啼鸟', '夜来风雨声', '花落知多少'],
+    cols: 5, rows: 6,
+    path: [[0,5],[0,4],[1,4],[2,4],[2,5],[3,5],[3,4],[4,4],[4,3],[3,3],[2,3],[1,3],[1,2],[0,2],[0,1],[1,1],[2,1],[2,0],[3,0],[3,1],[3,2],[2,2]] },
+  { id: 3, tier: 0, title: '登鹳雀楼', author: '王之涣',
+    lines: ['白日依山尽', '黄河入海流', '欲穷千里目', '更上一层楼'],
+    cols: 5, rows: 6,
+    path: [[3,5],[2,5],[1,5],[1,4],[0,4],[0,3],[0,2],[1,2],[1,1],[1,0],[2,0],[3,0],[3,1],[4,1],[4,2],[3,2],[2,2],[2,3],[3,3],[3,4],[4,4],[4,3]] },
+  { id: 4, tier: 1, title: '悯农·其二', author: '李绅',
+    lines: ['锄禾日当午', '汗滴禾下土', '谁知盘中餐', '粒粒皆辛苦'],
+    cols: 5, rows: 6,
+    path: [[0,5],[0,4],[1,4],[2,4],[2,5],[3,5],[3,4],[4,4],[4,3],[4,2],[3,2],[3,1],[3,0],[2,0],[2,1],[1,1],[0,1],[0,2],[1,2],[1,3],[2,3],[3,3]] },
+  { id: 5, tier: 1, title: '望庐山瀑布', author: '李白',
+    lines: ['日照香炉生紫烟', '遥看瀑布挂前川', '飞流直下三千尺', '疑是银河落九天'],
+    cols: 5, rows: 8,
+    path: [[4,7],[3,7],[3,6],[3,5],[4,5],[4,4],[3,4],[3,3],[4,3],[4,2],[4,1],[3,1],[3,0],[2,0],[1,0],[1,1],[0,1],[0,2],[1,2],[2,2],[2,3],[2,4],[2,5],[2,6],[1,6],[0,6],[0,5],[0,4],[1,4],[1,3]] },
+  { id: 6, tier: 1, title: '咏柳', author: '贺知章',
+    lines: ['碧玉妆成一树高', '万条垂下绿丝绦', '不知细叶谁裁出', '二月春风似剪刀'],
+    cols: 5, rows: 8,
+    path: [[4,7],[4,6],[4,5],[4,4],[3,4],[2,4],[2,5],[2,6],[2,7],[1,7],[1,6],[0,6],[0,5],[0,4],[1,4],[1,3],[2,3],[3,3],[3,2],[4,2],[4,1],[3,1],[3,0],[2,0],[1,0],[0,0],[0,1],[0,2],[1,2],[2,2]] },
+  { id: 7, tier: 2, title: '早发白帝城', author: '李白',
+    lines: ['朝辞白帝彩云间', '千里江陵一日还', '两岸猿声啼不住', '轻舟已过万重山'],
+    cols: 5, rows: 8,
+    path: [[0,7],[0,6],[0,5],[0,4],[1,4],[1,5],[1,6],[2,6],[2,7],[3,7],[3,6],[3,5],[4,5],[4,4],[3,4],[2,4],[2,3],[2,2],[1,2],[0,2],[0,1],[1,1],[1,0],[2,0],[3,0],[4,0],[4,1],[4,2],[3,2],[3,3]] },
+  { id: 8, tier: 2, title: '绝句', author: '杜甫',
+    lines: ['两个黄鹂鸣翠柳', '一行白鹭上青天', '窗含西岭千秋雪', '门泊东吴万里船'],
+    cols: 5, rows: 8,
+    path: [[4,7],[4,6],[4,5],[4,4],[4,3],[4,2],[4,1],[3,1],[3,2],[2,2],[2,1],[2,0],[1,0],[1,1],[0,1],[0,2],[0,3],[1,3],[2,3],[2,4],[3,4],[3,5],[2,5],[2,6],[2,7],[1,7],[0,7],[0,6],[0,5],[1,5]] },
+  { id: 9, tier: 2, title: '山行', author: '杜牧',
+    lines: ['远上寒山石径斜', '白云生处有人家', '停车坐爱枫林晚', '霜叶红于二月花'],
+    cols: 5, rows: 8,
+    path: [[3,7],[2,7],[1,7],[1,6],[0,6],[0,5],[0,4],[1,4],[1,3],[0,3],[0,2],[0,1],[1,1],[1,0],[2,0],[3,0],[3,1],[4,1],[4,2],[4,3],[4,4],[4,5],[4,6],[3,6],[3,5],[2,5],[2,4],[2,3],[2,2],[3,2]] },
+];
+
+/* 档次参数：观察秒数 / 干扰字数 / 错误上限 / 点错闪现 / 干扰字池 */
+const TIERS = [
+  { name: '初级', observe: 8, distract: 1, maxErr: 3, flash: true,  pool: 'random'  },
+  { name: '中级', observe: 5, distract: 2, maxErr: 3, flash: false, pool: 'poem'    },
+  { name: '高级', observe: 3, distract: 3, maxErr: 2, flash: false, pool: 'similar' },
+];
+
+/* 常用字池（初级随机干扰字） */
+const COMMON_CHARS = '大小天地心手水火木石金风云雨春夏秋冬花草树鸟虫鱼马牛羊走飞看听说读写学人家门山川河海远近高低红绿青黑白早晚朝夕光影声色'.split('');
+
+/* 形近字表（高级干扰字，缺失回退本诗字池） */
+const SIMILAR = {
+  '朝':['潮','期','翰'], '辞':['乱','辫'], '白':['百','自','日'], '帝':['席','常','啼'],
+  '彩':['采','踩','彬'], '云':['去','会','运'], '间':['问','闲','闻'], '千':['干','于','十'],
+  '里':['理','果','埋'], '江':['汪','工','红'], '陵':['凌','棱','菱'], '日':['曰','目','白'],
+  '还':['环','近','迈'], '两':['雨','丙','俩'], '岸':['崖','库','岩'], '猿':['缘','袁','猴'],
+  '声':['生','吉','壶'], '啼':['蹄','帝','谛'], '不':['木','才','丕'], '住':['往','主','佳'],
+  '轻':['经','径','轮'], '舟':['丹','州','舰'], '已':['己','巳','包'], '过':['达','边','辽'],
+  '万':['方','丈','厉'], '重':['童','垂','董'], '山':['出','仙','岁'], '个':['人','介','众'],
+  '黄':['横','簧','广'], '鹂':['鹊','鹃','骊'], '鸣':['呜','鸡','名'], '翠':['醉','卒','翡'],
+  '柳':['榴','迎','卿'], '行':['街','衍','往'], '鹭':['鹰','露','鹤'], '上':['止','土','让'],
+  '青':['清','情','晴'], '天':['夫','无','太'], '窗':['囱','察','窄'], '含':['念','令','舍'],
+  '西':['酉','四','洒'], '岭':['领','玲','冷'], '秋':['秒','私','愁'], '雪':['雷','雯','霎'],
+  '门':['们','闩','问'], '泊':['伯','拍','泡'], '东':['冻','车','乐'], '吴':['昊','误','吞'],
+  '船':['般','舶','航'], '远':['运','元','逗'], '寒':['塞','赛','寨'], '石':['右','召','磊'],
+  '径':['经','轻','泾'], '斜':['料','抖','科'], '生':['主','牛','午'], '处':['外','夕','虚'],
+  '有':['友','右','存'], '人':['入','八','大'], '家':['冢','象','豪'], '停':['亭','侦','庭'],
+  '车':['军','东','轧'], '坐':['座','空','堂'], '爱':['受','变','暖'], '枫':['疯','风','讽'],
+  '林':['木','森','淋'], '晚':['挽','免','勉'], '霜':['露','箱','孀'], '叶':['计','什','叫'],
+  '红':['虹','工','江'], '于':['干','予','千'], '二':['三','工','贰'], '月':['目','用','且'],
+  '花':['化','华','苍'],
+};
+
+/* ── 全局状态 ─────────────────────────────────── */
+const PAR_PER_CHAR = 3;  // 星速奖励标准时长：每字 3 秒
+const state = {
+  phase: 'title',        // title|guide|levels|observe|recall|win|caught|replay
+  levelIdx: -1,
+  step: 0,               // 已点对的字数；玩家位于 path[step]
+  errors: 0,
+  hintUsed: false,
+  observeLeft: 0,
+  recallStart: 0,        // 回忆阶段计时（星速奖励；切后台暂停）
+  recallElapsed: 0,
+  candidates: [],        // [{idx(格序号), char, correct}]
+};
+const timers = {};       // 命名计时器句柄，统一清理
+
+function setTimer(name, fn, ms, repeat) {
+  clearTimer(name);
+  timers[name] = { id: repeat ? setInterval(fn, ms) : setTimeout(fn, ms), repeat: !!repeat };
+}
+function clearTimer(name) {
+  const t = timers[name];
+  if (!t) return;
+  (t.repeat ? clearInterval : clearTimeout)(t.id);
+  delete timers[name];
+}
+function clearAllTimers() { Object.keys(timers).forEach(clearTimer); }
+
+/* ── 进度持久化 ───────────────────────────────── */
+const STORE_KEY = 'ppn_progress';
+let progress = { stars: {}, badges: {}, best: {}, unlocked: 1 };
+try {
+  const raw = localStorage.getItem(STORE_KEY);
+  if (raw) progress = Object.assign(progress, JSON.parse(raw));
+} catch (e) { /* 隐私模式等场景静默降级为内存进度 */ }
+if (!progress.best) progress.best = {};
+/* 旧存档迁移：没有 best 记录的按 星级×基础分 折算 */
+LEVELS.forEach(l => {
+  const st = progress.stars[l.id];
+  if (st && progress.best[l.id] == null) progress.best[l.id] = l.id * 100 * st;
+});
+function saveProgress() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* 同上 */ }
+}
+function totalScore() {
+  return LEVELS.reduce((sum, lv) => sum + (progress.best[lv.id] || 0), 0);
+}
+
+/* ── DOM 引用与工具 ───────────────────────────── */
+const $ = id => document.getElementById(id);
+const screens = { title: $('screen-title'), guide: $('screen-guide'), levels: $('screen-levels'), game: $('screen-game') };
+let cellEls = [];        // 当前关网格 DOM，按 r*cols+c 索引
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+function lv() { return LEVELS[state.levelIdx]; }
+function tier() { return TIERS[lv().tier]; }
+function chars() { return lv().lines.join('').split(''); }
+function cellIdx([c, r]) { return r * lv().cols + c; }
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* ── 标题页 / 选关页 ──────────────────────────── */
+function renderTitle() {
+  const t = totalScore();
+  $('title-total').textContent = t > 0 ? `⭐ 总分 ${t}` : '';
+}
+function renderLevels() {
+  $('levels-total').textContent = `⭐ 总分 ${totalScore()}`;
+  const list = $('level-list');
+  list.innerHTML = '';
+  let curTier = -1;
+  LEVELS.forEach((l, i) => {
+    if (l.tier !== curTier) {
+      curTier = l.tier;
+      const label = document.createElement('div');
+      label.className = 'tier-label';
+      const t = TIERS[curTier];
+      label.textContent = `— ${t.name} · 观察 ${t.observe}s · 干扰字 ${t.distract} · 容错 ${t.maxErr} —`;
+      list.appendChild(label);
+    }
+    const locked = l.id > progress.unlocked;
+    const stars = progress.stars[l.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'level-card' + (locked ? ' locked' : '');
+    card.innerHTML = `
+      <div class="num">${locked ? '🔒' : l.id}</div>
+      <div class="info">
+        <div class="name">${l.title}</div>
+        <div class="meta">${l.author} · ${l.lines.join('').length} 字</div>
+      </div>
+      ${progress.badges[l.id] ? '<div class="badge" title="熟背">📖</div>' : ''}
+      <div class="stars">${'<span>★</span>'.repeat(stars)}${'<span class="off">★</span>'.repeat(3 - stars)}</div>`;
+    if (!locked) card.addEventListener('click', () => startLevel(i));
+    list.appendChild(card);
+  });
+}
+
+/* ── 进入关卡：渲染网格 + 观察阶段 ─────────────── */
+function startLevel(idx) {
+  clearAllTimers();
+  state.levelIdx = idx;
+  state.step = 0;
+  state.errors = 0;
+  state.hintUsed = false;
+  state.candidates = [];
+
+  const l = lv();
+  $('game-title').textContent = `第${l.id}关 · ${l.title}`;
+  renderErr();
+  renderPoemProgress();
+  buildGrid();
+  showScreen('game');
+  hideModal();
+  $('fail-overlay').classList.remove('visible');
+  $('btn-skip-replay').classList.remove('visible');
+  $('monster').style.opacity = '0';
+  $('monster').style.transform = 'translate(-50%, 0) scale(0.6)';
+
+  enterObserve();
+}
+
+function buildGrid() {
+  const l = lv();
+  const grid = $('grid');
+  const wrap = $('grid-wrap');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${l.cols}, 1fr)`;
+  /* 网格整体尺寸：宽受 96vw 约束，高受视口剩余高度约束（矮屏整体缩小） */
+  const size = `min(96vw, calc((100dvh - 235px) * ${l.cols} / ${l.rows}), 440px)`;
+  grid.style.width = `calc(${size} - 12px)`;
+  wrap.style.width = size;
+
+  cellEls = [];
+  for (let r = 0; r < l.rows; r++) {
+    for (let c = 0; c < l.cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.idx = r * l.cols + c;
+      cell.style.aspectRatio = '1';
+      cell.innerHTML = '<span></span>';
+      grid.appendChild(cell);
+      cellEls.push(cell);
+    }
+  }
+  /* 路径连线画布（观察/回放时显示） */
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'path-svg';
+  svg.classList.add('hidden-line');
+  grid.appendChild(svg);
+  /* 玩家尺寸与格子一致，用百分比 transform 定位 */
+  const p = $('player');
+  p.style.width = `calc(100% / ${l.cols})`;
+  p.style.height = `calc(100% / ${l.rows})`;
+  movePlayer(0, false);
+}
+
+function movePlayer(pathIdx, animate) {
+  const l = lv();
+  const [c, r] = l.path[pathIdx];
+  const p = $('player');
+  if (!animate) p.style.transition = 'none';
+  /* grid 有 6px padding，玩家以格子区域为基准 */
+  p.style.left = '6px'; p.style.top = '6px';
+  const cellW = `((100% - 12px) / ${l.cols})`;
+  p.style.width = `calc(${cellW})`;
+  p.style.height = `calc((100% - 12px) / ${l.rows})`;
+  p.style.transform = `translate(${c * 100}%, ${r * 100}%)`;
+  if (!animate) requestAnimationFrame(() => { p.style.transition = ''; });
+}
+
+/* 观察阶段路径连线：沿格心 polyline，从起点描到月亮
+   布局未稳定（宽度为 0）时延迟重试；resize 时以 animate=false 重建保持对齐 */
+function buildPathLine(animate = true) {
+  const l = lv(), grid = $('grid');
+  const svg = $('path-svg');
+  if (!svg) return;
+  if (!grid.clientWidth || !cellEls[0].offsetWidth) {
+    setTimer('lineRetry', () => buildPathLine(animate), 80);
+    return;
+  }
+  const pts = l.path.map(p => {
+    const el = cellEls[cellIdx(p)];
+    return [el.offsetLeft + el.offsetWidth / 2, el.offsetTop + el.offsetHeight / 2];
+  });
+  svg.setAttribute('viewBox', `0 0 ${grid.clientWidth} ${grid.clientHeight}`);
+  const cw = cellEls[0].offsetWidth;
+  const end = pts[pts.length - 1];
+  svg.innerHTML =
+    `<polyline class="path-line" style="stroke-width:${Math.max(5, cw * 0.13)}px"` +
+    ` points="${pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ')}"/>` +
+    `<circle class="path-line-end" cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="${Math.max(4, cw * 0.09).toFixed(1)}"/>`;
+  svg.classList.remove('hidden-line');
+  if (!animate) return;
+  const line = svg.querySelector('.path-line');
+  const len = line.getTotalLength();
+  line.style.strokeDasharray = len;
+  line.style.strokeDashoffset = len;
+  line.getBoundingClientRect();               // 强制 reflow，让描线 transition 生效
+  line.style.transition = 'stroke-dashoffset 1.6s ease-out';
+  line.style.strokeDashoffset = '0';
+}
+
+/* 视口变化（旋转/地址栏收起）时重建连线，保持与网格对齐 */
+window.addEventListener('resize', () => {
+  if (state.phase === 'observe' || state.phase === 'replay') buildPathLine(false);
+});
+
+function renderErr() {
+  const t = tier();
+  const left = t.maxErr - state.errors;
+  $('err-display').textContent = '⭐'.repeat(left) + '·'.repeat(state.errors);
+}
+
+function renderPoemProgress() {
+  const box = $('poem-progress');
+  box.innerHTML = '';
+  lv().lines.forEach(line => {
+    const div = document.createElement('div');
+    div.className = 'line';
+    line.split('').forEach(ch => {
+      const s = document.createElement('span');
+      s.className = 'pchar';
+      s.dataset.ch = ch;
+      s.textContent = ch;
+      div.appendChild(s);
+    });
+    box.appendChild(div);
+  });
+}
+/* 关灯后未走过的字必须遮罩，否则玩家可直接照抄答案 */
+function updatePoemProgress() {
+  const els = $('poem-progress').querySelectorAll('.pchar');
+  els.forEach((el, i) => {
+    const walked = i < state.step;
+    el.classList.toggle('walked', walked);
+    if (!el.classList.contains('shown')) el.textContent = walked ? el.dataset.ch : '·';
+  });
+}
+function showFullPoem(show) {
+  const els = $('poem-progress').querySelectorAll('.pchar');
+  els.forEach((el, i) => {
+    el.classList.toggle('shown', show);
+    el.textContent = show || i < state.step ? el.dataset.ch : '·';
+  });
+}
+
+/* ── 观察阶段（亮灯） ─────────────────────────── */
+function enterObserve() {
+  state.phase = 'observe';
+  const l = lv(), cs = chars();
+  screens.game.classList.add('lit-room');
+  showFullPoem(true);
+  /* 路径显字：path[1..n] 诗字，末位床，起点门口 */
+  cellEls.forEach(cell => { cell.className = 'cell'; cell.firstChild.textContent = ''; });
+  l.path.forEach((pos, i) => {
+    const cell = cellEls[cellIdx(pos)];
+    cell.classList.add('on-path');
+    if (i === 0) cell.firstChild.textContent = '';           // 起点：玩家站位
+    else if (i === l.path.length - 1) cell.firstChild.textContent = '🌕';
+    else cell.firstChild.textContent = cs[i - 1];
+  });
+  movePlayer(0, false);
+  buildPathLine();
+
+  state.observeLeft = tier().observe;
+  $('observe-count').hidden = false;
+  $('btn-ready').hidden = false;
+  $('hint-text').hidden = true;
+  $('observe-count').textContent = state.observeLeft;
+  setTimer('observe', () => {
+    state.observeLeft -= 1;
+    $('observe-count').textContent = Math.max(0, state.observeLeft);
+    if (state.observeLeft <= 0) enterRecall();
+  }, 1000, true);
+}
+
+/* ── 回忆阶段（关灯） ─────────────────────────── */
+function enterRecall() {
+  if (state.phase !== 'observe') return;
+  clearTimer('observe');
+  state.phase = 'recall';
+  screens.game.classList.remove('lit-room');
+  $('path-svg').classList.add('hidden-line');
+  showFullPoem(false);
+  /* 灭字 */
+  cellEls.forEach(cell => { cell.classList.remove('on-path'); cell.firstChild.textContent = ''; });
+  /* 起点保持微亮标记已走 */
+  cellEls[cellIdx(lv().path[0])].classList.add('lit');
+  cellEls[cellIdx(lv().path[0])].firstChild.textContent = '🌠';
+  $('observe-count').hidden = true;
+  $('btn-ready').hidden = true;
+  const hint = $('hint-text');
+  hint.hidden = false;
+  hint.textContent = '夜雾掩住了星图……按住滑向下一个字';
+  /* 星速计时开始（切后台暂停，见 visibilitychange） */
+  state.recallElapsed = 0;
+  state.recallStart = Date.now();
+  $('rt-display').hidden = false;
+  updateRecallTimer();
+  setTimer('rtimer', updateRecallTimer, 1000, true);
+  spawnCandidates();
+  resetIdleTimer();
+}
+
+function recallSeconds() {
+  return (state.recallElapsed + (state.recallStart ? Date.now() - state.recallStart : 0)) / 1000;
+}
+function updateRecallTimer() {
+  $('rt-display').textContent = `⏱${Math.floor(recallSeconds())}s`;
+}
+
+/* 候选字生成：1 正确 + N 干扰（排除正确字与路径后续字） */
+function spawnCandidates() {
+  const l = lv(), cs = chars(), t = tier();
+  /* 清除旧候选 */
+  state.candidates.forEach(cd => {
+    const cell = cellEls[cd.idx];
+    if (!cell.classList.contains('lit')) { cell.classList.remove('cand'); cell.firstChild.textContent = ''; }
+  });
+  state.candidates = [];
+
+  const visited = new Set(l.path.slice(0, state.step + 1).map(p => cellIdx(p)));
+  const [c, r] = l.path[state.step];
+  const free = [];
+  [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dc, dr]) => {
+    const nc = c + dc, nr = r + dr;
+    if (nc >= 0 && nc < l.cols && nr >= 0 && nr < l.rows && !visited.has(nr * l.cols + nc)) {
+      free.push(nr * l.cols + nc);
+    }
+  });
+
+  const nextPathIdx = state.step + 1;
+  const isBedStep = nextPathIdx === l.path.length - 1;
+  const correctIdx = cellIdx(l.path[nextPathIdx]);
+  const correctChar = isBedStep ? '🌕' : cs[nextPathIdx - 1];
+
+  /* 干扰字排除集：正确字 + 路径后续所有未走的字 */
+  const excluded = new Set(cs.slice(state.step));
+  const used = new Set();
+  const pickFrom = pool => {
+    const options = shuffle(pool.filter(ch => !excluded.has(ch) && !used.has(ch)));
+    return options[0] || null;
+  };
+  function pickDistractor() {
+    let ch = null;
+    if (t.pool === 'similar') {
+      ch = pickFrom(SIMILAR[correctChar] || []);
+      if (!ch) ch = pickFrom(cs);              // 回退：本诗字
+    } else if (t.pool === 'poem') {
+      ch = pickFrom(cs);
+    }
+    if (!ch) ch = pickFrom(COMMON_CHARS);      // 最终回退：常用字池
+    if (ch) used.add(ch);
+    return ch;
+  }
+
+  /* 正确候选 */
+  state.candidates.push({ idx: correctIdx, char: correctChar, correct: true });
+  /* 干扰候选：其余空邻格随机取 min(N, 数量) 个 */
+  const others = shuffle(free.filter(i => i !== correctIdx)).slice(0, t.distract);
+  others.forEach(i => {
+    const ch = pickDistractor();
+    if (!ch) return;
+    console.assert(!excluded.has(ch), 'PPN: 干扰字命中排除集', ch);
+    state.candidates.push({ idx: i, char: ch, correct: false });
+  });
+
+  /* 渲染 */
+  state.candidates.forEach(cd => {
+    const cell = cellEls[cd.idx];
+    cell.classList.add('cand');
+    cell.firstChild.textContent = cd.char;
+  });
+}
+
+/* ── 前进判定（滑动/点击共用） ──────────────────── */
+function advance(cd) {
+  clearTimer('idle');
+  clearHintPulse();
+  const l = lv();
+  state.step += 1;
+  movePlayer(state.step, true);
+  /* 点亮该格并保留字 */
+  const cell = cellEls[cd.idx];
+  cell.classList.remove('cand', 'near');
+  cell.classList.add('lit');
+  cell.firstChild.textContent = cd.char;
+  updatePoemProgress();
+  /* 清掉其余候选 */
+  state.candidates.filter(x => !x.correct).forEach(x => {
+    const el = cellEls[x.idx];
+    el.classList.remove('cand', 'near'); el.firstChild.textContent = '';
+  });
+  state.candidates = [];
+
+  if (state.step === l.path.length - 1) { onWin(); return; }
+  $('hint-text').textContent = '';
+  spawnCandidates();          // 立即生成下批候选，连续滑动不打断
+  resetIdleTimer();
+}
+
+function onWrong(cd) {
+  state.errors += 1;
+  renderErr();
+  /* 整体抖动 + “它”逼近 */
+  const wrap = $('grid-wrap');
+  wrap.classList.remove('shake');
+  void wrap.offsetWidth;
+  wrap.classList.add('shake');
+  const t = tier();
+  const ratio = Math.min(1, state.errors / t.maxErr);
+  const m = $('monster');
+  m.style.opacity = String(0.5 + ratio * 0.5);
+  m.style.top = `${-6 + ratio * 30}%`;
+  m.style.transform = `translate(-50%, 0) scale(${0.6 + ratio * 1.6})`;
+
+  if (state.errors >= t.maxErr) { onCaught(); return; }
+
+  /* 初级：闪现正确字 1s（不锁输入，可立刻点对） */
+  if (t.flash) {
+    const correct = state.candidates.find(x => x.correct);
+    if (correct) {
+      const cell = cellEls[correct.idx];
+      cell.classList.add('flash');
+      setTimer('flash', () => cell.classList.remove('flash'), 1000);
+    }
+  }
+  $('hint-text').textContent = `连错了，夜雾更浓了…${t.flash ? '记住闪光的字！' : ''}还能错 ${t.maxErr - state.errors} 次`;
+}
+
+/* ── 怠速提示（20s 无操作） ────────────────────── */
+function resetIdleTimer() {
+  clearHintPulse();
+  setTimer('idle', () => {
+    if (state.phase !== 'recall') return;
+    state.hintUsed = true;
+    cellEls[cellIdx(lv().path[state.step])].classList.add('pulse');
+    /* 诗句引路：忘记路时，点亮诗句进度条的下一个字 */
+    const cs = chars();
+    if (state.step < cs.length) {
+      const el = $('poem-progress').querySelectorAll('.pchar')[state.step];
+      if (el) { el.classList.add('hint-next'); el.textContent = el.dataset.ch; }
+      $('hint-text').textContent = `想不起来？跟着诗句走——下一个字是「${cs[state.step]}」`;
+    } else {
+      $('hint-text').textContent = '终点就在眼前——滑向月亮 🌕';
+    }
+  }, 20000);
+}
+function clearHintPulse() {
+  cellEls.forEach(c => c.classList.remove('pulse'));
+  const h = $('poem-progress').querySelector('.pchar.hint-next');
+  if (h) {
+    h.classList.remove('hint-next');
+    if (!h.classList.contains('walked') && !h.classList.contains('shown')) h.textContent = '·';
+  }
+}
+
+/* ── 胜利：结算 + 全诗点亮回放 ─────────────────── */
+function onWin() {
+  const time = Math.round(recallSeconds());
+  state.phase = 'win';
+  clearAllTimers();
+  $('rt-display').hidden = true;
+  if (navigator.vibrate) navigator.vibrate(80);
+  const l = lv();
+  const stars = state.errors === 0 ? 3 : state.errors === 1 ? 2 : 1;
+  const badge = state.errors === 0 && !state.hintUsed;
+  /* 星速奖励：越快到终点分数越多（只加分不减分，星级分保底） */
+  const par = chars().length * PAR_PER_CHAR;
+  const bonus = Math.round(l.id * 100 * Math.max(0, (par - time) / par));
+  const score = l.id * 100 * stars + bonus;
+  /* 写进度：历史最高星 + 历史最佳得分 */
+  if (stars > (progress.stars[l.id] || 0)) progress.stars[l.id] = stars;
+  if (score > (progress.best[l.id] || 0)) progress.best[l.id] = score;
+  if (badge) progress.badges[l.id] = true;
+  if (l.id + 1 > progress.unlocked && l.id < LEVELS.length) progress.unlocked = l.id + 1;
+  saveProgress();
+  playReplay({ stars, badge, bonus, score, time });
+}
+
+function playReplay(res) {
+  state.phase = 'replay';
+  const l = lv(), cs = chars();
+  screens.game.classList.add('lit-room');
+  $('path-svg').classList.remove('hidden-line');
+  $('hint-text').textContent = '🌌 诗之星河点亮回放';
+  /* 复位所有格再逐个点亮 */
+  cellEls.forEach(cell => { cell.className = 'cell'; cell.firstChild.textContent = ''; });
+  const pchars = $('poem-progress').querySelectorAll('.pchar');
+  pchars.forEach(el => { el.classList.remove('walked', 'shown'); el.textContent = '·'; });
+  $('btn-skip-replay').classList.add('visible');
+
+  let i = 0;
+  const lightOne = k => {
+    const cell = cellEls[cellIdx(l.path[k])];
+    cell.classList.add('lit');
+    cell.firstChild.textContent = k === 0 ? '🌠' : k === l.path.length - 1 ? '🌕' : cs[k - 1];
+    const p = pchars[k - 1];
+    if (k >= 1 && k <= cs.length && p) { p.classList.add('walked'); p.textContent = p.dataset.ch; }
+  };
+  const finish = () => {
+    clearTimer('replay');
+    for (; i < l.path.length; i++) lightOne(i);
+    $('btn-skip-replay').classList.remove('visible');
+    setTimer('modal', () => showResult(res), 500);
+  };
+  $('btn-skip-replay').onclick = finish;
+  setTimer('replay', () => {
+    lightOne(i);
+    i += 1;
+    if (i >= l.path.length) finish();
+  }, 220, true);
+}
+
+function showResult(res) {
+  const l = lv();
+  $('result-title').textContent = '🌌 星河连亮了！';
+  $('result-stars').innerHTML =
+    '<span class="star">★</span>'.repeat(res.stars) + '<span class="off">★</span>'.repeat(3 - res.stars);
+  $('result-badge').textContent = res.badge ? '📖 获得「熟背」徽章' : '';
+  $('result-score').textContent = res.score;
+  $('result-label').textContent =
+    `基础 ${l.id * 100} × ${res.stars}星` + (res.bonus > 0 ? ` + ⚡星速 ${res.bonus}` : '') + `（用时 ${res.time}s）`;
+  $('result-total').textContent = `总分 ${totalScore()}`;
+  $('btn-next').style.display = state.levelIdx < LEVELS.length - 1 ? '' : 'none';
+  $('modal-result').classList.add('visible');
+}
+
+/* ── 失败：被抓 ───────────────────────────────── */
+function onCaught() {
+  state.phase = 'caught';
+  clearAllTimers();
+  $('rt-display').hidden = true;
+  if (navigator.vibrate) navigator.vibrate([80, 60, 120]);
+  const overlay = $('fail-overlay');
+  overlay.classList.add('visible');
+  setTimer('caught', () => {
+    overlay.classList.remove('visible');
+    const l = lv();
+    $('result-title').textContent = '🌫️ 夜雾吞没了星图…';
+    $('result-stars').innerHTML = '<span class="off">★★★</span>';
+    $('result-badge').textContent = `「${l.title}」还没背熟？读一读再来！`;
+    $('result-score').textContent = '0';
+    $('result-label').textContent = '本关得分';
+    $('result-total').textContent = `总分 ${totalScore()}`;
+    $('btn-next').style.display = 'none';
+    $('modal-result').classList.add('visible');
+  }, 1400);
+}
+
+/* ── 弹窗与导航 ───────────────────────────────── */
+function hideModal() { $('modal-result').classList.remove('visible'); }
+function leaveGame() {
+  clearAllTimers();
+  state.phase = 'levels';
+  $('rt-display').hidden = true;
+  screens.game.classList.remove('lit-room');
+  hideModal();
+  $('fail-overlay').classList.remove('visible');
+  $('btn-skip-replay').classList.remove('visible');
+  renderLevels();
+  showScreen('levels');
+}
+
+/* ── 事件绑定 ─────────────────────────────────── */
+/* 首次进入展示引导页，之后直达选关；选关页「玩法」可重看 */
+let guideSeen = false;
+try { guideSeen = localStorage.getItem('ppn_guide_seen') === '1'; } catch (e) { /* 隐私模式 */ }
+$('btn-start').addEventListener('click', () => {
+  if (!guideSeen) { state.phase = 'guide'; showScreen('guide'); return; }
+  renderLevels(); showScreen('levels'); state.phase = 'levels';
+});
+$('btn-guide-start').addEventListener('click', () => {
+  guideSeen = true;
+  try { localStorage.setItem('ppn_guide_seen', '1'); } catch (e) { /* 同上 */ }
+  renderLevels(); showScreen('levels'); state.phase = 'levels';
+});
+$('btn-help').addEventListener('click', () => { state.phase = 'guide'; showScreen('guide'); });
+$('btn-back').addEventListener('click', leaveGame);
+$('btn-ready').addEventListener('click', enterRecall);
+$('btn-to-levels').addEventListener('click', leaveGame);
+$('btn-retry').addEventListener('click', () => startLevel(state.levelIdx));
+$('btn-next').addEventListener('click', () => startLevel(state.levelIdx + 1));
+
+/* ── 滑动选路输入层（一笔画式，Pointer Events 统一触摸/鼠标） ── */
+const stroke = { active: false, downIdx: -1, committed: false };
+let wrongCooldownUntil = 0;
+
+function cellFromPoint(clientX, clientY) {
+  const l = lv();
+  const rect = $('grid').getBoundingClientRect();
+  const gap = 4;
+  const cw = (rect.width - (l.cols - 1) * gap) / l.cols;
+  const ch = (rect.height - (l.rows - 1) * gap) / l.rows;
+  const x = clientX - rect.left, y = clientY - rect.top;
+  if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
+  const c = Math.min(l.cols - 1, Math.floor(x / (cw + gap)));
+  const r = Math.min(l.rows - 1, Math.floor(y / (ch + gap)));
+  const ox = x - c * (cw + gap), oy = y - r * (ch + gap);
+  if (ox > cw || oy > ch) return null;        // 落在格间隙
+  /* 中心区（约55%内核）才判定；边缘只预览，可退回 */
+  const inCore = ox > cw * 0.225 && ox < cw * 0.775 && oy > ch * 0.225 && oy < ch * 0.775;
+  return { idx: r * l.cols + c, inCore };
+}
+
+function clearNear() { cellEls.forEach(el => el.classList.remove('near')); }
+
+/* 手指位置处理：候选格边缘=预览高亮可退回，进中心区=判定 */
+function handlePoint(clientX, clientY) {
+  if (state.phase !== 'recall') return;
+  const hit = cellFromPoint(clientX, clientY);
+  clearNear();
+  if (!hit) return;
+  const cd = state.candidates.find(k => k.idx === hit.idx);
+  if (!cd) return;
+  if (!hit.inCore) { cellEls[hit.idx].classList.add('near'); return; }
+  if (cd.correct) {
+    stroke.committed = true;
+    advance(cd);
+  } else if (Date.now() > wrongCooldownUntil) {
+    wrongCooldownUntil = Date.now() + 600;    // 冷却：滑动抖动不重复计错
+    stroke.committed = true;
+    onWrong(cd);
+  }
+}
+
+const gridWrap = $('grid-wrap');
+gridWrap.addEventListener('pointerdown', e => {
+  if (state.phase !== 'recall') return;
+  stroke.active = true;
+  stroke.committed = false;
+  const hit = cellFromPoint(e.clientX, e.clientY);
+  stroke.downIdx = hit ? hit.idx : -1;
+  try { gridWrap.setPointerCapture(e.pointerId); } catch (err) { /* 部分旧浏览器不支持 */ }
+  resetIdleTimer();
+  handlePoint(e.clientX, e.clientY);
+});
+gridWrap.addEventListener('pointermove', e => {
+  if (!stroke.active) return;
+  handlePoint(e.clientX, e.clientY);
+});
+gridWrap.addEventListener('pointerup', e => {
+  if (!stroke.active) return;
+  stroke.active = false;
+  clearNear();
+  if (state.phase !== 'recall') return;
+  /* 单点落在非候选格且整次滑动未产生判定：抖动提示，不计错 */
+  const hit = cellFromPoint(e.clientX, e.clientY);
+  if (!stroke.committed && hit && hit.idx === stroke.downIdx &&
+      !state.candidates.some(k => k.idx === hit.idx)) {
+    const cell = cellEls[hit.idx];
+    cell.classList.remove('shake-small');
+    void cell.offsetWidth;
+    cell.classList.add('shake-small');
+  }
+});
+gridWrap.addEventListener('pointercancel', () => { stroke.active = false; clearNear(); });
+gridWrap.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+/* 切后台：暂停观察倒计时；回忆阶段重置怠速计时 */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (state.phase === 'observe') clearTimer('observe');
+    if (state.phase === 'recall') {
+      clearTimer('idle');
+      /* 星速计时暂停：累计已用时间 */
+      clearTimer('rtimer');
+      state.recallElapsed += Date.now() - state.recallStart;
+      state.recallStart = 0;
+    }
+  } else {
+    if (state.phase === 'observe') {
+      setTimer('observe', () => {
+        state.observeLeft -= 1;
+        $('observe-count').textContent = Math.max(0, state.observeLeft);
+        if (state.observeLeft <= 0) enterRecall();
+      }, 1000, true);
+    }
+    if (state.phase === 'recall') {
+      state.recallStart = Date.now();
+      setTimer('rtimer', updateRecallTimer, 1000, true);
+      resetIdleTimer();
+    }
+  }
+});
+
+/* ── 内容包运行时自检（开发兜底） ───────────────── */
+LEVELS.forEach(l => {
+  const n = l.lines.join('').length;
+  console.assert(l.path.length === n + 2, `PPN: L${l.id} 路径长度应为 ${n + 2}`);
+  const seen = new Set();
+  l.path.forEach(([c, r], i) => {
+    console.assert(c >= 0 && c < l.cols && r >= 0 && r < l.rows, `PPN: L${l.id} 坐标越界 @${i}`);
+    const k = c + ',' + r;
+    console.assert(!seen.has(k), `PPN: L${l.id} 路径自交 @${i}`);
+    seen.add(k);
+    if (i > 0) {
+      const [pc, pr] = l.path[i - 1];
+      console.assert(Math.abs(c - pc) + Math.abs(r - pr) === 1, `PPN: L${l.id} 非相邻步进 @${i}`);
+    }
+  });
+});
+
+renderTitle();
+</script>
+</body>
+</html>

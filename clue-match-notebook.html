@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>侦探笔记 · 小小推理家</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--paper:#FDF6E3;--bg:#F5EFE6;--ink:#3D3229;--muted:#8B7E6A;--line:#E0D5C5;--accent:#F0A030;--ok:#58C472;--bad:#F26D6D}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);min-height:100vh;overflow:hidden;color:var(--ink)}
+#app{position:relative;width:100%;height:100vh;overflow:hidden}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:18px 18px 20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.screen.active{opacity:1;pointer-events:auto}
+#screen-play{overflow-y:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}
+h1{font-size:clamp(1.25rem,4.8vw,1.7rem);margin-bottom:10px;text-align:center}
+h2{font-size:clamp(1.05rem,4vw,1.35rem);margin-bottom:14px;text-align:center}
+.notebook-page{background:var(--paper);border-radius:16px;padding:18px;box-shadow:0 3px 10px rgba(0,0,0,.06);border:1px solid #E8DDD0}
+
+.hud{width:100%;max-width:430px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px}
+.hud-title{font-weight:800;font-size:clamp(.95rem,3.6vw,1.1rem);text-align:center;flex:1}
+.btn{border:none;border-radius:12px;padding:10px 16px;font-weight:800;font-size:clamp(.82rem,3vw,.96rem);cursor:pointer;touch-action:manipulation}
+.btn-small{background:var(--muted);color:#fff;min-width:76px}
+.btn-primary{background:var(--accent);color:#fff;min-width:150px;box-shadow:0 4px 0 #D18118}
+.btn-secondary{background:#E9DDC9;color:var(--ink)}
+
+.map-cases{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%;max-width:330px;margin-top:12px}
+.map-case{background:var(--paper);border-radius:16px;padding:18px 10px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer}
+.map-case .emoji{font-size:2.4rem;margin-bottom:8px}
+.map-case .label{font-weight:800;color:var(--ink)}
+
+.board-wrap{width:100%;max-width:430px;background:var(--paper);border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:0 3px 10px rgba(0,0,0,.05)}
+.board-hint{font-size:13px;color:var(--muted);line-height:1.45;margin:0 0 10px}
+.board{display:grid;grid-template-columns:72px repeat(3,1fr);gap:7px}
+.head,.row-label,.cell{min-height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.18}
+.head{background:#F0E8D8;color:var(--ink);font-size:13px;font-weight:900}
+.head span,.row-label span,.choice span{display:block;font-size:18px;margin-bottom:2px}
+.row-label{background:#F0E8D8;color:var(--muted);font-size:13px;font-weight:900}
+.row-label.pet{color:#D4834A}.row-label.drink{color:#4A9FD4}
+.cell{background:#FFFEF8;border:1.5px dashed #C4B8A0;color:#B9AA93;font-size:22px;cursor:pointer;user-select:none;transition:transform .12s,background .12s,border .12s}
+.cell:active{transform:scale(.97)}
+.cell.filled{background:#FFF9EC;border-style:solid;border-color:#E3CFA8;color:var(--ink);font-size:13px;font-weight:900}
+.cell.filled span{display:block;font-size:22px;margin-bottom:2px}
+.cell.has-notes{align-items:flex-start;justify-content:flex-start;padding:7px;background:#FFFEF8;font-size:12px;color:var(--ink)}
+.notes{display:flex;flex-wrap:wrap;gap:3px;align-content:flex-start}
+.note{font-size:11px;line-height:1;border-radius:999px;background:#F0E8D8;color:#7B6D5A;padding:4px 5px;white-space:nowrap}
+.cell.err{animation:shake .35s;border-color:var(--bad)!important;box-shadow:0 0 0 2px rgba(242,109,109,.22)}
+
+.clues{width:100%;max-width:430px;background:var(--paper);border-radius:16px;padding:12px;max-height:34vh;overflow-y:auto;box-shadow:0 3px 10px rgba(0,0,0,.05);margin-bottom:12px}
+.clues-title{font-weight:900;margin-bottom:6px}
+.clue{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line);font-size:clamp(.8rem,3vw,.92rem);line-height:1.45;color:#4A4239}
+.clue:last-child{border-bottom:none}
+.clue.used{opacity:.58}
+.clue.used .clue-text{text-decoration:line-through}
+.clue.used .num{background:var(--ok)}
+.num{width:22px;height:22px;border-radius:50%;background:var(--muted);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex:0 0 22px}
+.actions{width:100%;max-width:430px;display:flex;justify-content:center;padding-bottom:10px}
+
+#bubble{position:fixed;z-index:20;display:none;background:#fff;border-radius:16px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:220px;max-width:92vw}
+#bubble::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid #fff}
+.bubble-title{font-size:13px;color:var(--muted);font-weight:800;padding:6px 8px 8px}
+.choice{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer}
+.choice:active{background:#F5EFE6}
+.choice .pic{width:34px;height:34px;border-radius:10px;background:#FFF4DE;display:flex;align-items:center;justify-content:center;font-size:21px}
+.choice.note-choice .pic{background:#EEF2FF;font-size:15px;color:#5967A8}
+.choice.erase .pic{background:#F0E8D8}
+.choice-title{font-size:12px;color:var(--muted);font-weight:900;padding:9px 8px 4px;border-top:1px dashed #E8DDD0;margin-top:4px}
+
+#modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:30;padding:20px}
+#modal.on{display:flex}
+.modal-inner{width:min(360px,92vw);background:var(--paper);border-radius:20px;padding:24px 20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+#modal-title{font-size:1.3rem;font-weight:900;margin-bottom:12px}
+#modal-stars{font-size:1.8rem;margin-bottom:12px}
+#modal-evidence{font-size:.95rem;line-height:1.6;color:#5A4E42;margin-bottom:18px}
+#modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%) translateY(16px);z-index:40;background:var(--ink);color:#fff;border-radius:12px;padding:11px 16px;max-width:88vw;font-size:14px;line-height:1.35;opacity:0;transition:all .25s;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#confetti{position:fixed;inset:0;z-index:25;pointer-events:none}
+
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-3px)}}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg);opacity:0}}
+@media (max-height:740px){
+  .screen{padding-top:12px}
+  .hud{margin-bottom:8px}.board-wrap{padding:10px;margin-bottom:8px}.clues{max-height:30vh;padding:10px}
+  .head,.row-label,.cell{min-height:50px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="screen-map" class="screen active">
+    <h1>侦探笔记</h1>
+    <div class="notebook-page" style="max-width:360px;text-align:center">
+      <p style="font-size:15px;line-height:1.75;color:#5A4E42">
+        先看几条线索，点表格填答案。<br>
+        用上的线索会划掉，并出现新线索。<br>
+        填完后点“核对推理”通关。
+      </p>
+    </div>
+    <div class="map-cases" id="map-cases"></div>
+  </div>
+
+  <div id="screen-story" class="screen">
+    <div class="notebook-page" style="max-width:360px;text-align:center;margin-top:36px">
+      <div id="story-emoji" style="font-size:3rem;margin-bottom:12px"></div>
+      <h2 id="story-title"></h2>
+      <p id="story-text" style="font-size:15px;line-height:1.75;color:#5A4E42;margin-bottom:20px"></p>
+      <button class="btn btn-primary" onclick="startLevel()">开始推理</button>
+    </div>
+  </div>
+
+  <div id="screen-play" class="screen">
+    <div class="hud">
+      <button class="btn btn-small" onclick="backToMap()">返回</button>
+      <div class="hud-title" id="hud-title"></div>
+      <button class="btn btn-small" onclick="useHint()">提示</button>
+    </div>
+    <div class="board-wrap">
+      <div class="board-hint">点格子可填答案，也可记“不是某项”；线索完整用上后会打勾下移。</div>
+      <div class="board" id="board"></div>
+    </div>
+    <div class="clues" id="clues"></div>
+    <div class="actions"><button class="btn btn-primary" onclick="submitNotebook()">核对推理</button></div>
+  </div>
+</div>
+
+<div id="bubble"></div>
+<div id="modal">
+  <div class="modal-inner">
+    <div id="modal-title"></div>
+    <div id="modal-stars"></div>
+    <div id="modal-evidence"></div>
+    <div id="modal-actions"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="confetti"></div>
+
+<script>
+const LEVELS=[{
+  id:1,name:'宠物派对',emoji:'🐱',
+  story:'三个小朋友参加宠物派对，每人带了一种宠物，还带了喜欢的饮料。线索都在笔记里，自己把表格填完整。',
+  evidence:'小明带了猫咪、喝了果汁；小红带了狗狗、喝了茶；小刚带了小鸟、喝了牛奶。',
+  columns:[
+    {id:'ming',name:'小明',icon:'👦'},
+    {id:'hong',name:'小红',icon:'👧'},
+    {id:'gang',name:'小刚',icon:'🧒'}
+  ],
+  groups:[
+    {id:'pet',label:'宠物',className:'pet',options:[
+      {id:'cat',label:'猫',icon:'🐱'},
+      {id:'dog',label:'狗',icon:'🐶'},
+      {id:'bird',label:'鸟',icon:'🐦'}
+    ]},
+    {id:'drink',label:'饮料',className:'drink',options:[
+      {id:'juice',label:'果汁',icon:'🧃'},
+      {id:'milk',label:'牛奶',icon:'🥛'},
+      {id:'tea',label:'茶',icon:'🍵'}
+    ]}
+  ],
+  answer:{ming_pet:'cat',ming_drink:'juice',hong_pet:'dog',hong_drink:'tea',gang_pet:'bird',gang_drink:'milk'},
+  clues:[
+    {text:'小明没有养狗。',kind:'neg',cell:'ming_pet',opt:'dog'},
+    {text:'小红没有养猫。',kind:'neg',cell:'hong_pet',opt:'cat'},
+    {text:'小刚没有养狗。',kind:'neg',cell:'gang_pet',opt:'dog'},
+    {text:'养猫的人喝果汁。',kind:'sameGroup',opt1:'cat',group1:'pet',opt2:'juice',group2:'drink'},
+    {text:'养狗的人不喝果汁。',kind:'notSameGroup',opt1:'dog',group1:'pet',opt2:'juice',group2:'drink'},
+    {text:'小明不喝牛奶。',kind:'neg',cell:'ming_drink',opt:'milk'},
+    {text:'小红不喝牛奶。',kind:'neg',cell:'hong_drink',opt:'milk'},
+    {text:'小刚不喝果汁。',kind:'neg',cell:'gang_drink',opt:'juice'},
+    {text:'喝茶的人没有养猫。',kind:'notSameGroup',opt1:'tea',group1:'drink',opt2:'cat',group2:'pet'},
+    {text:'养鸟的人喝牛奶。',kind:'sameGroup',opt1:'bird',group1:'pet',opt2:'milk',group2:'drink'}
+  ]
+}];
+
+const $=id=>document.getElementById(id);
+let state={levelIndex:0,placements:{},notes:{},clueState:[],hintsUsed:0,errorSubmits:0};
+
+function init(){renderMap()}
+function renderMap(){
+  $('map-cases').innerHTML=LEVELS.map((lv,i)=>`
+    <div class="map-case" onclick="enterStory(${i})">
+      <div class="emoji">${lv.emoji}</div><div class="label">${lv.name}</div>
+    </div>`).join('');
+}
+function switchScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('screen-'+name).classList.add('active');
+}
+function enterStory(i){
+  state.levelIndex=i;
+  const lv=LEVELS[i];
+  $('story-emoji').textContent=lv.emoji;
+  $('story-title').textContent=lv.name;
+  $('story-text').textContent=lv.story;
+  switchScreen('story');
+}
+function startLevel(){
+  const lv=LEVELS[state.levelIndex];
+  state.placements={};state.notes={};state.hintsUsed=0;state.errorSubmits=0;
+  state.clueState=lv.clues.map((_,i)=>({visible:i<3,used:false}));
+  $('hud-title').textContent=lv.name;
+  renderBoard();renderClues();switchScreen('play');
+}
+function backToMap(){closeModal();switchScreen('map')}
+
+function renderBoard(){
+  const lv=LEVELS[state.levelIndex];
+  let html='<div></div>';
+  lv.columns.forEach(c=>html+=`<div class="head"><div><span>${c.icon}</span>${c.name}</div></div>`);
+  lv.groups.forEach(g=>{
+    html+=`<div class="row-label ${g.className}"><div><span>${g.options[0].icon}</span>${g.label}</div></div>`;
+    lv.columns.forEach(c=>{
+      const key=c.id+'_'+g.id;
+      const value=state.placements[key];
+      const opt=g.options.find(o=>o.id===value);
+      const noteIds=state.notes[key]||[];
+      const noteHtml=noteIds.map(id=>{
+        const no=g.options.find(o=>o.id===id);
+        return no?`<span class="note">不是${no.label}</span>`:'';
+      }).join('');
+      html+=`<div class="cell ${opt?'filled':noteIds.length?'has-notes':''}" data-key="${key}" onclick="onCellClick('${key}',this)">
+        ${opt?`<div><span>${opt.icon}</span>${opt.label}</div>`:noteIds.length?`<div class="notes">${noteHtml}</div>`:'＋'}
+      </div>`;
+    });
+  });
+  $('board').innerHTML=html;
+}
+function renderClues(){
+  const lv=LEVELS[state.levelIndex];
+  const visible=lv.clues.map((c,i)=>({c,i,cs:state.clueState[i]}))
+    .filter(x=>x.cs&&x.cs.visible)
+    .sort((a,b)=>(a.cs.used===b.cs.used?a.i-b.i:a.cs.used?1:-1));
+  $('clues').innerHTML='<div class="clues-title">线索（用上后会划掉）</div>'+visible.map(({c,i,cs})=>`
+    <div class="clue ${cs.used?'used':''}"><div class="num">${cs.used?'✓':i+1}</div><div class="clue-text">${c.text}</div></div>`).join('');
+}
+function groupByKey(key){
+  const groupId=key.split('_')[1];
+  return LEVELS[state.levelIndex].groups.find(g=>g.id===groupId);
+}
+function colByKey(key){return key.split('_')[0]}
+function onCellClick(key,el){
+  const group=groupByKey(key);
+  const [colId,groupId]=key.split('_');
+  const bubble=$('bubble');
+  const options=group.options.filter(o=>!LEVELS[state.levelIndex].columns.some(c=>c.id!==colId&&state.placements[c.id+'_'+groupId]===o.id));
+  const noteIds=state.notes[key]||[];
+  const noteOptions=group.options.filter(o=>state.placements[key]!==o.id&&!noteIds.includes(o.id));
+  bubble.innerHTML=`<div class="bubble-title">选择${group.label}</div>`+options.map(o=>`
+    <div class="choice" onclick="setPlacement('${key}','${o.id}')"><div class="pic">${o.icon}</div><div>${o.label}</div></div>
+  `).join('')+
+  (noteOptions.length?`<div class="choice-title">记为不可能</div>`+noteOptions.map(o=>`
+    <div class="choice note-choice" onclick="addNote('${key}','${o.id}')"><div class="pic">×</div><div>不是${o.label}</div></div>
+  `).join(''):'')+
+  ((state.placements[key]||noteIds.length)?`<div class="choice erase" onclick="clearCell('${key}')"><div class="pic">🧽</div><div>清空这一格</div></div>`:'');
+  bubble.style.display='block';
+  const r=el.getBoundingClientRect();
+  const br=bubble.getBoundingClientRect();
+  let left=r.left+r.width/2-br.width/2;
+  let top=r.top-br.height-10;
+  if(left<8)left=8;
+  if(left+br.width>innerWidth-8)left=innerWidth-br.width-8;
+  if(top<8)top=r.bottom+10;
+  bubble.style.left=left+'px';bubble.style.top=top+'px';
+}
+function setPlacement(key,value){
+  state.placements[key]=value;
+  if(state.notes[key]) state.notes[key]=state.notes[key].filter(v=>v!==value);
+  $('bubble').style.display='none';
+  updateClueProgress();
+  renderBoard();
+  renderClues();
+}
+function addNote(key,value){
+  if(!state.notes[key]) state.notes[key]=[];
+  if(!state.notes[key].includes(value)) state.notes[key].push(value);
+  $('bubble').style.display='none';
+  updateClueProgress();
+  renderBoard();
+  renderClues();
+}
+function clearCell(key){
+  delete state.placements[key];
+  delete state.notes[key];
+  $('bubble').style.display='none';
+  updateClueProgress();
+  renderBoard();
+  renderClues();
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#bubble')&&!e.target.closest('.cell'))$('bubble').style.display='none'});
+
+function hasNote(key,opt){return (state.notes[key]||[]).includes(opt)}
+function holderOf(groupId,opt){
+  const lv=LEVELS[state.levelIndex],p=state.placements;
+  return lv.columns.find(c=>p[c.id+'_'+groupId]===opt);
+}
+function clueApplied(clue){
+  const lv=LEVELS[state.levelIndex],p=state.placements;
+  switch(clue.kind){
+    case 'neg': {
+      return (p[clue.cell]&&p[clue.cell]!==clue.opt)||hasNote(clue.cell,clue.opt);
+    }
+    case 'sameGroup':
+      return lv.columns.some(c=>p[c.id+'_'+clue.group1]===clue.opt1&&p[c.id+'_'+clue.group2]===clue.opt2);
+    case 'notSameGroup': {
+      const a=holderOf(clue.group1,clue.opt1);
+      const b=holderOf(clue.group2,clue.opt2);
+      if(a){
+        const key=a.id+'_'+clue.group2;
+        if((p[key]&&p[key]!==clue.opt2)||hasNote(key,clue.opt2)) return true;
+      }
+      if(b){
+        const key=b.id+'_'+clue.group1;
+        if((p[key]&&p[key]!==clue.opt1)||hasNote(key,clue.opt1)) return true;
+      }
+      return false;
+    }
+  }
+  return false;
+}
+function revealNextClue(){
+  const next=state.clueState.find(cs=>!cs.visible);
+  if(next) next.visible=true;
+}
+function updateClueProgress(){
+  const lv=LEVELS[state.levelIndex];
+  let newlyUsed=0;
+  lv.clues.forEach((clue,i)=>{
+    const cs=state.clueState[i];
+    if(!cs.visible) return;
+    const wasUsed=cs.used;
+    cs.used=clueApplied(clue);
+    if(!wasUsed&&cs.used)newlyUsed++;
+  });
+  while(newlyUsed-- > 0) revealNextClue();
+}
+
+function submitNotebook(){
+  const lv=LEVELS[state.levelIndex];
+  const missing=Object.keys(lv.answer).filter(key=>!state.placements[key]);
+  if(missing.length){
+    showToast('还有 '+missing.length+' 个格子没填，先补完整');
+    return;
+  }
+  const errors=[];
+  Object.keys(lv.answer).forEach(key=>{
+    if(state.placements[key]!==lv.answer[key]) errors.push(key);
+  });
+  lv.groups.forEach(g=>{
+    const seen={};
+    lv.columns.forEach(c=>{
+      const key=c.id+'_'+g.id,val=state.placements[key];
+      if(!val)return;
+      if(seen[val]){errors.push(key,seen[val])}else seen[val]=key;
+    });
+  });
+  if(errors.length){
+    const unique=[...new Set(errors)];
+    state.errorSubmits++;
+    unique.forEach(markCellError);
+    showToast(labelForKey(unique[0])+'不对，看看相关线索，重新挑战');
+    return;
+  }
+  onSolved();
+}
+function labelForKey(key){
+  const lv=LEVELS[state.levelIndex];
+  const [colId,groupId]=key.split('_');
+  const col=lv.columns.find(c=>c.id===colId),group=lv.groups.find(g=>g.id===groupId);
+  return (col?col.name:'这个人')+'的'+(group?group.label:'这一格');
+}
+function markCellError(key){
+  const el=document.querySelector(`.cell[data-key="${key}"]`);
+  if(!el)return;
+  el.classList.add('err');
+  setTimeout(()=>el.classList.remove('err'),1600);
+}
+function onSolved(){
+  const lv=LEVELS[state.levelIndex],stars=calcStars();
+  $('modal-title').textContent='线索理清！';
+  $('modal-stars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  $('modal-evidence').textContent='证据：'+lv.evidence;
+  $('modal-actions').innerHTML='<button class="btn btn-primary" onclick="closeModal();backToMap()">回到地图</button>';
+  $('modal').classList.add('on');
+  fireConfetti();
+}
+function closeModal(){$('modal').classList.remove('on')}
+function calcStars(){let s=3;if(state.hintsUsed)s--;if(state.errorSubmits)s--;return Math.max(1,s)}
+function useHint(){
+  state.hintsUsed++;
+  const lv=LEVELS[state.levelIndex];
+  const missing=Object.keys(lv.answer).find(k=>!state.placements[k]);
+  if(!missing){showToast('表格填完了，检查有没有和线索冲突的地方');return}
+  const [colId,groupId]=missing.split('_');
+  const col=lv.columns.find(c=>c.id===colId),group=lv.groups.find(g=>g.id===groupId);
+  showToast(`提示：先看和「${col.name}的${group.label}」有关的线索，不直接给答案。`);
+}
+function showToast(msg){
+  const t=$('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+function fireConfetti(){
+  const c=$('confetti');c.innerHTML='';
+  const arr=['🎉','⭐','✨','🎊','💛'];
+  for(let i=0;i<34;i++){
+    const s=document.createElement('div');
+    s.textContent=arr[Math.floor(Math.random()*arr.length)];
+    s.style.cssText=`position:absolute;left:${Math.random()*100}vw;top:-3vh;font-size:${18+Math.random()*12}px;animation:fall ${2+Math.random()*2}s linear forwards`;
+    c.appendChild(s);
+  }
+  setTimeout(()=>c.innerHTML='',3800);
+}
+
+function evalClue(clue,asg,lv){
+  switch(clue.kind){
+    case 'neg':return asg[clue.cell]!==clue.opt;
+    case 'sameGroup':
+      return lv.columns.some(c=>asg[c.id+'_'+clue.group1]===clue.opt1&&asg[c.id+'_'+clue.group2]===clue.opt2);
+    case 'notSameGroup':
+      return !lv.columns.some(c=>asg[c.id+'_'+clue.group1]===clue.opt1&&asg[c.id+'_'+clue.group2]===clue.opt2);
+  }
+  return true;
+}
+function permute(arr){if(arr.length<=1)return[arr];const out=[];for(let i=0;i<arr.length;i++){const rest=[...arr.slice(0,i),...arr.slice(i+1)];permute(rest).forEach(p=>out.push([arr[i],...p]))}return out}
+function runVerifyPage(){
+  const lv=LEVELS[0],cols=lv.columns.map(c=>c.id);
+  const petPerms=permute(lv.groups[0].options.map(o=>o.id));
+  const drinkPerms=permute(lv.groups[1].options.map(o=>o.id));
+  let valid=0;
+  petPerms.forEach(pp=>drinkPerms.forEach(dp=>{
+    const asg={};
+    cols.forEach((c,i)=>{asg[c+'_pet']=pp[i];asg[c+'_drink']=dp[i]});
+    if(lv.clues.every(cl=>evalClue(cl,asg,lv)))valid++;
+  }));
+  const progressPass=runProgressionSelftest();
+  document.title=(valid===1&&progressPass)?'VERIFY PASS':'VERIFY FAIL unique='+valid+' progress='+progressPass;
+  console[valid===1&&progressPass?'info':'error'](document.title);
+}
+
+function runProgressionSelftest(){
+  state.levelIndex=0;
+  startLevel();
+  if(document.querySelectorAll('.clue').length!==3) return false;
+  addNote('ming_pet','dog');
+  if(!state.clueState[0].used||document.querySelectorAll('.clue').length!==4) return false;
+  addNote('hong_pet','cat');
+  if(!state.clueState[1].used||document.querySelectorAll('.clue').length!==5) return false;
+  addNote('gang_pet','dog');
+  if(!state.clueState[2].used||document.querySelectorAll('.clue').length!==6) return false;
+  setPlacement('ming_pet','cat');
+  setPlacement('ming_drink','juice');
+  if(!state.clueState[3].used) return false;
+  setPlacement('hong_pet','dog');
+  addNote('hong_drink','juice');
+  if(!state.clueState[4].used) return false;
+  addNote('ming_drink','milk');
+  if(!state.clueState[5].used) return false;
+  setPlacement('hong_drink','tea');
+  if(!state.clueState[6].used) return false;
+  addNote('gang_drink','juice');
+  if(!state.clueState[7].used) return false;
+  if(!state.clueState[8].used) return false;
+  setPlacement('gang_pet','bird');
+  setPlacement('gang_drink','milk');
+  if(!state.clueState[9].used) return false;
+  submitNotebook();
+  return document.body.innerText.includes('线索理清！');
+}
+
+init();
+if(location.search.includes('verify=1'))runVerifyPage();
+</script>
+</body>
+</html>

@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>老师超严格 · StrictTeacher</title>
+<style>
+/* ── 主题变量：作业本纸质风 ─────────────────────── */
+:root {
+  --color-bg:       #efe9da;   /* 米白底 */
+  --color-paper:    #faf6ec;   /* 卷纸 */
+  --color-ink:      #2b3a67;   /* 墨蓝正文 */
+  --color-ink-dim:  rgba(43,58,103,0.55);
+  --color-red:      #d43a2f;   /* 批改红 */
+  --color-red-soft: rgba(212,58,47,0.12);
+  --color-grid:     rgba(212,58,47,0.35); /* 田字格线（红格） */
+  --color-good:     #4a7c59;
+  --color-gray:     #8a8a80;
+  --radius-card:    12px;
+  --radius-btn:     24px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  /* 米白格纹底 */
+  background:
+    linear-gradient(rgba(43,58,103,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43,58,103,0.05) 1px, transparent 1px),
+    var(--color-bg);
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+/* ── 屏幕管理 ─────────────────────────────────── */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.screen.active { display: flex; }
+
+.btn {
+  padding: 14px 32px;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.1s;
+  font-family: inherit;
+}
+.btn:active { transform: scale(0.95); opacity: 0.9; }
+.btn-primary   { background: var(--color-ink); color: #fff; }
+.btn-secondary { background: rgba(43,58,103,0.12); color: var(--color-ink); }
+
+/* ── 开场动画 ─────────────────────────────────── */
+#screen-intro { background: #000; color: #eee; z-index: 30; }
+.intro-scene { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; }
+.intro-scene.on { display: flex; }
+
+/* 镜头①：眼睑张开 */
+.eyelid { position: absolute; left: 0; width: 100%; height: 50%; background: #000; z-index: 2; }
+.eyelid.top    { top: 0;    transform-origin: top; }
+.eyelid.bottom { bottom: 0; transform-origin: bottom; }
+.scene1-bg { position: absolute; inset: 0; background: var(--color-bg); opacity: 0; }
+.s1-play .scene1-bg { animation: wake-fade 2s ease forwards; }
+.s1-play .eyelid.top    { animation: lid-open-top 1.6s ease 0.2s forwards; }
+.s1-play .eyelid.bottom { animation: lid-open-bot 1.6s ease 0.2s forwards; }
+@keyframes wake-fade   { to { opacity: 1; } }
+@keyframes lid-open-top { to { transform: scaleY(0.06); } }
+@keyframes lid-open-bot { to { transform: scaleY(0.06); } }
+.typewriter {
+  z-index: 3; font-size: 26px; letter-spacing: 4px; color: #f5f0e4;
+  text-shadow: 0 0 12px rgba(0,0,0,0.8);
+  animation: type-shake 0.4s ease 1.4s;
+}
+@keyframes type-shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); } 75% { transform: translateX(3px); }
+}
+
+/* 镜头②：老师对话 */
+#intro-scene2 { background: var(--color-bg); color: var(--color-ink); gap: 24px; }
+.teacher-emoji { font-size: 72px; animation: bob 1.2s ease infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.dialog-box {
+  max-width: 80vw; min-height: 88px;
+  background: #fff; border: 2px solid var(--color-ink);
+  border-radius: 14px; padding: 18px 22px;
+  font-size: 18px; line-height: 1.7; position: relative;
+}
+.dialog-box::before {
+  content: ''; position: absolute; top: -12px; left: 50%;
+  margin-left: -8px; border: 8px solid transparent;
+  border-bottom-color: var(--color-ink); border-top: none;
+}
+
+/* 镜头③：学生涌入 + 卷纸铺屏 */
+#intro-scene3 { background: var(--color-bg); overflow: hidden; }
+.stu { position: absolute; bottom: -60px; font-size: 44px; animation: stu-rise 1.4s ease forwards; }
+@keyframes stu-rise { to { transform: translateY(-38vh) scale(1.15); } }
+.spin-paper {
+  position: absolute; left: 50%; top: 50%;
+  width: 90px; height: 120px; margin: -60px 0 0 -45px;
+  background: var(--color-paper); border: 1px solid rgba(43,58,103,0.25);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; font-size: 40px;
+  animation: paper-burst 1.6s cubic-bezier(0.4, 0, 0.6, 1) 0.3s forwards;
+}
+@keyframes paper-burst {
+  0%   { transform: rotate(0) scale(0.2); opacity: 0; }
+  35%  { opacity: 1; }
+  100% { transform: rotate(720deg) scale(9); opacity: 1; }
+}
+.white-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.s3-play .white-flash { animation: flash-in 0.5s ease 1.6s forwards; }
+@keyframes flash-in { to { opacity: 1; } }
+.intro-skip {
+  position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px;
+  z-index: 9; padding: 7px 16px; font-size: 13px;
+  color: rgba(255,255,255,0.85); background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.4); border-radius: 16px;
+}
+#intro-scene2 .intro-skip-hint, #intro-scene3 .intro-skip-hint { color: var(--color-ink-dim); }
+.intro-skip-hint {
+  position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  font-size: 12px; color: rgba(255,255,255,0.5); z-index: 9;
+}
+
+/* ── 首页 ─────────────────────────────────────── */
+#screen-home { gap: 18px; padding: 24px; }
+.home-title { font-size: 34px; font-weight: bold; letter-spacing: 6px; }
+.home-sub   { font-size: 14px; color: var(--color-ink-dim); margin-top: -8px; }
+.home-teacher { font-size: 60px; }
+.rank-card {
+  width: min(320px, 82vw);
+  background: var(--color-paper); border: 1.5px solid rgba(43,58,103,0.25);
+  border-radius: var(--radius-card); padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 2px 8px rgba(43,58,103,0.08);
+}
+.rank-row { display: flex; justify-content: space-between; align-items: baseline; }
+.rank-name { font-size: 20px; font-weight: bold; }
+.rank-prestige { font-size: 13px; color: var(--color-ink-dim); }
+.prestige-bar { width: 100%; height: 8px; background: rgba(43,58,103,0.12); border-radius: 4px; overflow: hidden; }
+.prestige-fill { height: 100%; background: var(--color-red); border-radius: 4px; transition: width 0.5s ease; }
+.rank-help { font-size: 12px; color: var(--color-ink-dim); line-height: 1.45; }
+.home-btns { display: flex; flex-direction: column; gap: 12px; width: min(280px, 76vw); }
+.home-btns .btn { width: 100%; }
+.btn-daily::after  { content: ' 📅'; }
+.btn-career::after { content: ' 📈'; }
+.replay-link { font-size: 13px; color: var(--color-ink-dim); text-decoration: underline; padding: 6px; }
+.storage-warn {
+  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 50%; transform: translateX(-50%);
+  background: rgba(212,58,47,0.9); color: #fff;
+  font-size: 12px; padding: 6px 14px; border-radius: 14px;
+  display: none; white-space: nowrap;
+}
+.storage-warn.show { display: block; }
+
+/* ── 纸飞转场 ─────────────────────────────────── */
+#screen-transition { background: transparent; z-index: 20; }
+.fly-sheet {
+  width: 70px; height: 94px;
+  background: var(--color-paper); border: 1px solid rgba(43,58,103,0.25);
+  border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  font-size: 30px;
+}
+#screen-transition.active .fly-sheet { animation: paper-burst 0.5s cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+
+/* ── 批改主屏 ─────────────────────────────────── */
+#screen-grading { justify-content: flex-start; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); gap: 10px; }
+.hud {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  font-size: 15px; font-weight: bold;
+}
+.hud .combo { color: var(--color-red); min-width: 64px; text-align: right; }
+.hud .combo.dim { opacity: 0.25; }
+.timebar {
+  width: 100%; height: 8px;
+  background: rgba(43,58,103,0.12); border-radius: 4px; overflow: hidden;
+}
+.timebar-fill {
+  width: 100%; height: 100%;
+  background: var(--color-good); border-radius: 4px;
+  transform-origin: left center;
+  transform: scaleX(1);
+}
+.timebar-fill.run { animation: drain linear forwards; }
+.timebar-fill.paused { animation-play-state: paused; }
+@keyframes drain {
+  0%   { transform: scaleX(1); background: var(--color-good); }
+  70%  { background: var(--color-good); }
+  80%  { background: var(--color-red); }
+  100% { transform: scaleX(0); background: var(--color-red); }
+}
+
+#paper-stage { flex: 1; width: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+
+.paper {
+  width: min(100vw - 6px, 420px);
+  background: var(--color-paper);
+  border: 1px solid rgba(43,58,103,0.22);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(43,58,103,0.15);
+  padding: 12px 8px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  position: absolute;
+}
+.paper.entering { animation: fly-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+.paper.leave-good { animation: fly-out-good 0.4s ease-in forwards; }
+.paper.leave-bad  { animation: fly-out-bad  0.4s ease-in forwards; }
+@keyframes fly-in {
+  from { transform: translateY(110vh) rotate(6deg); }
+  to   { transform: translateY(0) rotate(0); }
+}
+@keyframes fly-out-good {
+  to { transform: translate(80vw, -40vh) rotate(10deg); opacity: 0.4; }
+}
+@keyframes fly-out-bad {
+  to { transform: translate(-80vw, 30vh) rotate(-12deg); opacity: 0.4; }
+}
+.paper-head {
+  width: calc(100% - 16px);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; color: var(--color-ink-dim);
+  border-bottom: 1px dashed rgba(43,58,103,0.25); padding-bottom: 6px;
+}
+.paper-head .stu-name { font-size: 15px; }
+
+.grid-row { display: flex; justify-content: center; width: 100%; }
+.cell {
+  width: calc((100% - 3px) / 5);
+  aspect-ratio: 1;
+  border: 1px solid var(--color-grid);
+  margin: -0.5px; /* 相邻格线合并 */
+  background:
+    linear-gradient(var(--color-grid) 0 0) center/100% 1px no-repeat,
+    linear-gradient(var(--color-grid) 0 0) center/1px 100% no-repeat;
+  background-color: transparent;
+  background-blend-mode: normal;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Kaiti SC', 'KaiTi', 'STKaiti', serif;
+  font-size: clamp(38px, 12vw, 52px);
+  color: var(--color-ink);
+  position: relative;
+  padding: 0; cursor: pointer;
+}
+/* 田字格虚十字：用伪元素画虚线，覆盖上面的实线渐变 */
+.cell { background: none; }
+.cell::before, .cell::after {
+  content: ''; position: absolute; pointer-events: none;
+}
+.cell::before { left: 4%; right: 4%; top: 50%; border-top: 1px dashed var(--color-grid); }
+.cell::after  { top: 4%; bottom: 4%; left: 50%; border-left: 1px dashed var(--color-grid); }
+.cell:active { background: var(--color-red-soft); }
+
+/* 红笔圈 */
+.red-circle {
+  position: absolute; inset: 6%;
+  border: 3.5px solid var(--color-red);
+  border-radius: 50% 46% 52% 48% / 48% 52% 46% 54%;
+  transform: rotate(-4deg) scale(1.4);
+  opacity: 0; pointer-events: none;
+  animation: circle-pop 0.3s ease forwards;
+}
+@keyframes circle-pop {
+  from { transform: rotate(-4deg) scale(1.5); opacity: 0; }
+  to   { transform: rotate(-4deg) scale(1);   opacity: 0.9; }
+}
+/* 漏批时提示真正的错字 */
+.cell.reveal { box-shadow: inset 0 0 0 3px var(--color-red); background: var(--color-red-soft); }
+
+/* 印章 */
+.seal {
+  position: absolute; right: 8px; bottom: 6px;
+  width: 64px; height: 64px;
+  border: 3px double var(--color-red); border-radius: 50%;
+  color: var(--color-red);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: bold;
+  font-family: 'Kaiti SC', 'KaiTi', 'STKaiti', serif;
+  transform: rotate(-12deg);
+  opacity: 0; pointer-events: none;
+}
+.seal.on { animation: stamp-in 0.3s ease forwards; }
+.seal.gray { border-color: var(--color-gray); color: var(--color-gray); font-size: 16px; }
+@keyframes stamp-in {
+  0%   { transform: rotate(-12deg) scale(2.2); opacity: 0; }
+  60%  { transform: rotate(-12deg) scale(0.95); opacity: 0.95; }
+  100% { transform: rotate(-12deg) scale(1); opacity: 0.9; }
+}
+
+/* 判定浮出反馈 */
+.float-fb {
+  position: absolute; left: 50%; top: 34%;
+  transform: translateX(-50%);
+  font-size: 40px; pointer-events: none;
+  animation: fade-up 0.7s ease forwards;
+}
+.float-fb .fb-text { font-size: 15px; font-weight: bold; display: block; text-align: center; }
+.float-fb .fb-text.bad { color: var(--color-red); }
+.float-fb .fb-text.good { color: var(--color-good); }
+@keyframes fade-up {
+  from { transform: translate(-50%, 16px); opacity: 0; }
+  25%  { opacity: 1; }
+  to   { transform: translate(-50%, -22px); opacity: 0; }
+}
+
+/* 课本原文对照 */
+.paper-ref {
+  width: 100%;
+  background: #fffaf0;
+  border: 1px solid rgba(43,58,103,0.18);
+  border-radius: 6px;
+  padding: 9px 10px;
+  font-size: 13px;
+  color: var(--color-ink-dim);
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+  max-height: 220px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.paper-ref-title {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 5px;
+}
+.paper-ref-title strong { color: var(--color-ink); font-size: 14px; }
+.paper-ref-title span { font-size: 12px; color: var(--color-ink-dim); }
+.poem-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.poem-line {
+  display: block;
+  font-family: 'Kaiti SC', 'KaiTi', 'STKaiti', serif;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  letter-spacing: 1px;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.poem-line.current {
+  background: rgba(212,58,47,0.12);
+  color: var(--color-red);
+  box-shadow: inset 3px 0 0 var(--color-red);
+}
+
+.answer-card {
+  width: 100%;
+  border: 1px solid rgba(212,58,47,0.28);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.34);
+  padding: 8px 6px 10px;
+}
+.answer-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2px 6px;
+  font-size: 13px;
+  color: var(--color-ink-dim);
+}
+.answer-title b { color: var(--color-ink); font-size: 15px; }
+.answer-row .cell {
+  width: calc((100% - 3px) / var(--chars));
+  font-size: clamp(32px, 10vw, 50px);
+  min-width: 0;
+}
+
+/* 优章按钮（卷内·题目正下方） */
+.stamp-inline {
+  margin-top: 4px;
+  min-height: 56px;
+  padding: 6px 28px;
+  border: 3px double var(--color-red);
+  border-radius: 30px;
+  background: var(--color-paper);
+  color: var(--color-red);
+  font-family: 'Kaiti SC', 'KaiTi', 'STKaiti', serif;
+  font-size: 21px; font-weight: bold;
+  letter-spacing: 2px;
+  box-shadow: 0 2px 8px rgba(212,58,47,0.25);
+  cursor: pointer;
+}
+.stamp-inline:active { transform: scale(0.95) rotate(-2deg); }
+
+/* 道具栏 */
+#prop-bar {
+  position: absolute;
+  left: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 12px; z-index: 5;
+}
+.prop-btn {
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 2px solid rgba(43,58,103,0.3);
+  background: var(--color-paper);
+  font-size: 26px; cursor: pointer; position: relative;
+  box-shadow: 0 2px 8px rgba(43,58,103,0.15);
+  padding: 0;
+}
+.prop-btn:active { transform: scale(0.92); }
+.prop-btn.disabled { opacity: 0.35; }
+.prop-btn.ready { border-color: var(--color-red); animation: pop-in 0.35s ease; }
+.prop-btn .prop-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 20px; height: 20px; border-radius: 10px;
+  background: var(--color-red); color: #fff;
+  font-size: 12px; font-weight: bold; line-height: 20px; padding: 0 4px;
+}
+
+/* 放大镜提示脉冲 */
+.cell.hint-pulse { animation: hint-pulse 0.5s ease 3; }
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(212,58,47,0); }
+  50%      { box-shadow: inset 0 0 0 4px rgba(212,58,47,0.7); }
+}
+
+/* 通用遮罩层（教学/AI确认/小卖部） */
+.g-overlay {
+  position: absolute; inset: 0; z-index: 8;
+  background: rgba(43,58,103,0.45);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.g-overlay.show { display: flex; }
+.g-card {
+  width: min(340px, 92vw);
+  background: var(--color-paper);
+  border: 1.5px solid rgba(43,58,103,0.3);
+  border-radius: 14px;
+  padding: 20px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  max-height: 90%;
+  overflow-y: auto;
+}
+.g-card h3 { font-size: 18px; text-align: center; }
+.tutor-line { font-size: 15px; line-height: 1.6; }
+.tutor-tap { text-align: center; font-size: 13px; color: var(--color-ink-dim); margin-top: 4px; }
+.g-btns { display: flex; gap: 10px; }
+.g-btns .btn { flex: 1; padding: 12px 0; font-size: 15px; }
+
+/* 文具小卖部 */
+.shop-points { text-align: center; font-size: 14px; color: var(--color-ink-dim); }
+.shop-sec-title { font-size: 13px; color: var(--color-ink-dim); border-top: 1px dashed rgba(43,58,103,0.25); padding-top: 8px; }
+.skin-row { display: flex; gap: 8px; }
+.skin-chip {
+  flex: 1;
+  border: 2px solid rgba(43,58,103,0.25); border-radius: 10px;
+  background: #fff; padding: 8px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 13px; cursor: pointer;
+}
+.skin-chip .skin-icon { font-size: 22px; line-height: 1.2; }
+.skin-chip .skin-cost { font-size: 11px; color: var(--color-ink-dim); }
+.skin-chip.equipped { border-color: var(--color-red); background: var(--color-red-soft); }
+.skin-chip.locked { opacity: 0.55; }
+
+/* 顶部浮动提示 */
+#toast {
+  position: absolute; top: 16%; left: 50%; transform: translateX(-50%);
+  background: rgba(43,58,103,0.9); color: #fff;
+  font-size: 14px; padding: 8px 18px; border-radius: 18px;
+  display: none; z-index: 9; white-space: nowrap;
+}
+#toast.show { display: block; animation: fade-up 1.8s ease forwards; }
+
+/* ── 报告页 ───────────────────────────────────── */
+#screen-report { padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(16px + env(safe-area-inset-bottom, 0px)); justify-content: flex-start; gap: 12px; overflow: hidden; }
+.report-card {
+  width: min(400px, 100%);
+  background: var(--color-paper); border: 1.5px solid rgba(43,58,103,0.25);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  overflow: hidden;
+  max-height: 100%;
+}
+.report-title { font-size: 20px; font-weight: bold; text-align: center; }
+.report-top { display: flex; align-items: center; justify-content: center; gap: 22px; }
+.grade-badge {
+  width: 84px; height: 84px; border-radius: 50%;
+  border: 4px double var(--color-red); color: var(--color-red);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 46px; font-weight: bold;
+  font-family: 'Kaiti SC', 'KaiTi', 'STKaiti', serif;
+  transform: rotate(-10deg);
+  animation: stamp-in 0.4s ease forwards;
+}
+.grade-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.grade-label { font-size: 13px; color: var(--color-ink-dim); font-weight: bold; }
+.report-stats { font-size: 14px; line-height: 1.9; }
+.report-stats b { font-size: 17px; }
+.prestige-change {
+  font-size: 14px; text-align: center;
+  background: rgba(43,58,103,0.06); border-radius: 8px; padding: 8px 10px;
+}
+.prestige-main { font-weight: bold; color: var(--color-red); }
+.prestige-next { margin-top: 4px; color: var(--color-ink); }
+.prestige-change .rank-shift { font-weight: bold; color: var(--color-red); }
+.wrong-list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px dashed rgba(43,58,103,0.25);
+  padding-top: 8px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.wrong-title { font-size: 13px; color: var(--color-ink-dim); }
+.wrong-item { font-size: 14px; line-height: 1.6; }
+.wrong-item .verse { font-family: 'Kaiti SC', 'KaiTi', 'STKaiti', serif; font-size: 17px; }
+.wrong-item .verse .hl { color: var(--color-red); font-weight: bold; border-bottom: 2px solid var(--color-red); }
+.wrong-item .meta { color: var(--color-ink-dim); font-size: 12px; }
+.wrong-item .why { color: var(--color-red); font-size: 12px; }
+.grade-flavor { font-size: 13px; text-align: center; color: var(--color-ink-dim); }
+.report-btns { display: flex; gap: 10px; width: min(400px, 100%); }
+.report-btns .btn { flex: 1; padding: 13px 0; }
+
+/* 通用动画 */
+@keyframes pop-in {
+  from { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.2); }
+  to   { transform: scale(1); opacity: 1; }
+}
+.anim-pop-in { animation: pop-in 0.35s ease; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <!-- 开场动画 -->
+  <div id="screen-intro" class="screen">
+    <div class="intro-scene" id="intro-scene1">
+      <div class="scene1-bg"></div>
+      <div class="eyelid top"></div>
+      <div class="eyelid bottom"></div>
+      <div class="typewriter" id="type1"></div>
+    </div>
+    <div class="intro-scene" id="intro-scene2">
+      <div class="teacher-emoji">🧑‍🏫</div>
+      <div class="dialog-box"><span id="type2"></span><span style="opacity:0.4">▌</span></div>
+    </div>
+    <div class="intro-scene" id="intro-scene3">
+      <div class="spin-paper">📝</div>
+      <div class="white-flash"></div>
+    </div>
+    <div class="intro-skip-hint">点击任意处跳过</div>
+  </div>
+
+  <!-- 首页 -->
+  <div id="screen-home" class="screen">
+    <div class="storage-warn" id="storage-warn">⚠️ 无法保存进度（浏览器存储不可用）</div>
+    <div class="home-teacher">🧑‍🏫</div>
+    <div class="home-title">老师超严格</div>
+    <div class="home-sub">火眼金睛批作业，一路批到当校长</div>
+    <div class="rank-card">
+      <div class="rank-row">
+        <span class="rank-name" id="rank-name">实习老师</span>
+        <span class="rank-prestige" id="rank-prestige">声望 0 / 100</span>
+      </div>
+      <div class="prestige-bar"><div class="prestige-fill" id="prestige-fill" style="width:0%"></div></div>
+      <div class="rank-help">今日作业：每日同诗同卷｜升职之路：每局一卷，结算后升降职</div>
+    </div>
+    <div class="home-btns">
+      <button class="btn btn-primary btn-daily" id="btn-daily">今日作业</button>
+      <button class="btn btn-primary btn-career" id="btn-career">升职之路</button>
+      <button class="btn btn-secondary" id="btn-shop-home">🏪 文具小卖部</button>
+    </div>
+    <div class="replay-link" id="btn-replay-intro">重看开场</div>
+  </div>
+
+  <!-- 纸飞转场 -->
+  <div id="screen-transition" class="screen">
+    <div class="fly-sheet">📝</div>
+  </div>
+
+  <!-- 批改主屏 -->
+  <div id="screen-grading" class="screen">
+    <div class="hud">
+      <span id="hud-progress">批改中</span>
+      <span id="hud-score">0 分</span>
+      <span class="combo dim" id="hud-combo">🔥 x0</span>
+    </div>
+    <div class="timebar"><div class="timebar-fill" id="timebar-fill"></div></div>
+    <div id="paper-stage"></div>
+
+    <div id="prop-bar">
+      <button class="prop-btn" id="prop-lens">🔍<span class="prop-badge" id="lens-count">2</span></button>
+      <button class="prop-btn disabled" id="prop-ai">🤖</button>
+    </div>
+    <div id="toast"></div>
+
+    <!-- 教学浮层（仅首次） -->
+    <div class="g-overlay" id="tutor-overlay">
+      <div class="g-card">
+        <h3>📝 批改须知</h3>
+        <div class="tutor-line">🔴 发现错字 → 直接<b>点那个字</b>，红笔圈出</div>
+        <div class="tutor-line">✅ 整句没错 → 点卷面下方<b>「优 · 无错放行」</b></div>
+        <div class="tutor-line">⏰ 每句限时，超时算漏批扣分</div>
+        <div class="tutor-line">📖 一局批一张卷子：上方是<b>整首原文</b>，下方逐句批改</div>
+        <div class="tutor-tap">点击任意处开始批改</div>
+      </div>
+    </div>
+
+    <!-- AI 偷懒确认 -->
+    <div class="g-overlay" id="ai-confirm">
+      <div class="g-card">
+        <h3>🤖 AI 偷懒工具</h3>
+        <div class="tutor-line">让 AI 偷偷帮你批改接下来 3 句。</div>
+        <div class="tutor-line" style="color:var(--color-red)">⚠️ 偷懒有风险（约八成准确率），批错照常扣分。是否使用？</div>
+        <div class="tutor-line" style="color:var(--color-ink-dim);font-size:13px">AI 批改不影响你的连击（不加也不清零）。</div>
+        <div class="g-btns">
+          <button class="btn btn-primary" id="ai-yes">使用</button>
+          <button class="btn btn-secondary" id="ai-no">先不用</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 批改报告 -->
+  <div id="screen-report" class="screen">
+    <div class="report-card">
+      <div class="report-title">📋 批改报告</div>
+      <div class="report-top">
+        <div class="grade-wrap">
+          <div class="grade-label">教师评级</div>
+          <div class="grade-badge" id="grade-badge">S</div>
+        </div>
+        <div class="report-stats" id="report-stats"></div>
+      </div>
+      <div class="grade-flavor" id="grade-flavor"></div>
+      <div class="prestige-change" id="prestige-change"></div>
+      <div class="wrong-list" id="wrong-list"></div>
+    </div>
+    <div class="replay-link" id="btn-shop-report">🏪 文具小卖部（用积分换皮肤）</div>
+    <div class="report-btns">
+      <button class="btn btn-primary" id="btn-again">继续批改</button>
+      <button class="btn btn-secondary" id="btn-report-home">返回首页</button>
+    </div>
+  </div>
+
+  <!-- 文具小卖部（容器级弹层：首页/结算页/段间歇均可打开） -->
+  <div class="g-overlay" id="shop-modal">
+    <div class="g-card">
+      <h3>🏪 文具小卖部</h3>
+      <div class="shop-points" id="shop-points"></div>
+      <div class="shop-sec-title">红笔（圈错字颜色）</div>
+      <div class="skin-row" id="shop-pens"></div>
+      <div class="shop-sec-title">印章（批改盖章）</div>
+      <div class="skin-row" id="shop-seals"></div>
+      <div class="g-btns"><button class="btn btn-primary" id="shop-close">关闭 ▶</button></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict'
+
+// ══════════════════════════════════════════════════
+// 题库：60 句必背名句（tier 0=小学 1=初中 2=高级）
+// variants: idx=错字位置(0基) wrong=形近错字 stealth=隐蔽度 0低/1中/2高
+// 自检：单一通行版本（排除生/深类异文句）；错字按黑体最坏情况可辨
+// ══════════════════════════════════════════════════
+const BANK = [
+  // ── tier 0 小学（20）──
+  { id:'q001', text:'床前明月光', author:'李白', source:'《静夜思》', tier:0, variants:[{idx:2,wrong:'朋',stealth:1},{idx:4,wrong:'先',stealth:0}] },
+  { id:'q002', text:'疑是地上霜', author:'李白', source:'《静夜思》', tier:0, variants:[{idx:0,wrong:'凝',stealth:1},{idx:3,wrong:'土',stealth:0}] },
+  { id:'q003', text:'春眠不觉晓', author:'孟浩然', source:'《春晓》', tier:0, variants:[{idx:1,wrong:'眼',stealth:1},{idx:4,wrong:'浇',stealth:1}] },
+  { id:'q004', text:'处处闻啼鸟', author:'孟浩然', source:'《春晓》', tier:0, variants:[{idx:4,wrong:'乌',stealth:1},{idx:2,wrong:'间',stealth:1}] },
+  { id:'q005', text:'白毛浮绿水', author:'骆宾王', source:'《咏鹅》', tier:0, variants:[{idx:0,wrong:'自',stealth:1},{idx:4,wrong:'永',stealth:1}] },
+  { id:'q006', text:'红掌拨清波', author:'骆宾王', source:'《咏鹅》', tier:0, variants:[{idx:2,wrong:'拔',stealth:2},{idx:4,wrong:'坡',stealth:1}] },
+  { id:'q007', text:'锄禾日当午', author:'李绅', source:'《悯农》', tier:0, variants:[{idx:2,wrong:'目',stealth:0},{idx:4,wrong:'牛',stealth:1}] },
+  { id:'q008', text:'汗滴禾下土', author:'李绅', source:'《悯农》', tier:0, variants:[{idx:4,wrong:'士',stealth:1},{idx:0,wrong:'汁',stealth:1}] },
+  { id:'q009', text:'粒粒皆辛苦', author:'李绅', source:'《悯农》', tier:0, variants:[{idx:3,wrong:'幸',stealth:2},{idx:2,wrong:'旨',stealth:1}] },
+  { id:'q010', text:'千山鸟飞绝', author:'柳宗元', source:'《江雪》', tier:0, variants:[{idx:2,wrong:'乌',stealth:1},{idx:0,wrong:'干',stealth:1}] },
+  { id:'q011', text:'万径人踪灭', author:'柳宗元', source:'《江雪》', tier:0, variants:[{idx:2,wrong:'入',stealth:1},{idx:4,wrong:'灾',stealth:1}] },
+  { id:'q012', text:'少壮不努力', author:'汉乐府', source:'《长歌行》', tier:0, variants:[{idx:1,wrong:'状',stealth:1},{idx:3,wrong:'怒',stealth:1}] },
+  { id:'q013', text:'老大徒伤悲', author:'汉乐府', source:'《长歌行》', tier:0, variants:[{idx:2,wrong:'徙',stealth:2},{idx:4,wrong:'非',stealth:1}] },
+  { id:'q014', text:'遥知不是雪', author:'王安石', source:'《梅花》', tier:0, variants:[{idx:0,wrong:'摇',stealth:1},{idx:4,wrong:'雷',stealth:1}] },
+  { id:'q015', text:'为有暗香来', author:'王安石', source:'《梅花》', tier:0, variants:[{idx:1,wrong:'友',stealth:1},{idx:3,wrong:'杳',stealth:2}] },
+  { id:'q016', text:'二月春风似剪刀', author:'贺知章', source:'《咏柳》', tier:0, variants:[{idx:4,wrong:'以',stealth:1},{idx:6,wrong:'力',stealth:1}] },
+  { id:'q017', text:'万条垂下绿丝绦', author:'贺知章', source:'《咏柳》', tier:0, variants:[{idx:0,wrong:'方',stealth:1},{idx:6,wrong:'涤',stealth:2}] },
+  { id:'q018', text:'飞流直下三千尺', author:'李白', source:'《望庐山瀑布》', tier:0, variants:[{idx:2,wrong:'真',stealth:1},{idx:5,wrong:'干',stealth:1}] },
+  { id:'q019', text:'两个黄鹂鸣翠柳', author:'杜甫', source:'《绝句》', tier:0, variants:[{idx:4,wrong:'呜',stealth:1},{idx:5,wrong:'翌',stealth:1}] },
+  { id:'q020', text:'一行白鹭上青天', author:'杜甫', source:'《绝句》', tier:0, variants:[{idx:2,wrong:'百',stealth:1},{idx:5,wrong:'清',stealth:1}] },
+  // ── tier 1 初中（20）──
+  { id:'q021', text:'会当凌绝顶', author:'杜甫', source:'《望岳》', tier:1, variants:[{idx:2,wrong:'陵',stealth:1},{idx:4,wrong:'项',stealth:1}] },
+  { id:'q022', text:'一览众山小', author:'杜甫', source:'《望岳》', tier:1, variants:[{idx:1,wrong:'揽',stealth:1},{idx:2,wrong:'从',stealth:1}] },
+  { id:'q023', text:'大漠孤烟直', author:'王维', source:'《使至塞上》', tier:1, variants:[{idx:0,wrong:'太',stealth:1},{idx:4,wrong:'真',stealth:1}] },
+  { id:'q024', text:'长河落日圆', author:'王维', source:'《使至塞上》', tier:1, variants:[{idx:3,wrong:'目',stealth:0},{idx:4,wrong:'园',stealth:1}] },
+  { id:'q025', text:'海内存知己', author:'王勃', source:'《送杜少府之任蜀州》', tier:1, variants:[{idx:4,wrong:'已',stealth:2},{idx:1,wrong:'肉',stealth:1}] },
+  { id:'q026', text:'天涯若比邻', author:'王勃', source:'《送杜少府之任蜀州》', tier:1, variants:[{idx:0,wrong:'夫',stealth:1},{idx:1,wrong:'崖',stealth:1}] },
+  { id:'q027', text:'折戟沉沙铁未销', author:'杜牧', source:'《赤壁》', tier:1, variants:[{idx:5,wrong:'末',stealth:2},{idx:0,wrong:'拆',stealth:1}] },
+  { id:'q028', text:'自将磨洗认前朝', author:'杜牧', source:'《赤壁》', tier:1, variants:[{idx:0,wrong:'白',stealth:1},{idx:6,wrong:'潮',stealth:1}] },
+  { id:'q029', text:'沉舟侧畔千帆过', author:'刘禹锡', source:'《酬乐天扬州初逢席上见赠》', tier:1, variants:[{idx:4,wrong:'干',stealth:1},{idx:5,wrong:'凡',stealth:1}] },
+  { id:'q030', text:'病树前头万木春', author:'刘禹锡', source:'《酬乐天扬州初逢席上见赠》', tier:1, variants:[{idx:4,wrong:'方',stealth:1},{idx:5,wrong:'本',stealth:1}] },
+  { id:'q031', text:'采菊东篱下', author:'陶渊明', source:'《饮酒·其五》', tier:1, variants:[{idx:0,wrong:'彩',stealth:1},{idx:3,wrong:'离',stealth:1}] },
+  { id:'q032', text:'悠然见南山', author:'陶渊明', source:'《饮酒·其五》', tier:1, variants:[{idx:3,wrong:'难',stealth:1},{idx:0,wrong:'攸',stealth:2}] },
+  { id:'q033', text:'山重水复疑无路', author:'陆游', source:'《游山西村》', tier:1, variants:[{idx:4,wrong:'凝',stealth:1},{idx:1,wrong:'里',stealth:1}] },
+  { id:'q034', text:'柳暗花明又一村', author:'陆游', source:'《游山西村》', tier:1, variants:[{idx:4,wrong:'叉',stealth:1},{idx:6,wrong:'材',stealth:1}] },
+  { id:'q035', text:'何当共剪西窗烛', author:'李商隐', source:'《夜雨寄北》', tier:1, variants:[{idx:3,wrong:'箭',stealth:1},{idx:6,wrong:'浊',stealth:1}] },
+  { id:'q036', text:'却话巴山夜雨时', author:'李商隐', source:'《夜雨寄北》', tier:1, variants:[{idx:2,wrong:'吧',stealth:0},{idx:6,wrong:'寺',stealth:1}] },
+  { id:'q037', text:'春蚕到死丝方尽', author:'李商隐', source:'《无题》', tier:1, variants:[{idx:5,wrong:'万',stealth:1},{idx:1,wrong:'蜇',stealth:1}] },
+  { id:'q038', text:'蜡炬成灰泪始干', author:'李商隐', source:'《无题》', tier:1, variants:[{idx:6,wrong:'千',stealth:1},{idx:4,wrong:'汨',stealth:2}] },
+  { id:'q039', text:'随风潜入夜', author:'杜甫', source:'《春夜喜雨》', tier:1, variants:[{idx:3,wrong:'人',stealth:1},{idx:4,wrong:'液',stealth:1}] },
+  { id:'q040', text:'润物细无声', author:'杜甫', source:'《春夜喜雨》', tier:1, variants:[{idx:3,wrong:'元',stealth:1},{idx:0,wrong:'闰',stealth:1}] },
+  // ── tier 2 高级/混合（20）──
+  { id:'q041', text:'商女不知亡国恨', author:'杜牧', source:'《泊秦淮》', tier:2, variants:[{idx:6,wrong:'狠',stealth:1},{idx:4,wrong:'忘',stealth:1}] },
+  { id:'q042', text:'隔江犹唱后庭花', author:'杜牧', source:'《泊秦淮》', tier:2, variants:[{idx:2,wrong:'尤',stealth:1},{idx:0,wrong:'膈',stealth:2}] },
+  { id:'q043', text:'但使龙城飞将在', author:'王昌龄', source:'《出塞》', tier:2, variants:[{idx:1,wrong:'便',stealth:1},{idx:6,wrong:'再',stealth:1}] },
+  { id:'q044', text:'不教胡马度阴山', author:'王昌龄', source:'《出塞》', tier:2, variants:[{idx:2,wrong:'湖',stealth:1},{idx:5,wrong:'荫',stealth:2}] },
+  { id:'q045', text:'月落乌啼霜满天', author:'张继', source:'《枫桥夜泊》', tier:2, variants:[{idx:2,wrong:'鸟',stealth:2},{idx:6,wrong:'夫',stealth:1}] },
+  { id:'q046', text:'姑苏城外寒山寺', author:'张继', source:'《枫桥夜泊》', tier:2, variants:[{idx:2,wrong:'诚',stealth:1},{idx:6,wrong:'侍',stealth:1}] },
+  { id:'q047', text:'夜半钟声到客船', author:'张继', source:'《枫桥夜泊》', tier:2, variants:[{idx:2,wrong:'种',stealth:1},{idx:5,wrong:'容',stealth:1}] },
+  { id:'q048', text:'停车坐爱枫林晚', author:'杜牧', source:'《山行》', tier:2, variants:[{idx:4,wrong:'疯',stealth:1},{idx:6,wrong:'免',stealth:1}] },
+  { id:'q049', text:'霜叶红于二月花', author:'杜牧', source:'《山行》', tier:2, variants:[{idx:0,wrong:'箱',stealth:1},{idx:3,wrong:'干',stealth:2}] },
+  { id:'q050', text:'人生自古谁无死', author:'文天祥', source:'《过零丁洋》', tier:2, variants:[{idx:2,wrong:'白',stealth:1},{idx:5,wrong:'天',stealth:1}] },
+  { id:'q051', text:'留取丹心照汗青', author:'文天祥', source:'《过零丁洋》', tier:2, variants:[{idx:3,wrong:'必',stealth:1},{idx:5,wrong:'汉',stealth:2}] },
+  { id:'q052', text:'会挽雕弓如满月', author:'苏轼', source:'《江城子·密州出猎》', tier:2, variants:[{idx:3,wrong:'躬',stealth:1},{idx:6,wrong:'目',stealth:1}] },
+  { id:'q053', text:'但愿人长久', author:'苏轼', source:'《水调歌头》', tier:2, variants:[{idx:1,wrong:'怨',stealth:1},{idx:4,wrong:'夕',stealth:1}] },
+  { id:'q054', text:'千里共婵娟', author:'苏轼', source:'《水调歌头》', tier:2, variants:[{idx:0,wrong:'干',stealth:2},{idx:2,wrong:'供',stealth:1}] },
+  { id:'q055', text:'了却君王天下事', author:'辛弃疾', source:'《破阵子·为陈同甫赋壮词以寄之》', tier:2, variants:[{idx:0,wrong:'子',stealth:2},{idx:4,wrong:'夫',stealth:1}] },
+  { id:'q056', text:'赢得生前身后名', author:'辛弃疾', source:'《破阵子·为陈同甫赋壮词以寄之》', tier:2, variants:[{idx:2,wrong:'牛',stealth:1},{idx:6,wrong:'各',stealth:1}] },
+  { id:'q057', text:'戍鼓断人行', author:'杜甫', source:'《月夜忆舍弟》', tier:2, variants:[{idx:0,wrong:'戌',stealth:2},{idx:3,wrong:'入',stealth:1}] },
+  { id:'q058', text:'月是故乡明', author:'杜甫', source:'《月夜忆舍弟》', tier:2, variants:[{idx:0,wrong:'目',stealth:1},{idx:4,wrong:'朋',stealth:1}] },
+  { id:'q059', text:'落红不是无情物', author:'龚自珍', source:'《己亥杂诗》', tier:2, variants:[{idx:0,wrong:'络',stealth:1},{idx:5,wrong:'清',stealth:1}] },
+  { id:'q060', text:'化作春泥更护花', author:'龚自珍', source:'《己亥杂诗》', tier:2, variants:[{idx:1,wrong:'做',stealth:2},{idx:5,wrong:'沪',stealth:1}] },
+]
+
+const FULL_POEM_LINES = {
+  '李白|《静夜思》': ['床前明月光', '疑是地上霜', '举头望明月', '低头思故乡'],
+  '孟浩然|《春晓》': ['春眠不觉晓', '处处闻啼鸟', '夜来风雨声', '花落知多少'],
+  '骆宾王|《咏鹅》': ['鹅鹅鹅', '曲项向天歌', '白毛浮绿水', '红掌拨清波'],
+  '李绅|《悯农》': ['锄禾日当午', '汗滴禾下土', '谁知盘中餐', '粒粒皆辛苦'],
+  '柳宗元|《江雪》': ['千山鸟飞绝', '万径人踪灭', '孤舟蓑笠翁', '独钓寒江雪'],
+  '汉乐府|《长歌行》': ['青青园中葵', '朝露待日晞', '阳春布德泽', '万物生光辉', '少壮不努力', '老大徒伤悲'],
+  '王安石|《梅花》': ['墙角数枝梅', '凌寒独自开', '遥知不是雪', '为有暗香来'],
+  '贺知章|《咏柳》': ['碧玉妆成一树高', '万条垂下绿丝绦', '不知细叶谁裁出', '二月春风似剪刀'],
+  '李白|《望庐山瀑布》': ['日照香炉生紫烟', '遥看瀑布挂前川', '飞流直下三千尺', '疑是银河落九天'],
+  '杜甫|《绝句》': ['两个黄鹂鸣翠柳', '一行白鹭上青天', '窗含西岭千秋雪', '门泊东吴万里船'],
+  '杜甫|《望岳》': ['岱宗夫如何', '齐鲁青未了', '造化钟神秀', '阴阳割昏晓', '荡胸生曾云', '决眦入归鸟', '会当凌绝顶', '一览众山小'],
+  '王维|《使至塞上》': ['单车欲问边', '属国过居延', '征蓬出汉塞', '归雁入胡天', '大漠孤烟直', '长河落日圆', '萧关逢候骑', '都护在燕然'],
+  '王勃|《送杜少府之任蜀州》': ['城阙辅三秦', '风烟望五津', '与君离别意', '同是宦游人', '海内存知己', '天涯若比邻', '无为在歧路', '儿女共沾巾'],
+  '杜牧|《赤壁》': ['折戟沉沙铁未销', '自将磨洗认前朝', '东风不与周郎便', '铜雀春深锁二乔'],
+  '陶渊明|《饮酒·其五》': ['结庐在人境', '而无车马喧', '问君何能尔', '心远地自偏', '采菊东篱下', '悠然见南山', '山气日夕佳', '飞鸟相与还', '此中有真意', '欲辨已忘言'],
+  '陆游|《游山西村》': ['莫笑农家腊酒浑', '丰年留客足鸡豚', '山重水复疑无路', '柳暗花明又一村', '箫鼓追随春社近', '衣冠简朴古风存', '从今若许闲乘月', '拄杖无时夜叩门'],
+  '李商隐|《夜雨寄北》': ['君问归期未有期', '巴山夜雨涨秋池', '何当共剪西窗烛', '却话巴山夜雨时'],
+  '李商隐|《无题》': ['相见时难别亦难', '东风无力百花残', '春蚕到死丝方尽', '蜡炬成灰泪始干', '晓镜但愁云鬓改', '夜吟应觉月光寒', '蓬山此去无多路', '青鸟殷勤为探看'],
+  '杜甫|《春夜喜雨》': ['好雨知时节', '当春乃发生', '随风潜入夜', '润物细无声', '野径云俱黑', '江船火独明', '晓看红湿处', '花重锦官城'],
+  '杜牧|《泊秦淮》': ['烟笼寒水月笼沙', '夜泊秦淮近酒家', '商女不知亡国恨', '隔江犹唱后庭花'],
+  '王昌龄|《出塞》': ['秦时明月汉时关', '万里长征人未还', '但使龙城飞将在', '不教胡马度阴山'],
+  '张继|《枫桥夜泊》': ['月落乌啼霜满天', '江枫渔火对愁眠', '姑苏城外寒山寺', '夜半钟声到客船'],
+  '杜牧|《山行》': ['远上寒山石径斜', '白云生处有人家', '停车坐爱枫林晚', '霜叶红于二月花'],
+  '文天祥|《过零丁洋》': ['辛苦遭逢起一经', '干戈寥落四周星', '山河破碎风飘絮', '身世浮沉雨打萍', '惶恐滩头说惶恐', '零丁洋里叹零丁', '人生自古谁无死', '留取丹心照汗青'],
+  '苏轼|《水调歌头》': ['明月几时有', '把酒问青天', '不知天上宫阙', '今夕是何年', '我欲乘风归去', '又恐琼楼玉宇', '高处不胜寒', '起舞弄清影', '何似在人间', '转朱阁', '低绮户', '照无眠', '不应有恨', '何事长向别时圆', '人有悲欢离合', '月有阴晴圆缺', '此事古难全', '但愿人长久', '千里共婵娟'],
+  '辛弃疾|《破阵子·为陈同甫赋壮词以寄之》': ['醉里挑灯看剑', '梦回吹角连营', '八百里分麾下炙', '五十弦翻塞外声', '沙场秋点兵', '马作的卢飞快', '弓如霹雳弦惊', '了却君王天下事', '赢得生前身后名', '可怜白发生'],
+  '杜甫|《月夜忆舍弟》': ['戍鼓断人行', '边秋一雁声', '露从今夜白', '月是故乡明', '有弟皆分散', '无家问死生', '寄书长不达', '况乃未休兵'],
+  '龚自珍|《己亥杂诗》': ['浩荡离愁白日斜', '吟鞭东指即天涯', '落红不是无情物', '化作春泥更护花'],
+}
+
+const AUTO_VARIANT_MAP = {
+  日: '目', 目: '日', 月: '用', 用: '月', 白: '百', 百: '白', 己: '已', 已: '己',
+  未: '末', 末: '未', 土: '士', 士: '土', 天: '夫', 夫: '天', 人: '入', 入: '人',
+  乌: '鸟', 鸟: '乌', 干: '千', 千: '干', 力: '刀', 刀: '力', 玉: '王', 王: '玉',
+  清: '青', 青: '清', 情: '晴', 晴: '情', 生: '牛', 牛: '生', 尤: '犹', 犹: '尤',
+  里: '重', 重: '里', 采: '彩', 彩: '采', 只: '尺', 尺: '只', 做: '作', 作: '做',
+  诚: '城', 城: '诚', 峰: '锋', 锋: '峰', 声: '生',
+  转: '传', 传: '转', 阁: '阔', 阔: '阁', 户: '护', 照: '昭',
+  问: '间', 间: '问', 低: '抵', 待: '侍', 客: '容', 更: '吏', 明: '朋', 朋: '明',
+  相: '想', 处: '外', 外: '处', 云: '去', 舟: '丹', 绝: '色', 径: '经', 踪: '宗',
+  绿: '缘', 波: '坡', 掌: '党', 项: '顶', 歌: '哥', 裁: '栽', 妆: '壮', 碧: '壁',
+  炉: '庐', 川: '州', 鹭: '露', 含: '合', 岭: '铃', 吴: '吕', 楼: '搂', 追: '迫',
+  独: '浊', 冠: '寇', 简: '筒',
+}
+// 高隐蔽字对：辨识难，归入 stealth 2（其余自动变体默认 stealth 1）
+const HIGH_STEALTH = new Set(['已', '己', '末', '未', '乌', '鸟', '戍', '戌', '做', '作'])
+
+function makeAutoVariants(text) {
+  const variants = []
+  text.split('').forEach((ch, idx) => {
+    const wrong = AUTO_VARIANT_MAP[ch]
+    if (wrong) {
+      const stealth = (HIGH_STEALTH.has(ch) || HIGH_STEALTH.has(wrong)) ? 2 : 1
+      variants.push({ idx, wrong, stealth })
+    }
+  })
+  return variants.slice(0, 3)
+}
+
+const POEMS = (() => {
+  const map = new Map()
+  BANK.forEach(q => {
+    const key = `${q.author}|${q.source}`
+    if (!map.has(key)) {
+      map.set(key, { id: key, author: q.author, source: q.source, tier: q.tier, lines: [] })
+    }
+    const poem = map.get(key)
+    poem.tier = Math.max(poem.tier, q.tier)
+    poem.lines.push(q)
+  })
+  return Array.from(map.values())   // FULL_POEM_LINES 覆盖全部诗目，单句入库的诗（如《望庐山瀑布》）也保留
+    .map(poem => {
+      const fullLines = FULL_POEM_LINES[poem.id] || poem.lines.map(line => line.text)
+      const byText = new Map(poem.lines.map(line => [line.text, line]))
+      const questionLines = fullLines.map((text, i) => {
+        const existing = byText.get(text)
+        return existing || {
+          id: `${poem.id}|full${i}`,
+          text,
+          author: poem.author,
+          source: poem.source,
+          tier: poem.tier,
+          variants: makeAutoVariants(text),
+        }
+      })
+      return { ...poem, fullLines, questionLines }
+    })
+})()
+
+// ══════════════════════════════════════════════════
+// 配置与全局状态
+// ══════════════════════════════════════════════════
+const CONFIG = {
+  papersPerGame: 15,
+  dailySegScale: [1, 0.75, 0.5],      // 今日作业段倍率固定，全员可比
+  segScaleByRank: [                    // 升职之路按职级收紧（实习最缓 → 校长最紧）
+    [1, 0.85, 0.7], [1, 0.8, 0.65], [1, 0.78, 0.6], [1, 0.75, 0.55], [1, 0.75, 0.5],
+  ],
+  baseBySeg: [10, 13, 16],             // 分段基础分：后段难度补偿
+  feedbackMsGood: 350,
+  feedbackMsBad: 700,
+  ranks: ['实习老师', '老师', '班主任', '教导主任', '校长'],
+  rankBase: [6000, 6000, 5000, 4000, 4000],   // 升职之路限时基线
+  dailyBase: 6000,
+  prestigePerRank: 100,
+  prestigeDelta: { S: 30, A: 15, B: 5, C: -10 },
+  gradeCuts: { A: 12, B: 9 },          // S=全对；A/B 下限；其余 C
+  studentEmojis: ['🧒', '👦', '👧'],
+  lensPerGame: 2,
+  lensBonusMs: 3000,                   // 放大镜=仔细看看：本句加时
+  aiComboUnlock: 5,
+  aiBatch: 3,
+  aiAccuracy: 0.8,
+  shopBreaks: [],               // 升职之路不再中途打断：一张卷子批完后统一结算声望
+  pens: [
+    { id: 'red',    name: '经典红笔', color: '#d43a2f', cost: 0 },
+    { id: 'gold',   name: '金色钢笔', color: '#c9a227', cost: 200 },
+    { id: 'purple', name: '荧光紫笔', color: '#8b5cf6', cost: 350 },
+  ],
+  seals: [
+    { id: 'you',     name: '优字章', text: '优', cost: 0 },
+    { id: 'hundred', name: '满分章', text: '💯', cost: 250 },
+    { id: 'star',    name: '星星章', text: '⭐', cost: 400 },
+  ],
+}
+
+const store = {
+  ok: true,
+  get(k, d) { try { const v = localStorage.getItem('st_' + k); return v === null ? d : v } catch (e) { this.ok = false; return d } },
+  set(k, v) { try { localStorage.setItem('st_' + k, String(v)) } catch (e) { this.ok = false } },
+  probe() {
+    try { localStorage.setItem('st_probe', '1'); this.ok = localStorage.getItem('st_probe') === '1'; localStorage.removeItem('st_probe') }
+    catch (e) { this.ok = false }
+  },
+}
+store.probe()
+
+const profile = {
+  rank: parseInt(store.get('rank', '0'), 10) || 0,
+  prestige: parseInt(store.get('prestige', '0'), 10) || 0,
+  schoolScore: parseInt(store.get('school_score', '0'), 10) || 0,
+  introSeen: store.get('intro_seen', '') === '1',
+  points: parseInt(store.get('points', '0'), 10) || 0,
+  skins: (store.get('skins', '') || '').split(',').filter(Boolean),
+  pen: store.get('pen', 'red'),
+  seal: store.get('seal', 'you'),
+  save() {
+    store.set('rank', this.rank); store.set('prestige', this.prestige); store.set('school_score', this.schoolScore)
+    store.set('points', this.points); store.set('skins', this.skins.join(',')); store.set('pen', this.pen); store.set('seal', this.seal)
+  },
+}
+function currentPen()  { return CONFIG.pens.find(p => p.id === profile.pen) || CONFIG.pens[0] }
+function currentSeal() { return CONFIG.seals.find(s => s.id === profile.seal) || CONFIG.seals[0] }
+
+const state = {
+  mode: null,               // 'daily' | 'career'
+  papers: [], idx: 0, currentPoem: null,
+  phase: 'idle',            // idle | entering | active | feedback | leaving
+  score: 0, combo: 0, maxCombo: 0, correctCount: 0,
+  deadline: 0, limitMs: 0, pausedRemaining: 0,
+  paperTimer: null, feedbackTimer: null,
+  records: [],
+  lensLeft: 0, aiCharge: false, aiRemaining: 0, aiActing: false,
+  dailyPractice: false, shopFrom: null,
+}
+let introTimers = []
+
+const $ = id => document.getElementById(id)
+const screens = {
+  intro: $('screen-intro'), home: $('screen-home'), transition: $('screen-transition'),
+  grading: $('screen-grading'), report: $('screen-report'),
+}
+let currentScreen = null
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'))
+  screens[name].classList.add('active')
+  currentScreen = name
+}
+
+// ══════════════════════════════════════════════════
+// 卷子生成（日期种子 / 随机）
+// ══════════════════════════════════════════════════
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0
+    let t = Math.imul(a ^ a >>> 15, 1 | a)
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+    return ((t ^ t >>> 14) >>> 0) / 4294967296
+  }
+}
+function todaySeed() {
+  const d = new Date()
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+}
+function shuffled(arr, rand) {
+  const a = arr.slice()
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// 每段无错句数量：段0 目标30%（1~2 句），段1/2 目标45%（2~3 句）
+function rollNoErrCount(seg, rand) {
+  if (seg === 0) return rand() < 0.5 ? 1 : 2
+  return rand() < 0.75 ? 2 : 3
+}
+const SEG_STEALTH_MAX = [0, 1, 2]
+
+function pickPoem(rand, poems) {
+  return poems[Math.floor(rand() * poems.length)] || POEMS[0]
+}
+
+// 全班卷子：不足 15 句时按"轮"补齐，每轮 = 整首诗洗牌一遍 = 换一位学生
+function poemRoster(poem, rand, count) {
+  const out = []
+  let round = 0
+  while (out.length < count) {
+    const batch = shuffled(poem.questionLines, rand)
+    // 交界去重：新一轮首句与上一轮末句相同时，与第二句交换
+    if (out.length && batch.length > 1 && batch[0].text === out[out.length - 1].q.text) {
+      ;[batch[0], batch[1]] = [batch[1], batch[0]]
+    }
+    batch.forEach(q => out.push({ q, round }))
+    round += 1
+  }
+  return out.slice(0, count)
+}
+
+// rand: 随机函数；poem: 本局同一首诗；baseMs: 限时基线；segScale: 段限时倍率
+function buildPapers(rand, poem, baseMs, segScale) {
+  const roster = poemRoster(poem, rand, CONFIG.papersPerGame)
+  const studentOrder = shuffled(CONFIG.studentEmojis, rand)
+  // 每段无错额度：无变体句必然无错、先计入额度，再从有变体句里补摇差额
+  const noErr = new Set()
+  for (let seg = 0; seg < 3; seg++) {
+    const idxs = [0, 1, 2, 3, 4].map(s => seg * 5 + s)
+    const novar = idxs.filter(i => !roster[i].q.variants.length)
+    novar.forEach(i => noErr.add(i))
+    const target = rollNoErrCount(seg, rand)
+    const need = Math.max(0, target - novar.length)
+    shuffled(idxs.filter(i => roster[i].q.variants.length), rand).slice(0, need)
+      .forEach(i => noErr.add(i))
+  }
+  return roster.map(({ q, round }, i) => {
+    const seg = Math.floor(i / 5)
+    const chars = q.text.split('')
+    let errorIdx = -1, correctChar = '', wrongChar = ''
+    if (!noErr.has(i) && q.variants.length) {
+      const cap = SEG_STEALTH_MAX[seg]
+      let pool = q.variants.filter(v => v.stealth <= cap)
+      if (!pool.length) {  // 该题变体全部高隐蔽：回退到最低隐蔽的那个
+        const min = Math.min(...q.variants.map(v => v.stealth))
+        pool = q.variants.filter(v => v.stealth === min)
+      }
+      const v = pool[Math.floor(rand() * pool.length)]
+      errorIdx = v.idx
+      correctChar = chars[v.idx]
+      wrongChar = v.wrong
+      chars[v.idx] = v.wrong
+    }
+    return {
+      q, poem, chars, errorIdx, correctChar, wrongChar, segment: seg, round,
+      limitMs: Math.round(baseMs * segScale[seg]),
+      student: studentOrder[round % studentOrder.length],
+    }
+  })
+}
+
+// 日更诗确定性轮换：日期序数取模，相邻两天必不同
+function dailyPoemIndex(seed) {
+  const y = Math.floor(seed / 10000), m = Math.floor(seed / 100) % 100, d = seed % 100
+  return (y * 372 + m * 31 + d) % POEMS.length
+}
+
+function generatePapers(mode, seedOverride) {
+  if (mode === 'daily') {
+    // 固定调用顺序保证同日同卷：诗目按日序轮换，其余摇取走同一 rng。
+    const seed = seedOverride != null ? seedOverride : todaySeed()
+    const rand = mulberry32(seed)
+    return buildPapers(rand, POEMS[dailyPoemIndex(seed)], CONFIG.dailyBase, CONFIG.dailySegScale)
+  }
+  // 升职之路：职级决定池、基线与段倍率
+  const rand = Math.random
+  const r = profile.rank
+  let pool
+  if (r <= 1) pool = POEMS.filter(p => p.tier === 0)
+  else if (r === 2) pool = POEMS.filter(p => p.tier === 1)
+  else pool = POEMS
+  return buildPapers(rand, pickPoem(rand, pool), CONFIG.rankBase[r], CONFIG.segScaleByRank[r])
+}
+
+// ══════════════════════════════════════════════════
+// 批改主循环
+// ══════════════════════════════════════════════════
+function startGame(mode) {
+  state.mode = mode
+  state.papers = generatePapers(mode)
+  state.currentPoem = state.papers[0] ? state.papers[0].poem : null
+  state.idx = 0
+  state.score = 0; state.combo = 0; state.maxCombo = 0; state.correctCount = 0
+  state.records = []
+  state.phase = 'idle'
+  state.lensLeft = CONFIG.lensPerGame
+  state.aiCharge = false
+  state.aiRemaining = 0
+  state.aiActing = false
+  state.shopFrom = null
+  // 今日作业每日仅首局计声望/积分，当日重玩为练习局
+  state.dailyPractice = mode === 'daily' && store.get('daily_done', '') === String(todaySeed())
+  updateHUD()
+  updatePropBar()
+  ;['ai-confirm', 'shop-modal'].forEach(id => $(id).classList.remove('show'))
+  $('paper-stage').innerHTML = ''
+  showScreen('grading')
+  if (state.dailyPractice) showToast('今日成绩已记录，本局为练习（不计声望/积分）')
+  if (store.get('tutor_seen', '') !== '1') $('tutor-overlay').classList.add('show')  // 首次：教学浮层，点击后再发卷
+  else nextPaper()
+}
+
+function updatePropBar() {
+  $('lens-count').textContent = state.lensLeft
+  $('prop-lens').classList.toggle('disabled', state.lensLeft <= 0)
+  const ai = $('prop-ai')
+  ai.classList.toggle('disabled', !state.aiCharge)
+  ai.classList.toggle('ready', state.aiCharge)
+}
+
+function showToast(msg) {
+  const t = $('toast')
+  t.textContent = msg
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show')
+}
+
+function updateHUD() {
+  const n = Math.min(state.idx + 1, CONFIG.papersPerGame)
+  $('hud-progress').textContent = state.currentPoem
+    ? `${state.currentPoem.source} · ${n}/${CONFIG.papersPerGame}` : '批改中'
+  $('hud-score').textContent = `${state.score} 分`
+  const comboEl = $('hud-combo')
+  comboEl.textContent = `🔥 x${state.combo}`
+  comboEl.classList.toggle('dim', state.combo === 0)
+}
+
+function renderPaper(paper, n) {
+  const el = document.createElement('div')
+  el.className = 'paper'
+  const head = document.createElement('div')
+  head.className = 'paper-head'
+  head.innerHTML = `<span class="stu-name">${paper.student} ${paper.round + 1} 号同学的试卷</span><span>${paper.q.author} · 默写</span>`
+  el.appendChild(head)
+  const ref = document.createElement('div')
+  ref.className = 'paper-ref'
+  const poemLines = paper.poem.fullLines.map(line => {
+    const cls = line === paper.q.text ? 'poem-line current' : 'poem-line'
+    return `<span class="${cls}">${line}</span>`
+  }).join('')
+  ref.innerHTML = `<div class="paper-ref-title"><strong>课本原文</strong><span>${paper.poem.source}</span></div><div class="poem-lines">${poemLines}</div>`
+  el.appendChild(ref)
+  const answerCard = document.createElement('div')
+  answerCard.className = 'answer-card'
+  answerCard.innerHTML = `<div class="answer-title"><b>同学答题卡</b><span>找错字，或放行</span></div>`
+  // 五言、七言都保持单行，七言不拆 4+3。
+  const rows = [paper.chars]
+  let base = 0
+  rows.forEach(rowChars => {
+    const row = document.createElement('div')
+    row.className = 'grid-row answer-row'
+    row.style.setProperty('--chars', rowChars.length)
+    rowChars.forEach((ch, k) => {
+      const cell = document.createElement('button')
+      cell.className = 'cell'
+      cell.dataset.i = base + k
+      cell.textContent = ch
+      row.appendChild(cell)
+    })
+    base += rowChars.length
+    answerCard.appendChild(row)
+  })
+  el.appendChild(answerCard)
+  const stampBtn = document.createElement('button')
+  stampBtn.className = 'stamp-inline'
+  stampBtn.textContent = '优 · 无错放行'
+  el.appendChild(stampBtn)
+  const seal = document.createElement('div')
+  seal.className = 'seal'
+  el.appendChild(seal)
+  return el
+}
+
+function nextPaper() {
+  if (state.idx >= CONFIG.papersPerGame) { endGame(); return }
+  const paper = state.papers[state.idx]
+  const el = renderPaper(paper, state.idx + 1)
+  el.classList.add('entering')
+  const stage = $('paper-stage')
+  stage.innerHTML = ''
+  stage.appendChild(el)
+  state.phase = 'entering'
+  updateHUD()
+  resetTimebar()
+  const activate = () => {
+    if (state.phase !== 'entering') return   // 已激活或已离开批改屏
+    el.classList.remove('entering')
+    state.phase = 'active'
+    armPaperTimer(paper.limitMs)
+    if (state.aiRemaining > 0) scheduleAiJudge()
+  }
+  el.addEventListener('animationend', function onIn(e) {
+    if (e.animationName !== 'fly-in') return
+    el.removeEventListener('animationend', onIn)
+    activate()
+  })
+  setTimeout(activate, 450)   // 兜底：动画事件丢失也能激活
+
+}
+
+// ── 计时：CSS 条只管视觉，判定走 performance.now() ──
+function armPaperTimer(limitMs) {
+  state.limitMs = limitMs
+  state.deadline = performance.now() + limitMs
+  clearTimeout(state.paperTimer)
+  state.paperTimer = setTimeout(onPaperTimeout, limitMs + 20)
+  runTimebar(limitMs)
+}
+function onPaperTimeout() {
+  if (state.phase !== 'active') return
+  const remain = state.deadline - performance.now()
+  if (remain > 30) {  // 节流早醒：按剩余量补挂
+    state.paperTimer = setTimeout(onPaperTimeout, remain)
+    return
+  }
+  resolve('timeout', -1)
+}
+function resetTimebar() {
+  const fill = $('timebar-fill')
+  fill.classList.remove('run', 'paused')
+  fill.style.animationDuration = ''
+  void fill.offsetWidth
+}
+function runTimebar(limitMs) {
+  const fill = $('timebar-fill')
+  fill.classList.remove('run', 'paused')
+  void fill.offsetWidth
+  fill.style.animationDuration = limitMs + 'ms'
+  fill.classList.add('run')
+}
+function runTimebarFrom(remainMs, limitMs) {
+  // 恢复时从剩余比例继续：用负 delay 快进
+  const fill = $('timebar-fill')
+  fill.classList.remove('run', 'paused')
+  void fill.offsetWidth
+  fill.style.animationDuration = limitMs + 'ms'
+  fill.style.animationDelay = -(limitMs - remainMs) + 'ms'
+  fill.classList.add('run')
+}
+
+// ── 判定：tappedIdx = -1 表示盖"优"章 ──
+function judge(tappedIdx) {
+  if (state.phase !== 'active') return
+  const paper = state.papers[state.idx]
+  const isCorrect = (paper.errorIdx === -1 && tappedIdx === -1) || (tappedIdx === paper.errorIdx && tappedIdx >= 0)
+  if (isCorrect) resolve('correct', tappedIdx)
+  else if (tappedIdx === -1) resolve('miss', tappedIdx)          // 漏批：对错句盖章
+  else resolve('wrong_accuse', tappedIdx)                        // 冤枉：对无错句(或错位置)圈字
+}
+
+function resolve(result, tappedIdx) {
+  if (state.phase !== 'active') return
+  state.phase = 'feedback'   // 同步锁输入：连点/双触发/超时竞态全部由此挡住
+  clearTimeout(state.paperTimer)
+  const paper = state.papers[state.idx]
+  const el = $('paper-stage').querySelector('.paper')
+  const remainMs = Math.max(0, state.deadline - performance.now())
+  $('timebar-fill').classList.add('paused')
+
+  // AI 偷懒代批：连击冻结（不加不清）、批错不扣分——兑现确认框承诺
+  const byAi = state.aiActing
+  const base = CONFIG.baseBySeg[paper.segment] || CONFIG.baseBySeg[CONFIG.baseBySeg.length - 1]
+
+  let gained = 0
+  if (result === 'correct') {
+    if (!byAi) { state.combo += 1; state.maxCombo = Math.max(state.maxCombo, state.combo) }
+    state.correctCount += 1
+    gained = base + Math.min(state.combo, 10) + Math.floor(remainMs / 1000) * 2
+    state.score += gained
+    if (tappedIdx >= 0) drawCircle(el, tappedIdx)
+    else stampSeal(el, currentSeal().text, false)
+    floatFb(el, byAi ? '🤖' : (tappedIdx >= 0 ? '✅' : '👍'), `+${gained}`, 'good')
+    if (!byAi && state.combo % CONFIG.aiComboUnlock === 0 && !state.aiCharge && state.aiRemaining === 0) {
+      state.aiCharge = true
+      showToast('🤖 AI 偷懒工具已解锁！点左下角使用')
+    }
+    if (navigator.vibrate) navigator.vibrate(30)
+  } else if (result === 'wrong_accuse') {
+    if (!byAi) state.combo = 0
+    gained = byAi ? 0 : -10
+    state.score += gained
+    drawCircle(el, tappedIdx)
+    if (paper.errorIdx >= 0) {   // 有错句但圈错位置：指出真正的错字
+      revealError(el, paper.errorIdx)
+      floatFb(el, byAi ? '🤖' : '🙅', byAi ? 'AI 圈错位置（不扣分）' : `圈错位置！错字是「${paper.wrongChar}」 -10`, 'bad')
+    } else {                      // 无错句被圈：真冤枉
+      floatFb(el, byAi ? '🤖' : '😢', byAi ? 'AI 冤枉学生（不扣分）' : '冤枉！本句无错 -10', 'bad')
+    }
+  } else if (result === 'miss') {
+    if (!byAi) state.combo = 0
+    gained = byAi ? 0 : -15
+    state.score += gained
+    stampSeal(el, currentSeal().text, false)
+    revealError(el, paper.errorIdx)
+    floatFb(el, byAi ? '🤖' : '😏', byAi ? `AI 漏批错字「${paper.wrongChar}」（不扣分）` : `漏批！错字是「${paper.wrongChar}」 -15`, 'bad')
+  } else { // timeout（AI 代批期间不会超时）
+    state.combo = 0
+    gained = -15
+    state.score += gained
+    stampSeal(el, '未批改', true)
+    if (paper.errorIdx >= 0) revealError(el, paper.errorIdx)
+    floatFb(el, '⏰', '超时！自动记漏批 -15', 'bad')
+  }
+  state.records.push({ paper, result, gained })
+  updateHUD()
+  updatePropBar()
+
+  const wait = result === 'correct' ? CONFIG.feedbackMsGood : CONFIG.feedbackMsBad
+  clearTimeout(state.feedbackTimer)
+  state.feedbackTimer = setTimeout(() => flyOut(result), wait)
+}
+
+function drawCircle(paperEl, idx) {
+  const cell = paperEl.querySelector(`.cell[data-i="${idx}"]`)
+  if (!cell) return
+  const c = document.createElement('span')
+  c.className = 'red-circle'
+  c.style.borderColor = currentPen().color
+  cell.appendChild(c)
+}
+function revealError(paperEl, idx) {
+  const cell = paperEl.querySelector(`.cell[data-i="${idx}"]`)
+  if (cell) cell.classList.add('reveal')
+}
+function stampSeal(paperEl, text, gray) {
+  const seal = paperEl.querySelector('.seal')
+  seal.textContent = text
+  seal.classList.toggle('gray', !!gray)
+  seal.classList.add('on')
+}
+function floatFb(paperEl, emoji, text, tone) {
+  const fb = document.createElement('div')
+  fb.className = 'float-fb'
+  fb.innerHTML = `${emoji}<span class="fb-text ${tone}">${text}</span>`
+  paperEl.appendChild(fb)
+}
+
+function flyOut(result) {
+  if (state.phase !== 'feedback') return
+  state.phase = 'leaving'
+  const el = $('paper-stage').querySelector('.paper')
+  if (!el) { advance(); return }
+  el.classList.add(result === 'correct' ? 'leave-good' : 'leave-bad')
+  let done = false
+  const finish = () => { if (done) return; done = true; el.remove(); advance() }
+  el.addEventListener('animationend', finish)
+  setTimeout(finish, 600)   // 兜底：动画事件丢失也能推进
+}
+function advance() {
+  if (state.phase !== 'leaving') return
+  state.idx += 1
+  state.phase = 'idle'
+  // 升职之路不再有中途轮次：一张卷子批完后统一结算声望。
+  if (state.mode === 'career' && CONFIG.shopBreaks.includes(state.idx) && state.idx < CONFIG.papersPerGame) {
+    openShop()
+    return
+  }
+  nextPaper()
+}
+
+// ── 限时暂停/恢复（visibilitychange 与 AI 确认框共用）──
+function pausePaper() {
+  if (state.phase !== 'active') return false
+  state.pausedRemaining = Math.max(0, state.deadline - performance.now())
+  clearTimeout(state.paperTimer)
+  state.paperTimer = null
+  $('timebar-fill').classList.add('paused')
+  return true
+}
+function resumePaper() {
+  if (state.phase !== 'active' || state.pausedRemaining <= 0) return
+  const remain = state.pausedRemaining
+  state.pausedRemaining = 0
+  state.deadline = performance.now() + remain
+  state.paperTimer = setTimeout(onPaperTimeout, remain + 20)
+  runTimebarFrom(remain, state.limitMs)
+}
+
+// ── 道具：放大镜 ──
+// 放大镜 = 仔细端详：本句加时，把"时间"这一唯一稀缺资源交回玩家
+function useLens() {
+  if (state.phase !== 'active' || state.lensLeft <= 0) return
+  state.lensLeft -= 1
+  updatePropBar()
+  state.deadline += CONFIG.lensBonusMs
+  clearTimeout(state.paperTimer)
+  const remain = Math.max(0, state.deadline - performance.now())
+  state.paperTimer = setTimeout(onPaperTimeout, remain + 20)
+  runTimebarFrom(remain, remain)   // 限时条按新剩余重新排空
+  const el = $('paper-stage').querySelector('.paper')
+  if (el) floatFb(el, '🔍', `仔细端详 +${Math.round(CONFIG.lensBonusMs / 1000)} 秒`, 'good')
+}
+
+// ── 道具：AI 偷懒 ──
+function askAi() {
+  if (state.phase !== 'active' || !state.aiCharge) return
+  pausePaper()
+  $('ai-confirm').classList.add('show')
+}
+function scheduleAiJudge() {
+  const myIdx = state.idx
+  setTimeout(() => {
+    if (state.phase !== 'active' || state.idx !== myIdx || state.aiRemaining <= 0) return
+    state.aiRemaining -= 1
+    const p = state.papers[state.idx]
+    state.aiActing = true   // resolve 内据此豁免扣分与连击（judge→resolve 同步执行）
+    if (Math.random() < CONFIG.aiAccuracy) judge(p.errorIdx)          // errorIdx=-1 时即盖章
+    else if (p.errorIdx >= 0) judge(-1)                               // AI 看走眼：漏批
+    else judge(Math.floor(Math.random() * p.chars.length))           // AI 多疑：冤枉
+    state.aiActing = false
+  }, 600)
+}
+
+// ── 文具小卖部 ──
+function openShop() {
+  renderShop()
+  $('shop-modal').classList.add('show')
+}
+function renderShop() {
+  $('shop-points').textContent = `我的积分：${profile.points}`
+  const chip = (item, kind) => {
+    const isEquipped = (kind === 'pen' ? profile.pen : profile.seal) === item.id
+    const isOwned = item.cost === 0 || profile.skins.includes(item.id)
+    const canBuy = !isOwned && profile.points >= item.cost
+    const cls = 'skin-chip' + (isEquipped ? ' equipped' : '') + (!isOwned && !canBuy ? ' locked' : '')
+    const icon = kind === 'pen'
+      ? `<span class="skin-icon" style="color:${item.color}">●</span>`
+      : `<span class="skin-icon">${item.text}</span>`
+    const cost = isEquipped ? '使用中' : isOwned ? '已拥有' : `${item.cost} 积分`
+    return `<div class="${cls}" data-kind="${kind}" data-id="${item.id}">${icon}<span>${item.name}</span><span class="skin-cost">${cost}</span></div>`
+  }
+  $('shop-pens').innerHTML = CONFIG.pens.map(p => chip(p, 'pen')).join('')
+  $('shop-seals').innerHTML = CONFIG.seals.map(s => chip(s, 'seal')).join('')
+}
+function onShopTap(chipEl) {
+  const { kind, id } = chipEl.dataset
+  const item = (kind === 'pen' ? CONFIG.pens : CONFIG.seals).find(x => x.id === id)
+  if (!item) return
+  const isOwned = item.cost === 0 || profile.skins.includes(id)
+  if (!isOwned) {
+    if (profile.points < item.cost) return
+    profile.points -= item.cost
+    profile.skins.push(id)
+  }
+  if (kind === 'pen') profile.pen = id
+  else profile.seal = id
+  profile.save()
+  renderShop()
+}
+
+// ══════════════════════════════════════════════════
+// 结算与职级声望
+// ══════════════════════════════════════════════════
+function gradeOf(correct) {
+  if (correct === CONFIG.papersPerGame) return 'S'
+  if (correct >= CONFIG.gradeCuts.A) return 'A'
+  if (correct >= CONFIG.gradeCuts.B) return 'B'
+  return 'C'
+}
+const GRADE_FLAVOR = {
+  S: '🎉 学生们鞠躬：老师您真是火眼金睛！',
+  A: '👍 校长点头：批得又快又准。',
+  B: '😐 勉强合格，下次再仔细些。',
+  C: '😰 家长群炸锅了……明天加把劲。',
+}
+// 纯函数：返回结算前后快照（每级 100，跌破 0 降职，实习保底，校长正向收益转治校分）
+function applyPrestige(p, grade) {
+  const delta = CONFIG.prestigeDelta[grade]
+  const before = { rank: p.rank, prestige: p.prestige, schoolScore: p.schoolScore }
+  let { rank, prestige, schoolScore } = before
+  if (rank === CONFIG.ranks.length - 1 && delta > 0) {
+    schoolScore += delta
+  } else {
+    prestige += delta
+    while (prestige >= CONFIG.prestigePerRank && rank < CONFIG.ranks.length - 1) {
+      rank += 1; prestige -= CONFIG.prestigePerRank
+    }
+    if (rank === CONFIG.ranks.length - 1 && prestige >= CONFIG.prestigePerRank) {
+      schoolScore += prestige - (CONFIG.prestigePerRank - 1)
+      prestige = CONFIG.prestigePerRank - 1
+    }
+    while (prestige < 0) {
+      if (rank > 0) { rank -= 1; prestige += CONFIG.prestigePerRank }
+      else { prestige = 0 }  // 实习保底
+    }
+  }
+  return { before, after: { rank, prestige, schoolScore }, delta, promoted: rank > before.rank, demoted: rank < before.rank }
+}
+
+function nextRankText(shift) {
+  const top = CONFIG.ranks.length - 1
+  if (shift.after.rank >= top) return `已达到最高职级：校长，治校分 ${shift.after.schoolScore}`
+  const next = CONFIG.ranks[shift.after.rank + 1]
+  const need = Math.max(0, CONFIG.prestigePerRank - shift.after.prestige)
+  return `距离升职为「${next}」还差 ${need} 声望`
+}
+
+const RESULT_LABEL = { wrong_accuse: '冤枉了学生 😢', miss: '漏批了错字 😏', timeout: '超时未批改 ⏰' }
+
+function endGame() {
+  clearTimeout(state.paperTimer); clearTimeout(state.feedbackTimer)
+  state.phase = 'idle'
+  const grade = gradeOf(state.correctCount)
+  const practice = state.dailyPractice
+  const shift = applyPrestige(profile, grade)   // 纯函数，仅练习局用于对比展示
+  let earned = 0
+  if (!practice) {
+    profile.rank = shift.after.rank
+    profile.prestige = shift.after.prestige
+    profile.schoolScore = shift.after.schoolScore
+    earned = Math.max(0, state.score)
+    profile.points += earned
+    if (state.mode === 'daily') store.set('daily_done', String(todaySeed()))  // 标记今日已计分
+    profile.save()
+  }
+
+  $('grade-badge').textContent = grade
+  $('grade-flavor').textContent = GRADE_FLAVOR[grade] || ''
+  const acc = Math.round(state.correctCount / CONFIG.papersPerGame * 100)
+  const poemTitle = state.currentPoem ? `${state.currentPoem.source} · ${state.currentPoem.author}` : '本张试卷'
+  const pointsLine = practice ? '练习局：积分不计' : `积分 +${earned}（累计 ${profile.points}）`
+  $('report-stats').innerHTML =
+    `${poemTitle}<br>总分 <b>${state.score}</b> 分<br>准确率 ${state.correctCount}/${CONFIG.papersPerGame}（${acc}%）<br>最高连击 🔥 x${state.maxCombo}<br>${pointsLine}`
+
+  const pc = $('prestige-change')
+  if (practice) {
+    pc.innerHTML = `<div class="prestige-main">📘 今日成绩已记录，本局为练习</div><div class="prestige-next">练习不计声望/积分，明日再来新卷</div>`
+  } else {
+    const deltaTxt = shift.delta >= 0 ? `+${shift.delta}` : `${shift.delta}`
+    let html = `<div class="prestige-main">本局声望 ${deltaTxt}</div>`
+    if (shift.before.rank === CONFIG.ranks.length - 1 && shift.delta > 0) {
+      html += `<div class="prestige-next">校长治校分 ${deltaTxt} → 累计 ${shift.after.schoolScore}</div>`
+    } else {
+      html += `<div class="prestige-next">当前职级：${CONFIG.ranks[shift.after.rank]}｜声望 ${shift.after.prestige}/100</div>`
+      html += `<div class="prestige-next">${nextRankText(shift)}</div>`
+      if (shift.promoted) html += `<br><span class="rank-shift">🎉 升职：${CONFIG.ranks[shift.before.rank]} → ${CONFIG.ranks[shift.after.rank]}</span>`
+      if (shift.demoted)  html += `<br><span class="rank-shift">📉 降职：${CONFIG.ranks[shift.before.rank]} → ${CONFIG.ranks[shift.after.rank]}</span>`
+    }
+    if (!store.ok) html += `<br><span style="color:var(--color-gray)">（存储不可用，本局职级不保存）</span>`
+    pc.innerHTML = html
+  }
+
+  const wrongs = state.records.filter(r => r.result !== 'correct')
+  const list = $('wrong-list')
+  if (!wrongs.length) {
+    list.innerHTML = `<div class="wrong-title">整张卷子全部批对，无错题回顾 🎉</div>`
+  } else {
+    list.innerHTML = `<div class="wrong-title">错题回顾（${wrongs.length}）</div>` + wrongs.map(r => {
+      const p = r.paper
+      const verse = p.q.text.split('').map((ch, i) =>
+        i === p.errorIdx ? `<span class="hl">${ch}</span>` : ch).join('')
+      const note = p.errorIdx >= 0 ? `卷面误写「${p.wrongChar}」，正确是「${p.correctChar}」` : '本句无错'
+      return `<div class="wrong-item">
+        <div class="verse">${verse}</div>
+        <div class="meta">${p.q.author} · ${p.q.source}</div>
+        <div class="why">${RESULT_LABEL[r.result]} · ${note}（${r.gained}）</div>
+      </div>`
+    }).join('')
+  }
+  showScreen('report')
+}
+
+// ══════════════════════════════════════════════════
+// 首页 / 转场
+// ══════════════════════════════════════════════════
+function refreshHome() {
+  const isTop = profile.rank === CONFIG.ranks.length - 1
+  $('rank-name').textContent = CONFIG.ranks[profile.rank]
+  $('rank-prestige').textContent = (isTop
+    ? `治校分 ${profile.schoolScore}` : `声望 ${profile.prestige} / 100`) + ` · 积分 ${profile.points}`
+  $('prestige-fill').style.width = (isTop ? 100 : profile.prestige) + '%'
+  $('storage-warn').classList.toggle('show', !store.ok)
+  const dailyDone = store.get('daily_done', '') === String(todaySeed())
+  $('btn-daily').textContent = dailyDone ? '今日作业 ✓ 已完成（可练习）' : '今日作业'
+}
+function goHome() {
+  clearTimeout(state.paperTimer); clearTimeout(state.feedbackTimer)
+  state.phase = 'idle'
+  refreshHome()
+  showScreen('home')
+}
+function enterGame(mode) {
+  showScreen('transition')
+  const sheet = document.querySelector('.fly-sheet')
+  let done = false
+  const go = () => { if (done) return; done = true; startGame(mode) }
+  sheet.addEventListener('animationend', function onT() {
+    sheet.removeEventListener('animationend', onT); go()
+  })
+  setTimeout(go, 700)  // 兜底
+}
+
+// ══════════════════════════════════════════════════
+// 开场动画（3 镜头，链式 setTimeout，句柄全收 introTimers）
+// ══════════════════════════════════════════════════
+function clearIntroTimers() { introTimers.forEach(clearTimeout); introTimers = [] }
+function it(fn, ms) { introTimers.push(setTimeout(fn, ms)) }
+
+function typewrite(el, text, stepMs) {
+  el.textContent = ''
+  text.split('').forEach((ch, i) => it(() => { el.textContent += ch }, stepMs * (i + 1)))
+}
+
+function playIntro(short) {
+  clearIntroTimers()
+  document.querySelectorAll('.intro-scene').forEach(s => { s.classList.remove('on', 's1-play', 's3-play') })
+  showScreen('intro')
+  const scene = n => {
+    document.querySelectorAll('.intro-scene').forEach(s => s.classList.remove('on'))
+    $('intro-scene' + n).classList.add('on')
+  }
+  const runScene3 = () => {
+    scene(3)
+    const s3 = $('intro-scene3')
+    s3.querySelectorAll('.stu').forEach(e => e.remove())
+    const kids = ['🧒', '👦', '👧', '🧒', '👧', '👦']
+    kids.forEach((k, i) => {
+      const d = document.createElement('div')
+      d.className = 'stu'
+      d.textContent = k
+      d.style.left = (8 + i * 15) + 'vw'
+      d.style.animationDelay = (i * 0.12) + 's'
+      s3.appendChild(d)
+    })
+    // 重启卷纸动画
+    const sp = s3.querySelector('.spin-paper')
+    sp.style.animation = 'none'; void sp.offsetWidth; sp.style.animation = ''
+    s3.classList.remove('s3-play'); void s3.offsetWidth; s3.classList.add('s3-play')
+    it(finishIntro, 2100)
+  }
+  if (short) { runScene3(); return }
+  // 镜头①：黑屏睁眼 + 打字机（2s）
+  scene(1)
+  const s1 = $('intro-scene1')
+  s1.classList.remove('s1-play'); void s1.offsetWidth; s1.classList.add('s1-play')
+  typewrite($('type1'), '你醒了。', 220)
+  // 镜头②：老师对话（3s）
+  it(() => {
+    scene(2)
+    typewrite($('type2'), '今天是你当老师的第一天，好好干，去批学生的作业吧！', 110)
+  }, 2000)
+  // 镜头③（2s）
+  it(runScene3, 5000)
+}
+function finishIntro() {
+  clearIntroTimers()
+  profile.introSeen = true
+  store.set('intro_seen', '1')
+  goHome()
+}
+function skipIntro() {
+  if (currentScreen !== 'intro') return
+  finishIntro()
+}
+
+// ══════════════════════════════════════════════════
+// 事件绑定
+// ══════════════════════════════════════════════════
+// 触摸 + 鼠标双绑定；touchstart preventDefault 抑制合成 mouse 事件
+function bindTap(el, handler) {
+  el.addEventListener('touchstart', e => { e.preventDefault(); handler(e) }, { passive: false })
+  el.addEventListener('mousedown', handler)
+}
+
+bindTap($('paper-stage'), e => {
+  if (state.phase !== 'active') return
+  const target = (e.touches ? document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY) : e.target)
+  if (!target || !target.closest) return
+  if (target.closest('.stamp-inline')) { judge(-1); return }
+  const cell = target.closest('.cell')
+  if (!cell) return
+  judge(parseInt(cell.dataset.i, 10))
+})
+bindTap($('prop-lens'), useLens)
+bindTap($('prop-ai'), askAi)
+bindTap($('tutor-overlay'), () => {
+  store.set('tutor_seen', '1')
+  $('tutor-overlay').classList.remove('show')
+  if (currentScreen === 'grading' && state.phase === 'idle') nextPaper()
+})
+$('ai-yes').addEventListener('click', () => {
+  $('ai-confirm').classList.remove('show')
+  state.aiCharge = false
+  state.aiRemaining = CONFIG.aiBatch
+  updatePropBar()
+  resumePaper()
+  scheduleAiJudge()
+})
+$('ai-no').addEventListener('click', () => {
+  $('ai-confirm').classList.remove('show')
+  resumePaper()
+})
+$('shop-close').addEventListener('click', () => {
+  const from = state.shopFrom
+  state.shopFrom = null
+  $('shop-modal').classList.remove('show')
+  if (from === 'home') refreshHome()          // 停在首页
+  else if (from === 'report') { /* 停在结算页 */ }
+  else nextPaper()                            // 段间歇遗留路径（当前 shopBreaks 为空，不会走到）
+})
+$('shop-modal').addEventListener('click', e => {
+  const chipEl = e.target.closest ? e.target.closest('.skin-chip') : null
+  if (chipEl) onShopTap(chipEl)
+})
+$('btn-shop-home').addEventListener('click', () => { state.shopFrom = 'home'; openShop() })
+$('btn-shop-report').addEventListener('click', () => { state.shopFrom = 'report'; openShop() })
+bindTap($('screen-intro'), skipIntro)
+
+$('btn-daily').addEventListener('click', () => enterGame('daily'))
+$('btn-career').addEventListener('click', () => enterGame('career'))
+$('btn-replay-intro').addEventListener('click', () => playIntro(!store.ok))
+$('btn-again').addEventListener('click', () => enterGame(state.mode || 'career'))
+$('btn-report-home').addEventListener('click', goHome)
+
+document.addEventListener('touchmove', e => {
+  // 报告页错题列表与弹层卡片允许滚动，其余全局禁止（防橡皮筋）
+  if (!e.target.closest || !(e.target.closest('.wrong-list') || e.target.closest('.g-card') || e.target.closest('.paper-ref'))) e.preventDefault()
+}, { passive: false })
+
+// ── 切后台：批改中暂停限时，回来续跑；开场动画直接收尾 ──
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (currentScreen === 'grading') pausePaper()
+    else if (currentScreen === 'intro') finishIntro()
+  } else {
+    // AI 确认框弹着时不恢复计时，等用户选择
+    if (currentScreen === 'grading' && !$('ai-confirm').classList.contains('show')) resumePaper()
+  }
+})
+
+// ── 调试钩子（L2 验证用，不影响玩法）──
+window.ST = { state, profile, store, CONFIG, BANK, POEMS, generatePapers, applyPrestige, gradeOf, nextRankText,
+  dailyPreview(seed) {
+    const papers = generatePapers('daily', seed)
+    return {
+      poem: papers[0] ? `${papers[0].poem.source} · ${papers[0].poem.author}` : '',
+      items: papers.map(p => ({ text: p.chars.join(''), origin: p.q.text, err: p.errorIdx, limit: p.limitMs }))
+    }
+  } }
+
+// ── 启动 ──
+refreshHome()
+if (!profile.introSeen) playIntro(!store.ok)
+else showScreen('home')
+</script>
+</body>
+</html>
