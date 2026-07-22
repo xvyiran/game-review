@@ -112,11 +112,13 @@
 
     .game-main {
       flex: 1; display: flex; gap: 8px; min-height: 0;
+      align-items: center; justify-content: center;
     }
 
     /* 场景区：简笔画厨房底图 + 透明热区 */
     #scene {
-      flex: 1; position: relative;
+      flex: 0 0 auto; position: relative;
+      aspect-ratio: 2 / 3;
       background: #fff9fb;
       border: 3px solid rgba(74,54,84,0.2);
       border-radius: var(--radius-card);
@@ -226,6 +228,72 @@
       padding-bottom: 4px;
       -webkit-overflow-scrolling: touch;
     }
+    .guide-btn {
+      padding: 8px 18px;
+      border: 1px solid rgba(74,54,84,0.16);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.68);
+      color: var(--color-text);
+      font-size: 13px; font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    #tutorial {
+      position: absolute; inset: 0; z-index: 40;
+      display: flex; align-items: center; justify-content: center;
+      padding: 18px;
+      background: rgba(74,54,84,0.42);
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s ease;
+    }
+    #tutorial.show { opacity: 1; pointer-events: all; }
+    .tutorial-card {
+      width: min(340px, 92vw);
+      background: #fff;
+      border-radius: 22px;
+      padding: 22px 20px 18px;
+      box-shadow: 0 18px 42px rgba(74,54,84,.24);
+      border: 3px solid rgba(255,111,97,.22);
+    }
+    .tutorial-title {
+      font-size: 24px; font-weight: 900;
+      color: var(--color-primary);
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .tutorial-step {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid rgba(74,54,84,.08);
+    }
+    .tutorial-step:first-of-type { border-top: none; }
+    .tutorial-icon {
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 14px;
+      background: linear-gradient(145deg, rgba(255,111,97,.13), rgba(167,139,208,.15));
+      font-size: 24px;
+    }
+    .tutorial-text strong {
+      display: block;
+      font-size: 15px;
+      color: var(--color-text);
+      margin-bottom: 2px;
+    }
+    .tutorial-text span {
+      display: block;
+      font-size: 12px;
+      color: var(--color-text-dim);
+      line-height: 1.45;
+    }
+    .tutorial-actions {
+      display: flex; gap: 10px;
+      margin-top: 14px;
+    }
+    .tutorial-actions .btn { flex: 1; padding: 12px 8px; font-size: 14px; }
     .card {
       position: relative;
       width: 100%; height: 74px; flex-shrink: 0;
@@ -586,6 +654,7 @@
     <div class="subtitle">找出物品 · 拼对单词 · 点亮厨房</div>
     <br>
     <button class="btn btn-primary" id="btn-start">开始游戏</button>
+    <button class="guide-btn" id="btn-guide">玩法说明</button>
     <div class="best-line" id="title-best"></div>
   </div>
 
@@ -658,6 +727,38 @@
     </div>
   </div>
 
+  <!-- 新手引导 -->
+  <div id="tutorial">
+    <div class="tutorial-card">
+      <div class="tutorial-title">怎么玩？</div>
+      <div class="tutorial-step">
+        <div class="tutorial-icon">👀</div>
+        <div class="tutorial-text">
+          <strong>先看右侧卡片</strong>
+          <span>卡片告诉你要找什么。长按卡片可以听英文并查看提示。</span>
+        </div>
+      </div>
+      <div class="tutorial-step">
+        <div class="tutorial-icon">🔍</div>
+        <div class="tutorial-text">
+          <strong>在厨房里找到它</strong>
+          <span>点中正确物品会打开拼词卡；点错物品会扣时间。每关有 3 次 🔍 位置提示。</span>
+        </div>
+      </div>
+      <div class="tutorial-step">
+        <div class="tutorial-icon">🔤</div>
+        <div class="tutorial-text">
+          <strong>拼对单词点亮物品</strong>
+          <span>按顺序点字母块补全英文。普通卡全完成就过关，悬赏卡可拿更高分。</span>
+        </div>
+      </div>
+      <div class="tutorial-actions">
+        <button class="btn btn-secondary" id="btn-tutorial-close">先看看</button>
+        <button class="btn btn-primary" id="btn-tutorial-start">开始第1关</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -710,7 +811,7 @@ const SCENES = {
     words: {
       pan:[6,42,20,10], cup:[23,73,12,8], egg:[44,74,8,8], pot:[27,43,16,11], tea:[22,8,17,11],
       fork:[2,91,14,7], milk:[0,70,12,16], salt:[12,72,8,10], bowl:[56,73,16,10], corn:[78,70,19,12],
-      cake:[78,5,17,10], knife:[20,91,15,7], spoon:[34,91,12,7], plate:[7,25,15,9], bread:[2,82,18,11],
+      cake:[78,5,17,10], knife:[20,91,15,7], spoon:[34,91,12,7], bread:[2,82,18,11],
       apple:[25,82,13,11], lemon:[42,83,14,9], cheese:[58,83,13,9], tomato:[78,83,13,9],
       carrot:[49,91,13,8], banana:[65,91,16,8], butter:[84,90,13,8],
     },
@@ -719,12 +820,69 @@ const SCENES = {
     src: 'spot-spell-assets/kitchen-advanced.png',
     words: {
       pan:[15,10,11], cup:[13,20,9], egg:[25,31,8], pot:[85,10,12], tea:[48,73,8],
-      fork:[52,41,8], milk:[23,20,9], salt:[34,20,8], bowl:[13,31,10], corn:[17,75,12],
+      fork:[52,41,8], milk:[23,20,9], bowl:[13,31,10], corn:[17,75,12],
       cake:[36,10,11], knife:[58,64,11], spoon:[23,40,8], plate:[39,45,11], bread:[11,50,14],
       apple:[94,21,9], lemon:[85,30,9], cheese:[85,21,10], tomato:[94,30,9],
       carrot:[56,79,10], banana:[67,79,10], butter:[33,56,8],
     },
   },
+}
+
+// 坐标分层：基础坐标只描述物品本体；裁剪图、点击热区、提示圈分别派生，避免互相污染。
+// 后续只在这里为具体物品加小范围 override，不再批量覆盖 SCENES。
+const BOX_OVERRIDES = {
+  crop: {
+    // beginner：只修用户确认偏移的项
+    'beginner.pot':[4,53,20,11],
+    'beginner.egg':[11,78,9,8],
+    'beginner.apple':[52,78,13,10],
+    'beginner.fork':[23,79,17,8],
+
+    // intermediate：除 cake 外，整体取图偏下，逐项上移并适当放大
+    'intermediate.pan':[5,39,21,11],
+    'intermediate.cup':[24,69,13,9],
+    'intermediate.egg':[44,69,10,9],
+    'intermediate.pot':[26,38.5,18,11],
+    'intermediate.tea':[22,3.5,14,9],
+    'intermediate.fork':[1,86.5,17,10],
+    'intermediate.milk':[2,65,12,17],
+    'intermediate.salt':[14,66,8,11],
+    'intermediate.bowl':[57,68.5,18,11],
+    'intermediate.corn':[76,66,21,14],
+    'intermediate.knife':[19,86.5,18,10],
+    'intermediate.spoon':[33,86.5,15,10],
+    'intermediate.bread':[4,78,18,12],
+    'intermediate.apple':[26,79,13,11],
+    'intermediate.lemon':[43,79,14,10],
+    'intermediate.cheese':[60,79,14,11],
+    'intermediate.tomato':[80,79,14,10],
+    'intermediate.carrot':[47,86.5,17,11],
+    'intermediate.banana':[63,86.5,20,11],
+    'intermediate.butter':[82,86.5,17,11],
+
+    // advanced：原坐标混乱，保留 pot/corn，其余按实际底图重建 crop 框
+    'advanced.pan':[9,5,23,12],
+    'advanced.cup':[36,47,10,9],
+    'advanced.egg':[22,21.5,8,8],
+    'advanced.tea':[30,16.5,8,9],
+    'advanced.fork':[7,55,18,7],
+    'advanced.milk':[21.5,10,8,10],
+    'advanced.bowl':[9.5,22,13,7],
+    'advanced.cake':[30,7,18,12],
+    'advanced.knife':[60,57,13,7],
+    'advanced.spoon':[48,37,8,13],
+    'advanced.plate':[30,36,17,12],
+    'advanced.bread':[3,39,23,11],
+    'advanced.apple':[86.25,17,9,4.5],
+    'advanced.lemon':[78,24,5,4],
+    'advanced.cheese':[74.875,17,10.5,4.5],
+    'advanced.tomato':[84.5,24,10,4],
+    'advanced.carrot':[49,70,10,8],
+    'advanced.banana':[58,70,13,8],
+    'advanced.butter':[28,47,10,7],
+  },
+  hit: {},
+  hint: {},
 }
 
 // ── 关卡配置：5 关 = 初级 → 专家 ────────────────────────
@@ -756,7 +914,7 @@ const G = {
   cards: [],             // { wordId, type, done, missingIdx, el }
   items: [],             // { wordId, isTarget, small, colored, el }
   spelling: null,        // { cardIdx, itemIdx, word, missingIdx, cursor, tiles }
-  timers: { game:null, longPress:null, cooldown:null, intro:null, complete:null, hint:null },
+  timers: { game:null, longPress:null, cooldown:null, intro:null, complete:null, hint:null, found:null },
   best: parseInt(localStorage.getItem(BEST_KEY) || '0', 10),
 }
 
@@ -766,6 +924,8 @@ const screens = { title: $('screen-title'), game: $('screen-game') }
 const sceneEl = $('scene'), sidebarEl = $('sidebar')
 const panelEl = $('spell-panel'), tilesEl = $('spell-tiles'), slotsEl = $('spell-slots')
 const modalEl = $('modal-result')
+const SCENE_RATIO = 2 / 3
+let preferredVoice = null
 
 // ── 工具 ────────────────────────────────────────────────
 function shuffle(arr) {
@@ -788,6 +948,24 @@ function showScreen(name) {
   screens[name].classList.add('active')
 }
 
+function fitScene() {
+  if (!screens.game.classList.contains('active')) return
+  const main = document.querySelector('.game-main')
+  const sidebarW = sidebarEl.offsetWidth || 96
+  const gap = 8
+  const maxW = Math.max(160, main.clientWidth - sidebarW - gap)
+  const maxH = Math.max(240, main.clientHeight)
+  let h = maxH
+  let w = h * SCENE_RATIO
+  if (w > maxW) {
+    w = maxW
+    h = w / SCENE_RATIO
+  }
+  sceneEl.style.width = Math.round(w) + 'px'
+  sceneEl.style.height = Math.round(h) + 'px'
+  sidebarEl.style.height = Math.round(h) + 'px'
+}
+
 function floatText(anchorEl, text, kind) {
   const rect = anchorEl.getBoundingClientRect()
   const host = $('game-container').getBoundingClientRect()
@@ -807,12 +985,14 @@ function showWordHint(card) {
   $('word-hint-zh').textContent = w.zh
   $('word-hint-en').textContent = w.word
   $('word-hint-panel').classList.add('show')
+  playWordAudio(w.word)
 }
 
 // 位置提示（🔍 在场景框出物品）——每关限次，用完禁用
 function useHint(card) {
   if (G.status !== 'playing' || card.done) return
-  if (G.hintsLeft <= 0) { floatText(card.el, '提示已用完', 'loss'); return }
+  if (G.hintsLeft <= 0) { SFX.wrong(); floatText(card.el, '提示已用完', 'loss'); return }
+  SFX.tap()
   G.hintsLeft -= 1
   hideWordHint()
   showRangeHint(card)
@@ -834,7 +1014,7 @@ function hideWordHint() {
 
 function showRangeHint(card) {
   if (G.status !== 'playing' || card.done) return
-  const box = wordBox(card.wordId, 1.65)
+  const box = getHintBox(card.wordId)
   if (!box) return
   clearTimeout(G.timers.hint)
   document.querySelectorAll('.hint-range').forEach(el => el.remove())
@@ -848,7 +1028,79 @@ function showRangeHint(card) {
   G.timers.hint = setTimeout(() => range.remove(), 1800)
 }
 
+function rawWordBox(wordId, sceneName = G.cfg.scene) {
+  const scene = SCENES[G.cfg.scene]
+  const activeScene = SCENES[sceneName] || scene
+  const pos = activeScene.words[wordId]
+  if (!pos) return null
+  let left, top, w, h
+  if (pos.length >= 4) {
+    ;[left, top, w, h] = pos
+  } else {
+    const [cx, cy, size] = pos
+    w = size
+    h = size
+    left = cx - w / 2
+    top = cy - h / 2
+  }
+  return normalizeBox({ left, top, w, h })
+}
+
+function overrideBox(kind, wordId, sceneName = G.cfg.scene) {
+  const key = `${sceneName}.${wordId}`
+  const pos = BOX_OVERRIDES[kind] && (BOX_OVERRIDES[kind][key] || BOX_OVERRIDES[kind][wordId])
+  if (!pos) return null
+  let left, top, w, h
+  if (pos.length >= 4) {
+    ;[left, top, w, h] = pos
+  } else {
+    const [cx, cy, size] = pos
+    w = size
+    h = size
+    left = cx - w / 2
+    top = cy - h / 2
+  }
+  return normalizeBox({ left, top, w, h })
+}
+
+function normalizeBox(box) {
+  const w = clamp(box.w, 1, 100)
+  const h = clamp(box.h, 1, 100)
+  const left = clamp(box.left, 0, 100 - w)
+  const top = clamp(box.top, 0, 100 - h)
+  return { left, top, w, h, cx:left + w / 2, cy:top + h / 2 }
+}
+
+function scaleBox(box, scale = 1) {
+  if (!box) return null
+  const w = box.w * scale
+  const h = box.h * scale
+  return normalizeBox({
+    left: box.cx - w / 2,
+    top: box.cy - h / 2,
+    w,
+    h,
+  })
+}
+
+function getCropBox(wordId, sceneName = G.cfg.scene) {
+  return overrideBox('crop', wordId, sceneName) || rawWordBox(wordId, sceneName)
+}
+
+function getHitBox(wordId, sceneName = G.cfg.scene, scale = 1.08) {
+  return scaleBox(overrideBox('hit', wordId, sceneName) || getCropBox(wordId, sceneName), scale)
+}
+
+function getHintBox(wordId, sceneName = G.cfg.scene) {
+  return scaleBox(overrideBox('hint', wordId, sceneName) || getCropBox(wordId, sceneName), 1.65)
+}
+
+// 兼容旧调试入口：默认返回裁剪框派生结果，不再给业务逻辑混用。
 function wordBox(wordId, scale = 1) {
+  return scaleBox(getCropBox(wordId), scale)
+}
+
+function legacyWordBox(wordId, scale = 1) {
   const scene = SCENES[G.cfg.scene]
   const pos = scene.words[wordId]
   if (!pos) return null
@@ -885,9 +1137,12 @@ function patchVars(scene, box) {
 
 // 从底图裁剪某物品的线稿片 → 卡片/拼词卡/提示/回顾统一用它，与场景 100% 一致
 function cropStyle(wordId, scale = 1) {
-  const box = wordBox(wordId, scale)
+  const box = scaleBox(getCropBox(wordId), scale)
+  return cropStyleFromBox(wordId, box)
+}
+function cropStyleFromBox(wordId, box, sceneName = G.cfg.scene) {
   if (!box) return ''
-  const scene = SCENES[G.cfg.scene]
+  const scene = SCENES[sceneName]
   const bgW = (100 / box.w * 100).toFixed(2)
   const bgH = (100 / box.h * 100).toFixed(2)
   const posX = box.w >= 100 ? 50 : (box.left / (100 - box.w) * 100).toFixed(2)
@@ -899,8 +1154,8 @@ function cropHTML(wordId, cls = '') {
   return s ? `<div class="crop ${cls}" style="${s}"></div>` : ''
 }
 // 揭色：盖住原处的不透明裁片（遮住灰底图）+ multiply 暖色染色
-function revealHTML(wordId) {
-  return `<div class="reveal"><div class="rc" style="${cropStyle(wordId)}"></div><div class="tint"></div></div>`
+function revealHTML(wordId, box = getHitBox(wordId)) {
+  return `<div class="reveal"><div class="rc" style="${cropStyleFromBox(wordId, box)}"></div><div class="tint"></div></div>`
 }
 
 // ── WebAudio 合成音效（无外部资源）─────────────────────
@@ -993,9 +1248,36 @@ function playWordAudio(word) {
   if (!('speechSynthesis' in window)) return
   window.speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(word)
-  u.lang = 'en-US'
-  u.rate = 0.85
+  const voice = pickEnglishVoice()
+  if (voice) {
+    u.voice = voice
+    u.lang = voice.lang
+  } else {
+    u.lang = 'en-US'
+  }
+  u.rate = 0.72
+  u.pitch = 1
+  u.volume = 1
   window.speechSynthesis.speak(u)
+}
+
+function pickEnglishVoice() {
+  if (!('speechSynthesis' in window)) return null
+  const voices = window.speechSynthesis.getVoices()
+  if (!voices.length) return preferredVoice
+  const english = voices.filter(v => /^en[-_]/i.test(v.lang))
+  const preferredNames = ['Samantha', 'Alex', 'Google US English', 'Microsoft Jenny', 'Daniel', 'Karen']
+  preferredVoice =
+    preferredNames.map(name => english.find(v => v.name.includes(name))).find(Boolean) ||
+    english.find(v => /en-US/i.test(v.lang)) ||
+    english.find(v => /en-GB/i.test(v.lang)) ||
+    english[0] ||
+    null
+  return preferredVoice
+}
+if ('speechSynthesis' in window) {
+  pickEnglishVoice()
+  window.speechSynthesis.onvoiceschanged = pickEnglishVoice
 }
 
 // ── 倒计时 ──────────────────────────────────────────────
@@ -1114,9 +1396,8 @@ function renderScene() {
   const scene = SCENES[G.cfg.scene]
   sceneEl.innerHTML = `<img class="scene-bg" src="${scene.src}" alt="厨房寻物场景">`
   G.items.forEach((it, idx) => {
-    const box = wordBox(it.wordId, it.isTarget ? 1.06 : 1)
+    const box = getHitBox(it.wordId, G.cfg.scene, it.isTarget ? 1.08 : 1.04)
     if (!box) return
-    const patch = patchVars(scene, box)
     const el = document.createElement('div')
     el.className = 'item hotspot'
     el.style.left = box.cx + '%'
@@ -1124,10 +1405,7 @@ function renderScene() {
     el.style.width = box.w + '%'
     el.style.height = box.h + '%'
     el.style.zIndex = 100 + Math.round(box.cy)
-    el.style.setProperty('--scene-src', patch.src)
-    el.style.setProperty('--patch-size', patch.size)
-    el.style.setProperty('--patch-pos', patch.pos)
-    if (it.colored) { el.classList.add('revealed'); el.innerHTML = revealHTML(it.wordId) }
+    if (it.colored) { el.classList.add('revealed'); el.innerHTML = revealHTML(it.wordId, box) }
     bindTap(el, () => onItemTap(idx))
     it.el = el
     sceneEl.appendChild(el)
@@ -1276,7 +1554,7 @@ function openPanel(cardIdx, itemIdx) {
     cursor: 0,
     tiles: buildTiles(w.word, card.missingIdx, G.cfg),
   }
-  $('spell-art').innerHTML = iconSvg(w.id)
+  $('spell-art').innerHTML = cropHTML(w.id)
   $('spell-zh').textContent = w.zh
   renderSlots()
   renderTiles()
@@ -1328,6 +1606,7 @@ function onTileTap(i) {
   const graceBefore = G.grace
   const expect = sp.word[sp.missingIdx[sp.cursor]]
   if (tile.ch === expect) {
+    SFX.tap()
     tile.used = true
     sp.cursor += 1
     G.consecWrong = 0
@@ -1336,6 +1615,7 @@ function onTileTap(i) {
       G.timers.complete = setTimeout(wordComplete, 300)   // 稍停，让玩家看到完整词
     }
   } else {
+    SFX.wrong()
     G.spellErrors += 1
     G.combo = 0
     updateComboUI()
@@ -1365,8 +1645,9 @@ function wordComplete() {
   card.el.classList.add('done')
   const item = G.items[sp.itemIdx]
   item.colored = true
-  item.el.classList.add('colored')
-  item.el.innerHTML = iconSvg(item.wordId, true)
+  item.el.classList.add('colored', 'revealed')
+  item.el.innerHTML = revealHTML(item.wordId, getHitBox(item.wordId, G.cfg.scene, item.isTarget ? 1.08 : 1.04))
+  SFX.correct()
   playWordAudio(sp.word)
 
   G.combo += 1
@@ -1377,11 +1658,10 @@ function wordComplete() {
   updateComboUI()
   floatText($('score'), `+${gained}` + (mult > 1 ? ` ×${mult}` : ''), 'gain')
 
-  const graceNow = G.grace
   panelEl.classList.add('fly-out')
   setTimeout(() => {
     closePanel()
-    if (graceNow) return endGame(allNormalDone())
+    if (G.grace) return endGame(allNormalDone())
     if (allDone()) return endGame(true)
     if (allNormalDone()) $('btn-finish').classList.add('show')
   }, 520)
@@ -1403,7 +1683,32 @@ function updateComboUI() { $('combo').textContent = G.combo >= 2 ? `连击 ×${G
 const allNormalDone = () => G.cards.filter(c => c.type === 'normal').every(c => c.done)
 const allDone = () => G.cards.every(c => c.done)
 
+function renderResultReview() {
+  const list = $('result-review')
+  const caption = $('review-caption')
+  list.innerHTML = ''
+  caption.textContent = G.cards.length ? '本关词汇回顾 · 点击重听' : ''
+  G.cards.forEach(card => {
+    const w = WORD_MAP[card.wordId]
+    const el = document.createElement('div')
+    el.className = 'review-item'
+    el.innerHTML = `
+      ${cropHTML(w.id)}
+      <div class="rv-en">${w.word}</div>
+      <div class="rv-zh">${w.zh}</div>`
+    bindTap(el, () => playWordAudio(w.word))
+    list.appendChild(el)
+  })
+}
+
 // ── 关卡生命周期 ────────────────────────────────────────
+function showTutorial() {
+  $('tutorial').classList.add('show')
+}
+function hideTutorial() {
+  $('tutorial').classList.remove('show')
+}
+
 function clearAllTimers() {
   stopTimer()
   clearTimeout(G.timers.longPress)
@@ -1411,6 +1716,7 @@ function clearAllTimers() {
   clearTimeout(G.timers.intro)
   clearTimeout(G.timers.complete)
   clearTimeout(G.timers.hint)
+  clearTimeout(G.timers.found)
   document.querySelectorAll('.hint-range').forEach(el => el.remove())
   hideWordHint()
 }
@@ -1424,16 +1730,19 @@ function startLevel(idx) {
   G.grace = false
   G.score = 0; G.combo = 0; G.spellErrors = 0
   G.consecWrong = 0; G.inputLockUntil = 0; G.cooldownUntil = 0
+  G.hintsLeft = 3
   G.timeLeft = G.cfg.time
 
   modalEl.classList.remove('visible')
   closePanel()
+  showScreen('game')
+  fitScene()
   genLevel()
   renderSidebar()
+  updateHintButtons()
   renderScene()
   updateScoreUI(); updateComboUI(); updateTimerUI()
   $('level-label').textContent = `第${idx + 1}关`
-  showScreen('game')
 
   // 开场提示 1.5s 后开始计时
   const bountyN = G.cfg.bounty.length
@@ -1463,22 +1772,33 @@ function endGame(win) {
     localStorage.setItem(BEST_KEY, String(G.best))
   }
   if (win && navigator.vibrate) navigator.vibrate(100)
+  win ? SFX.win() : SFX.lose()
 
   $('result-title').textContent = win
     ? (G.levelIdx >= LEVELS.length - 1 ? '🏆 通关厨房章！' : '🎉 过关！')
     : '⏰ 时间到！'
   $('result-score').textContent = G.score
   $('result-bonus').textContent = win && bonus > 0 ? `剩余时间奖励 +${bonus}` : ''
+  const normalCards = G.cards.filter(c => c.type === 'normal')
+  const normalDone = normalCards.filter(c => c.done).length
+  $('result-progress').textContent = win ? '' : `普通卡进度：${normalDone}/${normalCards.length}`
   $('result-best').textContent = `历史最高：${G.best} 分`
   document.querySelectorAll('#result-stars .star').forEach((el, i) => {
     el.classList.toggle('lit', i < stars)
   })
+  renderResultReview()
   $('btn-next').style.display = win && G.levelIdx < LEVELS.length - 1 ? '' : 'none'
   modalEl.classList.add('visible')
 }
 
 // ── 事件绑定 ────────────────────────────────────────────
-$('btn-start').addEventListener('click', () => startLevel(0))
+$('btn-start').addEventListener('click', showTutorial)
+$('btn-guide').addEventListener('click', showTutorial)
+$('btn-tutorial-close').addEventListener('click', hideTutorial)
+$('btn-tutorial-start').addEventListener('click', () => {
+  hideTutorial()
+  startLevel(0)
+})
 $('btn-retry').addEventListener('click', () => startLevel(G.levelIdx))
 $('btn-next').addEventListener('click', () => startLevel(G.levelIdx + 1))
 $('btn-home').addEventListener('click', () => {
@@ -1496,9 +1816,12 @@ bindTap($('btn-close-panel'), () => {
 })
 
 // 防滚动穿透（侧栏 pan-y 除外）
+bindTap(sceneEl, onSceneBlankTap)
 sceneEl.addEventListener('touchmove', e => e.preventDefault(), { passive: false })
 panelEl.addEventListener('touchmove', e => e.preventDefault(), { passive: false })
 document.addEventListener('contextmenu', e => e.preventDefault())
+window.addEventListener('resize', fitScene)
+window.addEventListener('orientationchange', () => setTimeout(fitScene, 120))
 
 // 切后台停表 / 回前台续表
 document.addEventListener('visibilitychange', () => {

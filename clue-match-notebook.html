@@ -47,11 +47,12 @@ h2{font-size:clamp(1.05rem,4vw,1.35rem);margin-bottom:14px;text-align:center}
 
 .clues{width:100%;max-width:430px;background:var(--paper);border-radius:16px;padding:12px;max-height:34vh;overflow-y:auto;box-shadow:0 3px 10px rgba(0,0,0,.05);margin-bottom:12px}
 .clues-title{font-weight:900;margin-bottom:6px}
-.clue{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line);font-size:clamp(.8rem,3vw,.92rem);line-height:1.45;color:#4A4239}
+.clue{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line);font-size:clamp(.8rem,3vw,.92rem);line-height:1.45;color:#4A4239;cursor:pointer}
 .clue:last-child{border-bottom:none}
 .clue.used{opacity:.58}
 .clue.used .clue-text{text-decoration:line-through}
 .clue.used .num{background:var(--ok)}
+.clue-tip{font-size:12px;color:var(--muted);margin:2px 0 4px;line-height:1.35}
 .num{width:22px;height:22px;border-radius:50%;background:var(--muted);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex:0 0 22px}
 .actions{width:100%;max-width:430px;display:flex;justify-content:center;padding-bottom:10px}
 
@@ -91,8 +92,8 @@ h2{font-size:clamp(1.05rem,4vw,1.35rem);margin-bottom:14px;text-align:center}
     <h1>侦探笔记</h1>
     <div class="notebook-page" style="max-width:360px;text-align:center">
       <p style="font-size:15px;line-height:1.75;color:#5A4E42">
-        先看几条线索，点表格填答案。<br>
-        用上的线索会划掉，并出现新线索。<br>
+        先看全部线索，点表格填答案。<br>
+        也可以记“不是某项”，用过的线索会打勾下移。<br>
         填完后点“核对推理”通关。
       </p>
     </div>
@@ -197,7 +198,7 @@ function enterStory(i){
 function startLevel(){
   const lv=LEVELS[state.levelIndex];
   state.placements={};state.notes={};state.hintsUsed=0;state.errorSubmits=0;
-  state.clueState=lv.clues.map((_,i)=>({visible:i<3,used:false}));
+  state.clueState=lv.clues.map(()=>({visible:true,used:false}));
   $('hud-title').textContent=lv.name;
   renderBoard();renderClues();switchScreen('play');
 }
@@ -230,8 +231,8 @@ function renderClues(){
   const visible=lv.clues.map((c,i)=>({c,i,cs:state.clueState[i]}))
     .filter(x=>x.cs&&x.cs.visible)
     .sort((a,b)=>(a.cs.used===b.cs.used?a.i-b.i:a.cs.used?1:-1));
-  $('clues').innerHTML='<div class="clues-title">线索（用上后会划掉）</div>'+visible.map(({c,i,cs})=>`
-    <div class="clue ${cs.used?'used':''}"><div class="num">${cs.used?'✓':i+1}</div><div class="clue-text">${c.text}</div></div>`).join('');
+  $('clues').innerHTML='<div class="clues-title">线索（全部已给出）</div><div class="clue-tip">点“没有……”线索，可直接记到表格里；完成的线索会打勾下移。</div>'+visible.map(({c,i,cs})=>`
+    <div class="clue ${cs.used?'used':''}" onclick="applyClue(${i})"><div class="num">${cs.used?'✓':i+1}</div><div class="clue-text">${c.text}</div></div>`).join('');
 }
 function groupByKey(key){
   const groupId=key.split('_')[1];
@@ -288,6 +289,24 @@ function clearCell(key){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#bubble')&&!e.target.closest('.cell'))$('bubble').style.display='none'});
 
+function optionLabel(groupId,optId){
+  const group=LEVELS[state.levelIndex].groups.find(g=>g.id===groupId);
+  const opt=group&&group.options.find(o=>o.id===optId);
+  return opt?opt.label:optId;
+}
+function applyClue(index){
+  const lv=LEVELS[state.levelIndex],clue=lv.clues[index],cs=state.clueState[index];
+  if(!cs||!cs.visible||cs.used) return;
+  if(clue.kind==='neg'){
+    addNote(clue.cell,clue.opt);
+    const [colId,groupId]=clue.cell.split('_');
+    const col=lv.columns.find(c=>c.id===colId);
+    showToast('已记下：'+(col?col.name:'这个人')+'不是'+optionLabel(groupId,clue.opt));
+    return;
+  }
+  showToast('这条线索需要先填更多格子，再一起判断');
+}
+
 function hasNote(key,opt){return (state.notes[key]||[]).includes(opt)}
 function holderOf(groupId,opt){
   const lv=LEVELS[state.levelIndex],p=state.placements;
@@ -317,21 +336,13 @@ function clueApplied(clue){
   }
   return false;
 }
-function revealNextClue(){
-  const next=state.clueState.find(cs=>!cs.visible);
-  if(next) next.visible=true;
-}
 function updateClueProgress(){
   const lv=LEVELS[state.levelIndex];
-  let newlyUsed=0;
   lv.clues.forEach((clue,i)=>{
     const cs=state.clueState[i];
     if(!cs.visible) return;
-    const wasUsed=cs.used;
     cs.used=clueApplied(clue);
-    if(!wasUsed&&cs.used)newlyUsed++;
   });
-  while(newlyUsed-- > 0) revealNextClue();
 }
 
 function submitNotebook(){
@@ -439,13 +450,13 @@ function runVerifyPage(){
 function runProgressionSelftest(){
   state.levelIndex=0;
   startLevel();
-  if(document.querySelectorAll('.clue').length!==3) return false;
+  if(document.querySelectorAll('.clue').length!==LEVELS[0].clues.length) return false;
   addNote('ming_pet','dog');
-  if(!state.clueState[0].used||document.querySelectorAll('.clue').length!==4) return false;
+  if(!state.clueState[0].used||document.querySelectorAll('.clue').length!==LEVELS[0].clues.length) return false;
   addNote('hong_pet','cat');
-  if(!state.clueState[1].used||document.querySelectorAll('.clue').length!==5) return false;
+  if(!state.clueState[1].used) return false;
   addNote('gang_pet','dog');
-  if(!state.clueState[2].used||document.querySelectorAll('.clue').length!==6) return false;
+  if(!state.clueState[2].used) return false;
   setPlacement('ming_pet','cat');
   setPlacement('ming_drink','juice');
   if(!state.clueState[3].used) return false;
