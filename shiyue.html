@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>诗月 · 古诗游戏</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+KuaiLe&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0B1322; --night:#152540; --night-2:#1E3358; --night-3:#294371;
+  --paper:#F5EBD6; --paper-2:#EADCC0; --paper-edge:#CDB78C;
+  --moon:#F7C948; --moon-soft:#FFE08A;
+  --seal:#C8433C; --seal-2:#E06A5F;
+  --jade:#54A882; --mist:#8FA5C6; --brush:#2A2118;
+  --r-lg:22px; --r-md:14px; --r-sm:10px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;}
+body{background:var(--ink);color:var(--paper);
+  font-family:"ZCOOL KuaiLe","Noto Serif SC",system-ui,sans-serif;
+  overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+.sky{position:fixed;inset:0;z-index:0;overflow:hidden;
+  background:radial-gradient(120% 70% at 50% -10%, #2B4778 0%, #17294A 45%, #0B1322 100%);}
+.sky::before,.sky::after{content:"";position:absolute;inset:-20%;background-repeat:repeat;
+  background-image:
+    radial-gradient(1.6px 1.6px at 20% 30%, rgba(255,255,255,.75) 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 70% 15%, rgba(255,255,255,.55) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 45% 72%, rgba(255,240,200,.6) 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 55%, rgba(255,255,255,.5) 50%, transparent 51%),
+    radial-gradient(1.3px 1.3px at 12% 82%, rgba(255,255,255,.45) 50%, transparent 51%);
+  background-size:340px 300px;animation:drift 90s linear infinite;}
+.sky::after{background-size:210px 190px;opacity:.55;animation-duration:150s;animation-direction:reverse;}
+@keyframes drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-340px,120px,0)}}
+.ridge{position:fixed;left:0;right:0;bottom:0;height:34vh;z-index:0;pointer-events:none;opacity:.9;}
+.ridge svg{width:100%;height:100%;display:block;}
+
+.app{position:relative;z-index:1;max-width:480px;margin:0 auto;min-height:100dvh;
+  display:flex;flex-direction:column;padding:0 18px calc(20px + env(safe-area-inset-bottom));}
+button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer;font-size:inherit;}
+.screen{display:none;flex:1;flex-direction:column;animation:fadeUp .38s cubic-bezier(.2,.7,.3,1);}
+.screen.on{display:flex;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.paper{background:linear-gradient(160deg,var(--paper) 0%,var(--paper-2) 100%);color:var(--brush);
+  border-radius:var(--r-lg);box-shadow:0 18px 40px -18px rgba(0,0,0,.75), 0 0 0 1px var(--paper-edge) inset;position:relative;}
+.paper::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.35;
+  background-image:repeating-linear-gradient(0deg,rgba(120,95,55,.07) 0 1px,transparent 1px 4px);}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 26px;border-radius:999px;
+  background:var(--moon);color:#3A2A05;font-size:17px;letter-spacing:1px;
+  box-shadow:0 6px 0 #C79A20, 0 12px 24px -10px rgba(247,201,72,.7);transition:transform .12s, box-shadow .12s;}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #C79A20;}
+.btn.red{background:var(--seal-2);color:#FFF3EF;box-shadow:0 6px 0 #97302A, 0 12px 24px -10px rgba(200,67,60,.7);}
+.btn.red:active{box-shadow:0 2px 0 #97302A;}
+.btn.ghost{background:transparent;color:var(--mist);box-shadow:0 0 0 1.5px rgba(143,165,198,.4) inset;}
+.btn.ghost:active{transform:translateY(2px);box-shadow:0 0 0 1.5px rgba(143,165,198,.4) inset;}
+.btn[disabled]{opacity:.38;pointer-events:none;}
+
+/* 首页 */
+.home-top{position:relative;padding-top:min(6vh,44px);text-align:center;}
+.constel{position:absolute;inset:-14px -6px -10px;z-index:0;pointer-events:none;}
+.home-inner{position:relative;z-index:1;}
+.moon-hero{width:100px;height:100px;margin:0 auto 4px;filter:drop-shadow(0 0 34px rgba(247,201,72,.55));animation:bob 7s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.title{font-family:"Ma Shan Zheng",serif;font-size:clamp(44px,14vw,60px);line-height:1;
+  letter-spacing:12px;text-indent:12px;background:linear-gradient(180deg,#FFF3D0,var(--moon));
+  -webkit-background-clip:text;background-clip:text;color:transparent;margin:2px 0 8px;}
+.subtitle{color:var(--mist);font-size:13px;letter-spacing:3px;}
+.subtitle b{color:var(--moon-soft);font-weight:400;}
+
+.pk-entry{display:flex;align-items:center;gap:14px;text-align:left;width:100%;
+  margin:20px 0 12px;padding:15px 18px;border-radius:var(--r-md);
+  background:linear-gradient(115deg,#7E2E2C,#B3423A 55%,#8E3330);
+  box-shadow:0 0 0 1px rgba(255,220,210,.22) inset, 0 12px 26px -14px #000;
+  position:relative;overflow:hidden;transition:transform .14s;}
+.pk-entry:active{transform:scale(.975);}
+.pk-entry::before{content:"";position:absolute;right:-30px;top:-34px;width:110px;height:110px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,214,150,.18),transparent 70%);}
+.pk-seal{width:48px;height:48px;flex:0 0 48px;border-radius:8px;display:grid;place-items:center;
+  background:#F6E6D8;color:var(--seal);font-family:"Ma Shan Zheng",serif;font-size:28px;
+  box-shadow:0 0 0 3px rgba(200,67,60,.55) inset;transform:rotate(-5deg);}
+.pk-entry .pkt{font-size:17px;letter-spacing:2px;color:#FFEFE8;display:block;}
+.pk-entry .pkd{font-size:11px;color:#F3C9BF;font-family:"Noto Serif SC",serif;margin-top:3px;display:block;}
+.pk-entry .arrow{margin-left:auto;color:#F3C9BF;font-size:20px;}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px;}
+.mode{padding:15px 13px 13px;border-radius:var(--r-md);text-align:left;
+  background:linear-gradient(155deg,var(--night-2),var(--night));
+  box-shadow:0 0 0 1px rgba(143,165,198,.16) inset, 0 10px 22px -14px #000;
+  transition:transform .14s;position:relative;overflow:hidden;}
+.mode:active{transform:scale(.965);}
+.mode .glyph{font-family:"Ma Shan Zheng",serif;font-size:34px;line-height:1;color:var(--moon);display:block;margin-bottom:6px;}
+.mode .mname{font-size:16px;letter-spacing:1px;display:block;}
+.mode .mdesc{font-size:11px;color:var(--mist);margin-top:2px;display:block;font-family:"Noto Serif SC",serif;}
+.mode::before{content:"";position:absolute;right:-26px;top:-26px;width:78px;height:78px;border-radius:50%;
+  background:radial-gradient(circle,rgba(247,201,72,.16),transparent 70%);}
+
+.stats{display:flex;justify-content:center;gap:18px;color:var(--mist);font-size:13px;margin-bottom:10px;flex-wrap:wrap;}
+.stats span{display:inline-flex;align-items:center;gap:5px;}
+.stats i{font-style:normal;color:var(--moon);font-size:15px;}
+.stats i.r{color:var(--seal-2);}
+.home-foot{margin-top:auto;padding-top:8px;text-align:center;}
+.home-foot .row{display:flex;justify-content:center;gap:10px;margin-bottom:8px;}
+.home-foot .btn{padding:12px 20px;font-size:14.5px;}
+.tiny-link{color:rgba(143,165,198,.6);font-size:12px;font-family:"Noto Serif SC",serif;text-decoration:underline;}
+
+/* 顶栏 */
+.bar{display:flex;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top)) 0 12px;}
+.back{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:20px;color:var(--mist);
+  box-shadow:0 0 0 1.5px rgba(143,165,198,.3) inset;}
+.back:active{transform:scale(.9);}
+.bar-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.score{color:var(--moon);font-size:15px;}
+.moon-mini{width:36px;height:36px;filter:drop-shadow(0 0 10px rgba(247,201,72,.45));transition:transform .3s;}
+.moon-mini.pulse{animation:mpulse .6s ease-out;}
+@keyframes mpulse{0%{transform:scale(1)}35%{transform:scale(1.28);filter:drop-shadow(0 0 22px rgba(247,201,72,.95))}100%{transform:scale(1)}}
+.bar-title{font-size:14.5px;letter-spacing:2px;color:var(--mist);}
+.qcount{display:flex;gap:4px;}
+.qdot{width:7px;height:7px;border-radius:50%;background:rgba(143,165,198,.25);transition:background .3s,transform .3s;}
+.qdot.ok{background:var(--jade);}
+.qdot.no{background:rgba(200,67,60,.6);}
+.qdot.cur{background:var(--moon);transform:scale(1.45);}
+
+/* 题面 */
+.stage{flex:1;display:flex;flex-direction:column;}
+.card{padding:22px 20px 24px;margin-bottom:18px;text-align:center;}
+.card-head{font-family:"Noto Serif SC",serif;font-size:13px;color:#8A7550;letter-spacing:2px;
+  display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;}
+.card-head em{font-style:normal;color:#6B5837;font-weight:600;}
+.hint-line{font-family:"Ma Shan Zheng",serif;font-size:21px;color:rgba(107,88,55,.55);letter-spacing:4px;margin-bottom:10px;min-height:24px;}
+.main-line{font-family:"Ma Shan Zheng",serif;font-size:clamp(28px,7.8vw,38px);line-height:1.5;letter-spacing:6px;
+  color:var(--brush);display:flex;flex-wrap:wrap;justify-content:center;gap:2px;}
+.blank{display:inline-block;min-width:1.05em;border-bottom:3px solid var(--seal);color:var(--seal);animation:pulse 1.6s ease-in-out infinite;}
+.blank.fill{animation:none;border-color:var(--jade);color:var(--jade);}
+.blank.tell{animation:none;border-color:#B08A3A;color:#B08A3A;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.opts.wide{grid-template-columns:1fr;}
+.opt{padding:16px 8px;border-radius:var(--r-md);font-family:"Noto Serif SC",serif;font-weight:600;font-size:26px;
+  background:linear-gradient(155deg,var(--night-2),var(--night));color:var(--paper);
+  box-shadow:0 0 0 1px rgba(143,165,198,.2) inset, 0 8px 18px -12px #000;transition:transform .12s,background .2s,opacity .2s;}
+.opts.wide .opt{font-family:"Ma Shan Zheng",serif;font-size:25px;letter-spacing:4px;font-weight:400;padding:15px 10px;}
+.opt:active{transform:scale(.94);}
+.opt.right{background:linear-gradient(155deg,#5FBE92,var(--jade));color:#08251A;}
+.opt.tell{background:linear-gradient(155deg,#D2A24B,#B0822C);color:#2B1F05;}
+.opt.faded{opacity:.3;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+
+.slots{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:24px;}
+.slot{width:clamp(38px,11.4vw,50px);height:clamp(46px,13.5vw,60px);border-radius:var(--r-sm);display:grid;place-items:center;
+  font-family:"Ma Shan Zheng",serif;font-size:clamp(26px,7.4vw,33px);color:var(--brush);
+  background:rgba(245,235,214,.08);box-shadow:0 0 0 1.5px rgba(143,165,198,.28) inset;transition:background .2s, box-shadow .2s;}
+.slot.filled{background:var(--paper);box-shadow:0 4px 10px -6px #000;}
+.slot.cur{box-shadow:0 0 0 2px var(--moon) inset;}
+.tiles{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}
+.tile{width:clamp(46px,13vw,58px);height:clamp(52px,15vw,66px);border-radius:var(--r-sm);
+  font-family:"Ma Shan Zheng",serif;font-size:clamp(28px,8vw,36px);
+  background:linear-gradient(160deg,var(--paper),var(--paper-2));color:var(--brush);
+  box-shadow:0 5px 0 var(--paper-edge), 0 12px 20px -12px #000;transition:transform .12s, opacity .2s;}
+.tile:active{transform:translateY(3px);box-shadow:0 2px 0 var(--paper-edge);}
+.tile.used{opacity:0;pointer-events:none;transform:scale(.6);}
+.tile.nudge{animation:shake .38s;}
+.tile.hintme{box-shadow:0 5px 0 #C79A20, 0 0 0 3px var(--moon) inset, 0 0 22px -2px rgba(247,201,72,.8);}
+
+.match{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.mcell{padding:14px 6px;border-radius:var(--r-md);font-family:"Ma Shan Zheng",serif;font-size:clamp(16px,4.4vw,19px);letter-spacing:2px;
+  background:linear-gradient(155deg,var(--night-2),var(--night));box-shadow:0 0 0 1px rgba(143,165,198,.2) inset;
+  transition:transform .12s,background .25s,opacity .3s;min-height:56px;display:grid;place-items:center;}
+.mcell:active{transform:scale(.96);}
+.mcell.pick{background:linear-gradient(155deg,#4C6EA8,var(--night-3));box-shadow:0 0 0 2px var(--moon) inset;}
+.mcell.done{background:linear-gradient(155deg,#4E9C7C,#2E6B54);color:#DFF5EA;opacity:.5;pointer-events:none;}
+.mcell.nudge{animation:shake .38s;}
+.mcell.hintme{box-shadow:0 0 0 2.5px var(--moon) inset;}
+.match-tip{text-align:center;color:var(--mist);font-size:12.5px;font-family:"Noto Serif SC",serif;margin-bottom:12px;}
+
+.speaker{width:96px;height:96px;border-radius:50%;margin:4px auto 16px;display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,var(--moon-soft),#D9A62C);color:#3A2A05;font-size:38px;
+  box-shadow:0 0 0 10px rgba(247,201,72,.12), 0 0 44px -6px rgba(247,201,72,.6);transition:transform .15s;}
+.speaker:active{transform:scale(.93);}
+.speaker.playing{animation:ripple 1.4s ease-out infinite;}
+@keyframes ripple{0%{box-shadow:0 0 0 10px rgba(247,201,72,.2),0 0 44px -6px rgba(247,201,72,.6)}70%{box-shadow:0 0 0 30px rgba(247,201,72,0),0 0 44px -6px rgba(247,201,72,.6)}100%{box-shadow:0 0 0 10px rgba(247,201,72,0),0 0 44px -6px rgba(247,201,72,.6)}}
+
+.footer-note{min-height:46px;text-align:center;padding-top:14px;font-size:14.5px;letter-spacing:1px;}
+.footer-note .ok{color:var(--jade);}
+.footer-note .tell{color:var(--moon-soft);}
+.footer-note small{display:block;color:var(--mist);font-size:12px;margin-top:5px;font-family:"Noto Serif SC",serif;letter-spacing:0;}
+
+.fly{position:fixed;z-index:55;pointer-events:none;color:var(--moon);font-size:20px;letter-spacing:1px;
+  text-shadow:0 0 14px rgba(247,201,72,.9);transition:transform .72s cubic-bezier(.35,.85,.4,1), opacity .72s;transform:translate(0,0);}
+.seal-pop{position:fixed;left:50%;top:44%;z-index:40;transform:translate(-50%,-50%);width:100px;height:100px;border-radius:12px;
+  display:grid;place-items:center;pointer-events:none;background:var(--seal);color:#FFF0E4;
+  font-family:"Ma Shan Zheng",serif;font-size:54px;box-shadow:0 0 0 5px rgba(255,240,228,.9) inset;opacity:0;}
+.seal-pop.go{animation:stamp .9s cubic-bezier(.2,1.4,.4,1) forwards;}
+@keyframes stamp{0%{opacity:0;transform:translate(-50%,-50%) scale(2.4) rotate(-22deg)}22%{opacity:.96;transform:translate(-50%,-50%) scale(1) rotate(-9deg)}70%{opacity:.96;transform:translate(-50%,-50%) scale(1) rotate(-9deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.12) rotate(-9deg)}}
+.combo-pop{position:fixed;left:50%;top:25%;z-index:40;transform:translateX(-50%);color:var(--moon);font-size:22px;
+  letter-spacing:2px;pointer-events:none;opacity:0;text-shadow:0 0 18px rgba(247,201,72,.8);}
+.combo-pop.go{animation:rise 1.1s ease-out forwards;}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,10px) scale(.7)}25%{opacity:1;transform:translate(-50%,0) scale(1.08)}100%{opacity:0;transform:translate(-50%,-40px) scale(1)}}
+
+/* 结算 */
+.result-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:18px 0;}
+.result-moon{width:126px;height:126px;margin:0 auto 12px;filter:drop-shadow(0 0 40px rgba(247,201,72,.55));}
+.result-title{font-family:"Ma Shan Zheng",serif;font-size:36px;letter-spacing:6px;color:var(--moon-soft);margin-bottom:5px;}
+.result-sub{color:var(--mist);font-size:13px;font-family:"Noto Serif SC",serif;margin-bottom:20px;}
+.result-nums{display:flex;justify-content:center;gap:12px;margin-bottom:20px;}
+.rnum{flex:1;max-width:108px;padding:13px 6px;border-radius:var(--r-md);
+  background:linear-gradient(155deg,var(--night-2),var(--night));box-shadow:0 0 0 1px rgba(143,165,198,.18) inset;}
+.rnum b{display:block;font-size:26px;color:var(--moon);line-height:1.2;}
+.rnum span{font-size:11px;color:var(--mist);font-family:"Noto Serif SC",serif;}
+.learned{text-align:left;margin-bottom:20px;}
+.learned h4{font-size:13px;color:var(--mist);letter-spacing:2px;margin:0 0 10px;font-weight:400;}
+.lp{padding:12px 14px;border-radius:var(--r-md);margin-bottom:8px;background:rgba(245,235,214,.06);box-shadow:0 0 0 1px rgba(143,165,198,.14) inset;}
+.lp.miss{box-shadow:0 0 0 1px rgba(224,106,95,.35) inset;background:rgba(200,67,60,.08);}
+.lp b{font-family:"Ma Shan Zheng",serif;font-size:19px;color:var(--moon-soft);font-weight:400;letter-spacing:2px;}
+.lp i{font-style:normal;color:var(--mist);font-size:11.5px;margin-left:8px;font-family:"Noto Serif SC",serif;}
+.lp p{margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#C3D0E4;font-family:"Noto Serif SC",serif;}
+.lp .tag{float:right;font-size:10.5px;color:#F3B0A9;font-family:"Noto Serif SC",serif;font-style:normal;}
+.result-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+/* 诗集 / 星图 */
+.coll-head{text-align:center;margin-bottom:14px;}
+.coll-head h2{font-family:"Ma Shan Zheng",serif;font-size:30px;letter-spacing:8px;color:var(--moon-soft);margin:0 0 4px;font-weight:400;}
+.coll-head p{color:var(--mist);font-size:12.5px;font-family:"Noto Serif SC",serif;margin:0;}
+.coll-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding-bottom:20px;}
+.pc{aspect-ratio:3/4;border-radius:var(--r-md);padding:8px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  background:linear-gradient(160deg,var(--paper),var(--paper-2));color:var(--brush);box-shadow:0 6px 16px -10px #000;transition:transform .12s;}
+.pc:active{transform:scale(.95);}
+.pc.locked{background:rgba(143,165,198,.08);color:rgba(143,165,198,.5);box-shadow:0 0 0 1px rgba(143,165,198,.16) inset;}
+.pc b{font-family:"Ma Shan Zheng",serif;font-size:15px;font-weight:400;line-height:1.2;text-align:center;letter-spacing:1px;}
+.pc i{font-style:normal;font-size:10px;font-family:"Noto Serif SC",serif;opacity:.7;}
+.pc .lock{font-size:20px;}
+
+.star-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding-bottom:20px;}
+.sc{padding:16px 10px 14px;border-radius:var(--r-md);text-align:center;position:relative;overflow:hidden;
+  background:linear-gradient(155deg,var(--night-2),var(--night));
+  box-shadow:0 0 0 1px rgba(143,165,198,.18) inset;transition:transform .14s;}
+.sc:active{transform:scale(.96);}
+.sc.lit{background:linear-gradient(155deg,#2C4471,#1A2B49);box-shadow:0 0 0 1.5px rgba(247,201,72,.5) inset, 0 0 26px -10px rgba(247,201,72,.7);}
+.sc .cs{width:64px;height:64px;margin:0 auto 6px;}
+.sc .cn{font-size:15px;letter-spacing:2px;display:block;}
+.sc .cinfo{font-size:11px;color:var(--mist);font-family:"Noto Serif SC",serif;margin-top:3px;display:block;}
+.sc.lit .cinfo{color:var(--moon-soft);}
+.sc .cost{display:inline-block;margin-top:6px;font-size:12px;padding:3px 12px;border-radius:99px;
+  background:rgba(247,201,72,.16);color:var(--moon);}
+.sc.cant .cost{background:rgba(143,165,198,.14);color:rgba(143,165,198,.65);}
+
+/* 擂台（沿用 v2） */
+.pk-hall{text-align:center;padding-top:6px;}
+.pk-hall h2{font-family:"Ma Shan Zheng",serif;font-size:32px;letter-spacing:8px;color:#F6C1B7;margin:0 0 4px;font-weight:400;}
+.pk-hall .lead{color:var(--mist);font-size:12.5px;font-family:"Noto Serif SC",serif;margin:0 0 18px;line-height:1.8;}
+.pk-rec{display:flex;justify-content:center;gap:10px;margin-bottom:18px;}
+.pk-rec div{flex:1;max-width:90px;padding:11px 4px;border-radius:var(--r-md);background:rgba(200,67,60,.14);
+  box-shadow:0 0 0 1px rgba(224,106,95,.3) inset;}
+.pk-rec b{display:block;font-size:23px;color:#F6C1B7;line-height:1.2;}
+.pk-rec span{font-size:11px;color:#D9A8A1;font-family:"Noto Serif SC",serif;}
+.pk-acts{display:flex;flex-direction:column;gap:11px;margin-bottom:16px;}
+.pk-act{padding:16px 18px;border-radius:var(--r-md);text-align:left;display:flex;align-items:center;gap:14px;
+  background:linear-gradient(155deg,var(--night-2),var(--night));box-shadow:0 0 0 1px rgba(143,165,198,.18) inset;transition:transform .14s;}
+.pk-act:active{transform:scale(.975);}
+.pk-act .g{font-family:"Ma Shan Zheng",serif;font-size:32px;color:var(--seal-2);flex:0 0 38px;text-align:center;}
+.pk-act b{display:block;font-size:16px;font-weight:400;letter-spacing:1px;}
+.pk-act span{display:block;font-size:11.5px;color:var(--mist);font-family:"Noto Serif SC",serif;margin-top:3px;}
+.timer-wrap{height:8px;border-radius:99px;background:rgba(143,165,198,.18);overflow:hidden;margin-bottom:14px;}
+.timer-bar{height:100%;width:100%;background:var(--moon);border-radius:99px;transition:background .3s;}
+
+.scroll-card{padding:22px 20px;margin-bottom:16px;text-align:center;}
+.vs-row{display:flex;align-items:stretch;gap:8px;margin:4px 0 14px;}
+.vs-side{flex:1;padding:14px 8px;border-radius:var(--r-md);background:rgba(120,95,55,.09);}
+.vs-side.win{background:rgba(84,168,130,.18);box-shadow:0 0 0 1.5px rgba(84,168,130,.5) inset;}
+.vs-side .nm{font-size:13px;color:#6B5837;font-family:"Noto Serif SC",serif;display:block;margin-bottom:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vs-side .sc2{font-family:"Noto Serif SC",serif;font-weight:700;font-size:30px;color:var(--brush);line-height:1.1;}
+.vs-side .tm{font-size:11px;color:#8A7550;font-family:"Noto Serif SC",serif;}
+.vs-mid{flex:0 0 34px;display:grid;place-items:center;font-family:"Ma Shan Zheng",serif;font-size:22px;color:var(--seal);}
+.verdict{font-family:"Ma Shan Zheng",serif;font-size:30px;letter-spacing:5px;margin:2px 0 10px;}
+.verdict.w{color:#2E7D5B;} .verdict.l{color:var(--seal);} .verdict.d{color:#8A7550;}
+.cmp{margin:0 0 14px;}
+.cmp-row{display:grid;grid-template-columns:24px 1fr 1fr;gap:8px;align-items:center;padding:6px 0;
+  border-bottom:1px dashed rgba(120,95,55,.22);font-family:"Noto Serif SC",serif;font-size:12.5px;}
+.cmp-row:last-child{border-bottom:0;}
+.cmp-row .no{color:#8A7550;text-align:center;}
+.cmp-cell{display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 4px;border-radius:7px;background:rgba(120,95,55,.08);}
+.cmp-cell.win{background:rgba(84,168,130,.24);}
+.cmp-cell.miss{color:#B0553F;}
+.cmp-head{display:grid;grid-template-columns:24px 1fr 1fr;gap:8px;font-size:11.5px;color:#8A7550;
+  font-family:"Noto Serif SC",serif;text-align:center;margin-bottom:4px;}
+.code-box{margin:0 0 12px;padding:15px 12px;border-radius:var(--r-md);background:rgba(120,95,55,.1);
+  box-shadow:0 0 0 1.5px rgba(200,67,60,.3) inset;}
+.code-box .lab{font-size:11.5px;color:#8A7550;font-family:"Noto Serif SC",serif;margin-bottom:8px;}
+.code-big{font-family:"Noto Serif SC",serif;font-weight:700;font-size:clamp(28px,8.5vw,38px);letter-spacing:8px;
+  color:var(--seal);text-indent:8px;word-break:break-all;}
+.code-long{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#5E4E33;word-break:break-all;line-height:1.6;
+  text-align:left;max-height:74px;overflow:auto;background:rgba(255,255,255,.4);padding:8px 10px;border-radius:8px;}
+.path-tabs{display:flex;gap:8px;margin-bottom:12px;}
+.path-tab{flex:1;padding:10px 6px;border-radius:99px;font-size:13px;color:#8A7550;
+  box-shadow:0 0 0 1.5px rgba(120,95,55,.28) inset;transition:background .2s,color .2s;}
+.path-tab.on{background:var(--seal);color:#FFF0EA;box-shadow:none;}
+.copied{color:var(--jade);font-size:12px;font-family:"Noto Serif SC",serif;min-height:16px;margin-top:8px;}
+.input-line{width:100%;padding:15px 14px;border-radius:var(--r-md);border:0;outline:0;
+  background:rgba(120,95,55,.1);box-shadow:0 0 0 1.5px rgba(120,95,55,.28) inset;color:var(--brush);
+  font-size:19px;letter-spacing:4px;text-align:center;margin-bottom:10px;font-family:"Noto Serif SC",serif;font-weight:600;}
+.input-line::placeholder{color:rgba(107,88,55,.45);font-size:14px;letter-spacing:1px;font-weight:400;}
+.input-line:focus{box-shadow:0 0 0 2px var(--seal) inset;}
+.form-err{color:#B0553F;font-size:12.5px;min-height:18px;font-family:"Noto Serif SC",serif;margin-bottom:8px;}
+.form-tip{font-size:12px;color:#6B5837;font-family:"Noto Serif SC",serif;line-height:1.8;margin-bottom:14px;}
+
+/* 弹层 */
+.sheet{position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center;
+  background:rgba(6,11,20,.72);backdrop-filter:blur(3px);}
+.sheet.on{display:flex;animation:fade .25s;}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheet-inner{width:100%;max-width:480px;padding:26px 24px calc(26px + env(safe-area-inset-bottom));
+  border-radius:26px 26px 0 0;text-align:center;animation:slideUp .3s cubic-bezier(.2,.8,.3,1);
+  max-height:86dvh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+.sheet-inner h3{font-family:"Ma Shan Zheng",serif;font-size:27px;margin:0 0 2px;font-weight:400;letter-spacing:4px;}
+.sheet-inner .meta{font-family:"Noto Serif SC",serif;font-size:12.5px;color:#8A7550;margin-bottom:16px;letter-spacing:2px;}
+.sheet-inner .poem{font-family:"Ma Shan Zheng",serif;font-size:22px;line-height:2;letter-spacing:4px;margin-bottom:14px;}
+.sheet-inner .mean{font-family:"Noto Serif SC",serif;font-size:13px;line-height:1.9;color:#5E4E33;text-align:left;
+  padding:14px 16px;border-radius:var(--r-md);background:rgba(120,95,55,.09);margin-bottom:16px;}
+.sheet-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.sheet-btns .btn{padding:12px 20px;font-size:15px;}
+.sheet-btns .btn.ghost{color:#6B5837;box-shadow:0 0 0 1.5px rgba(107,88,55,.35) inset;}
+.who{display:flex;gap:10px;margin-bottom:6px;}
+.who button{flex:1;padding:18px 8px;border-radius:var(--r-md);background:rgba(120,95,55,.1);color:var(--brush);
+  box-shadow:0 0 0 1.5px rgba(120,95,55,.28) inset;font-size:16px;transition:transform .12s;}
+.who button:active{transform:scale(.95);}
+.who button b{display:block;font-family:"Ma Shan Zheng",serif;font-size:32px;font-weight:400;margin-bottom:4px;color:var(--seal);}
+.nick{width:100%;padding:14px;border-radius:var(--r-md);border:0;outline:0;text-align:center;
+  background:rgba(120,95,55,.1);box-shadow:0 0 0 1.5px rgba(120,95,55,.28) inset;color:var(--brush);
+  font-size:19px;margin-bottom:16px;font-family:"Ma Shan Zheng",serif;letter-spacing:3px;}
+.nick:focus{box-shadow:0 0 0 2px var(--seal) inset;}
+.plist{text-align:left;font-family:"Noto Serif SC",serif;font-size:12.5px;color:#5E4E33;line-height:2;
+  max-height:180px;overflow-y:auto;padding:12px 14px;border-radius:var(--r-md);background:rgba(120,95,55,.09);margin-bottom:16px;}
+.plist span{display:inline-block;margin-right:10px;}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}}
+:focus-visible{outline:3px solid var(--moon);outline-offset:3px;}
+/* 计数用字：标题体缺数字字形时会显示成方块，这里锁死一个有数字的字体 */
+.stats em,.score,.score em,#starBal,.pk-rec b,.rnum b,.vs-side .sc2,.code-big,
+.pc i,.cmp-row,.sc .cinfo,.vs-side .tm,.card-head{font-family:"Noto Serif SC",serif;}
+.stats em,.score em,#starBal,.pk-rec b,.rnum b{font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="sky"></div>
+<div class="ridge">
+  <svg viewBox="0 0 400 140" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,140 L0,96 C30,80 52,92 76,72 C98,54 118,64 140,50 C162,36 182,52 206,44 C228,37 244,58 268,54 C292,50 310,30 336,42 C360,53 378,44 400,58 L400,140 Z" fill="#0A1120" opacity=".95"/>
+    <path d="M0,140 L0,120 C36,110 60,122 92,110 C124,98 150,112 184,104 C218,96 240,110 274,102 C308,94 336,108 400,96 L400,140 Z" fill="#070D19"/>
+  </svg>
+</div>
+
+<div class="app">
+
+  <section class="screen on" id="s-home">
+    <div class="home-top">
+      <svg class="constel" id="constel" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="home-inner">
+        <div class="moon-hero" id="heroMoon"></div>
+        <h1 class="title">诗月</h1>
+        <p class="subtitle">小学古诗 · <b>玩着玩着就背下来了</b></p>
+      </div>
+    </div>
+    <button class="pk-entry" id="toPk">
+      <span class="pk-seal">战</span>
+      <span><span class="pkt">诗词擂台</span><span class="pkd">下一封战书，等对手随时来应</span></span>
+      <span class="arrow">›</span>
+    </button>
+    <div class="modes" id="modeList"></div>
+    <div class="stats">
+      <span><i>★</i> <em id="statStar" style="font-style:normal">0</em></span>
+      <span><i>印</i> <em id="statSeal" style="font-style:normal">0</em> 首</span>
+      <span><i>座</i> <em id="statConst" style="font-style:normal">0</em>/8</span>
+      <span><i class="r">战</i> <em id="statPk" style="font-style:normal">0胜0负</em></span>
+    </div>
+    <div class="home-foot">
+      <div class="row">
+        <button class="btn ghost" id="toColl">我的诗集</button>
+        <button class="btn ghost" id="toStars">星图</button>
+      </div>
+      <button class="tiny-link" id="toSetting">改名字</button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-play">
+    <div class="bar">
+      <button class="back" id="quitBtn" aria-label="返回">←</button>
+      <div class="qcount" id="qdots"></div>
+      <div class="bar-right">
+        <span class="score">★ <em id="playStar" style="font-style:normal">0</em></span>
+        <div class="moon-mini" id="playMoon"></div>
+      </div>
+    </div>
+    <div class="stage" id="stage"></div>
+    <div class="footer-note" id="note"></div>
+  </section>
+
+  <section class="screen" id="s-result">
+    <div class="result-wrap">
+      <div class="result-moon" id="resMoon"></div>
+      <h2 class="result-title" id="resTitle"></h2>
+      <p class="result-sub" id="resSub"></p>
+      <div class="result-nums">
+        <div class="rnum"><b id="resRight">0</b><span>答对</span></div>
+        <div class="rnum"><b id="resStar">0</b><span>本局星星</span></div>
+        <div class="rnum"><b id="resCombo">0</b><span>最高连对</span></div>
+      </div>
+      <div class="learned" id="learned"></div>
+      <div class="result-btns">
+        <button class="btn ghost" id="resHome">回家</button>
+        <button class="btn" id="resAgain">再来一局</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="s-coll">
+    <div class="bar"><button class="back" id="collBack" aria-label="返回">←</button></div>
+    <div class="coll-head"><h2>我的诗集</h2><p id="collCount"></p></div>
+    <div class="coll-grid" id="collGrid"></div>
+  </section>
+
+  <section class="screen" id="s-stars">
+    <div class="bar"><button class="back" id="starBack" aria-label="返回">←</button>
+      <span class="bar-right score">★ <em id="starBal" style="font-style:normal">0</em></span></div>
+    <div class="coll-head"><h2>星图</h2><p>点亮一座，首页的夜空就多一个星座</p></div>
+    <div class="star-grid" id="starGrid"></div>
+  </section>
+
+  <section class="screen" id="s-pk">
+    <div class="bar"><button class="back" id="pkBack" aria-label="返回">←</button><span class="bar-title" id="pkWho"></span></div>
+    <div class="pk-hall">
+      <h2>诗词擂台</h2>
+      <p class="lead">同一套题，各答各的<br>谁快谁准，战报见分晓</p>
+      <div class="pk-rec">
+        <div><b id="pkW">0</b><span>胜</span></div>
+        <div><b id="pkL">0</b><span>负</span></div>
+        <div><b id="pkD">0</b><span>平</span></div>
+      </div>
+      <div class="pk-acts" id="pkActs"></div>
+      <p class="lead" style="font-size:11.5px;opacity:.75">8 题补诗句 · 每题 12 秒<br>答对 100 分，手快最多再加 12 分<br><span style="opacity:.7">快慢只用来分胜负，不能顶替答对</span></p>
+    </div>
+  </section>
+
+  <section class="screen" id="s-pkplay">
+    <div class="bar">
+      <button class="back" id="pkQuit" aria-label="返回">←</button>
+      <span class="bar-title" id="pkRole"></span>
+      <div class="bar-right"><span class="score" id="pkScore">0 分</span></div>
+    </div>
+    <div class="timer-wrap"><div class="timer-bar" id="tbar"></div></div>
+    <div class="qcount" id="pkDots" style="justify-content:center;margin-bottom:12px"></div>
+    <div class="stage" id="pkStage"></div>
+    <div class="footer-note" id="pkNote"></div>
+  </section>
+
+  <section class="screen" id="s-battle">
+    <div class="bar"><button class="back" id="btlBack" aria-label="返回">←</button><span class="bar-title">战书已成</span></div>
+    <div class="stage" id="btlStage"></div>
+  </section>
+
+  <section class="screen" id="s-accept">
+    <div class="bar"><button class="back" id="accBack" aria-label="返回">←</button><span class="bar-title" id="accTitle">应战</span></div>
+    <div class="stage">
+      <div class="card paper" style="text-align:left">
+        <div class="card-head" style="justify-content:flex-start"><em id="accLabel">把码贴在这里</em></div>
+        <input class="input-line" id="codeIn" placeholder="7 位邀请码，或一长串战书码" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <div class="form-err" id="codeErr"></div>
+        <div class="form-tip" id="accTip"></div>
+        <div style="text-align:center"><button class="btn red" id="codeGo">接下战书</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="s-pkresult">
+    <div class="bar"><button class="back" id="pkrBack" aria-label="返回">←</button><span class="bar-title">战报</span></div>
+    <div class="stage" id="pkrStage"></div>
+  </section>
+
+</div>
+
+<div class="sheet" id="sheet"><div class="sheet-inner paper" id="sheetInner"></div></div>
+<div class="seal-pop" id="seal"></div>
+<div class="combo-pop" id="combo"></div>
+
+<script>
+const POEMS = [
+{t:"静夜思",a:"李白",d:"唐",l:["床前明月光","疑是地上霜","举头望明月","低头思故乡"],m:"月光洒在床前，白得像地上结了一层霜。抬头望望月亮，低下头就想起了家乡。"},
+{t:"春晓",a:"孟浩然",d:"唐",l:["春眠不觉晓","处处闻啼鸟","夜来风雨声","花落知多少"],m:"春天睡得香，不知不觉天就亮了，到处都是鸟叫。昨夜听见风雨声，不知吹落了多少花。"},
+{t:"登鹳雀楼",a:"王之涣",d:"唐",l:["白日依山尽","黄河入海流","欲穷千里目","更上一层楼"],m:"太阳挨着山落下去，黄河朝着大海奔流。想看得更远一些，就要再往上登一层楼。"},
+{t:"悯农·其二",a:"李绅",d:"唐",l:["锄禾日当午","汗滴禾下土","谁知盘中餐","粒粒皆辛苦"],m:"正午顶着大太阳锄地，汗水一滴滴落进泥土。谁知道碗里的饭，每一粒都来得辛苦。"},
+{t:"悯农·其一",a:"李绅",d:"唐",l:["春种一粒粟","秋收万颗子","四海无闲田","农夫犹饿死"],m:"春天种下一粒种子，秋天能收上万颗粮食。天下没有一块荒地，农民却还是会饿死。"},
+{t:"江雪",a:"柳宗元",d:"唐",l:["千山鸟飞绝","万径人踪灭","孤舟蓑笠翁","独钓寒江雪"],m:"山里看不见一只鸟，路上找不到一个人。只有一条小船上，披蓑戴笠的老人独自在雪中钓鱼。"},
+{t:"池上",a:"白居易",d:"唐",l:["小娃撑小艇","偷采白莲回","不解藏踪迹","浮萍一道开"],m:"小孩撑着小船，偷偷采了白莲回来。他不懂得藏好痕迹，水面的浮萍被划开一道口子。"},
+{t:"寻隐者不遇",a:"贾岛",d:"唐",l:["松下问童子","言师采药去","只在此山中","云深不知处"],m:"在松树下问那个小童，他说师父采药去了。就在这座山里，可是云雾太深，不知在哪儿。"},
+{t:"相思",a:"王维",d:"唐",l:["红豆生南国","春来发几枝","愿君多采撷","此物最相思"],m:"红豆长在南方，春天来了又抽新枝。希望你多采一些，因为它最能代表思念。"},
+{t:"鹿柴",a:"王维",d:"唐",l:["空山不见人","但闻人语响","返景入深林","复照青苔上"],m:"空山里看不见人影，只听见有人说话。夕阳的余光照进深林，又落在青苔上。"},
+{t:"竹里馆",a:"王维",d:"唐",l:["独坐幽篁里","弹琴复长啸","深林人不知","明月来相照"],m:"一个人坐在幽静的竹林里弹琴、长啸。林子太深没人知道，只有明月照着我。"},
+{t:"杂诗",a:"王维",d:"唐",l:["君自故乡来","应知故乡事","来日绮窗前","寒梅著花未"],m:"你从我的家乡来，一定知道家乡的事。请问你来的那天，窗前那株寒梅开花了吗？"},
+{t:"山中送别",a:"王维",d:"唐",l:["山中相送罢","日暮掩柴扉","春草明年绿","王孙归不归"],m:"在山中送走了你，天黑了才关上柴门。明年春草再绿的时候，你还会不会回来？"},
+{t:"夜宿山寺",a:"李白",d:"唐",l:["危楼高百尺","手可摘星辰","不敢高声语","恐惊天上人"],m:"这座高楼有一百尺高，伸手好像就能摘到星星。不敢大声说话，怕惊动天上的人。"},
+{t:"独坐敬亭山",a:"李白",d:"唐",l:["众鸟高飞尽","孤云独去闲","相看两不厌","只有敬亭山"],m:"鸟儿都飞走了，一片云也悠悠地飘远。看来看去互不厌烦的，只有我和敬亭山。"},
+{t:"画",a:"王维",d:"唐",l:["远看山有色","近听水无声","春去花还在","人来鸟不惊"],m:"远看山有颜色，走近听水却没声音。春天过去花还开着，人走过来鸟也不飞——原来这是一幅画。"},
+{t:"风",a:"李峤",d:"唐",l:["解落三秋叶","能开二月花","过江千尺浪","入竹万竿斜"],m:"它能吹落秋叶，也能吹开二月的花。过江时掀起千尺大浪，进了竹林让万竿竹子倾斜。"},
+{t:"所见",a:"袁枚",d:"清",l:["牧童骑黄牛","歌声振林樾","意欲捕鸣蝉","忽然闭口立"],m:"放牛的孩子骑在黄牛背上唱歌，歌声在林中回荡。他想捉那只叫着的蝉，忽然就闭嘴站住了。"},
+{t:"梅花",a:"王安石",d:"宋",l:["墙角数枝梅","凌寒独自开","遥知不是雪","为有暗香来"],m:"墙角有几枝梅花，顶着寒冷独自开放。远远就知道那不是雪，因为有淡淡的香气飘来。"},
+{t:"江上渔者",a:"范仲淹",d:"宋",l:["江上往来人","但爱鲈鱼美","君看一叶舟","出没风波里"],m:"江边来来往往的人，都只爱鲈鱼好吃。你看那一叶小船，正在风浪里起起伏伏。"},
+{t:"逢雪宿芙蓉山主人",a:"刘长卿",d:"唐",l:["日暮苍山远","天寒白屋贫","柴门闻犬吠","风雪夜归人"],m:"天黑了，青山显得更远，天冷了，茅屋显得更寒酸。忽然柴门外狗叫起来——是有人踏着风雪回来了。"},
+{t:"塞下曲",a:"卢纶",d:"唐",l:["月黑雁飞高","单于夜遁逃","欲将轻骑逐","大雪满弓刀"],m:"月黑之夜大雁惊飞，敌军首领连夜逃走。正要带轻骑兵去追，大雪已经落满了弓和刀。"},
+{t:"舟夜书所见",a:"查慎行",d:"清",l:["月黑见渔灯","孤光一点萤","微微风簇浪","散作满河星"],m:"没有月亮的夜里，只看见一盏渔灯，那点光像萤火虫。微风吹起小浪，灯影散成了满河的星星。"},
+{t:"乐游原",a:"李商隐",d:"唐",l:["向晚意不适","驱车登古原","夕阳无限好","只是近黄昏"],m:"傍晚心里不痛快，就驾车登上古老的高原。夕阳美得没有边际，只可惜已经接近黄昏。"},
+{t:"望庐山瀑布",a:"李白",d:"唐",l:["日照香炉生紫烟","遥看瀑布挂前川","飞流直下三千尺","疑是银河落九天"],m:"阳光照着香炉峰升起紫雾。远看瀑布像挂在山前。水流飞奔直下三千尺，好像银河从天上落下来。"},
+{t:"早发白帝城",a:"李白",d:"唐",l:["朝辞白帝彩云间","千里江陵一日还","两岸猿声啼不住","轻舟已过万重山"],m:"清晨在彩云中告别白帝城，千里外的江陵一天就到。两岸猿猴叫个不停，小船已经越过万重山。"},
+{t:"赠汪伦",a:"李白",d:"唐",l:["李白乘舟将欲行","忽闻岸上踏歌声","桃花潭水深千尺","不及汪伦送我情"],m:"我正要坐船离开，忽然听见岸上有人踏着节拍唱歌送行。桃花潭水有千尺深，也比不上汪伦送我的情谊。"},
+{t:"望天门山",a:"李白",d:"唐",l:["天门中断楚江开","碧水东流至此回","两岸青山相对出","孤帆一片日边来"],m:"天门山从中间断开，让楚江穿过。碧绿的水东流到这里打了个转。两岸青山相对而立，一片孤帆从太阳那边驶来。"},
+{t:"黄鹤楼送孟浩然之广陵",a:"李白",d:"唐",l:["故人西辞黄鹤楼","烟花三月下扬州","孤帆远影碧空尽","唯见长江天际流"],m:"老朋友在黄鹤楼向西告别，在繁花似锦的三月去扬州。那片孤帆越走越远，消失在天边，只剩长江向天际流去。"},
+{t:"山行",a:"杜牧",d:"唐",l:["远上寒山石径斜","白云生处有人家","停车坐爱枫林晚","霜叶红于二月花"],m:"石头小路弯弯曲曲通向远山，白云升起的地方住着人家。停下车是因为喜欢傍晚的枫林——经霜的叶子比二月的花还红。"},
+{t:"江南春",a:"杜牧",d:"唐",l:["千里莺啼绿映红","水村山郭酒旗风","南朝四百八十寺","多少楼台烟雨中"],m:"千里江南到处莺啼，绿树映着红花。水边村庄、山间小城，酒旗在风里飘。南朝留下的众多寺庙，有多少楼台掩在烟雨中。"},
+{t:"清明",a:"杜牧",d:"唐",l:["清明时节雨纷纷","路上行人欲断魂","借问酒家何处有","牧童遥指杏花村"],m:"清明时节细雨不停，路上的行人格外难过。问一问哪里有酒家，放牛的孩子远远指向杏花村。"},
+{t:"秋夕",a:"杜牧",d:"唐",l:["银烛秋光冷画屏","轻罗小扇扑流萤","天阶夜色凉如水","卧看牵牛织女星"],m:"烛光映着画屏，透出秋天的凉意。她拿小扇扑打萤火虫。台阶上的夜色凉得像水，她躺着看牵牛星和织女星。"},
+{t:"绝句",a:"杜甫",d:"唐",l:["两个黄鹂鸣翠柳","一行白鹭上青天","窗含西岭千秋雪","门泊东吴万里船"],m:"两只黄鹂在绿柳间叫，一行白鹭飞上蓝天。窗口正对着西岭常年不化的雪，门前停着要去东吴的大船。"},
+{t:"江畔独步寻花",a:"杜甫",d:"唐",l:["黄四娘家花满蹊","千朵万朵压枝低","留连戏蝶时时舞","自在娇莺恰恰啼"],m:"黄四娘家的小路上开满了花，千朵万朵把枝条都压弯了。蝴蝶舍不得离开，不停地飞舞，黄莺自由自在地叫着。"},
+{t:"元日",a:"王安石",d:"宋",l:["爆竹声中一岁除","春风送暖入屠苏","千门万户曈曈日","总把新桃换旧符"],m:"爆竹声里旧的一年过去，春风送来暖意。太阳照亮千家万户，人们都换上新桃符过年。"},
+{t:"泊船瓜洲",a:"王安石",d:"宋",l:["京口瓜洲一水间","钟山只隔数重山","春风又绿江南岸","明月何时照我还"],m:"京口和瓜洲只隔着一条江，钟山也不过隔着几重山。春风又把江南岸吹绿了，明月什么时候才能照着我回家呢？"},
+{t:"小池",a:"杨万里",d:"宋",l:["泉眼无声惜细流","树阴照水爱晴柔","小荷才露尖尖角","早有蜻蜓立上头"],m:"泉水悄悄地流，树影映在水面。小荷叶刚露出尖尖角，就已经有蜻蜓停在上面了。"},
+{t:"宿新市徐公店",a:"杨万里",d:"宋",l:["篱落疏疏一径深","树头新绿未成阴","儿童急走追黄蝶","飞入菜花无处寻"],m:"稀疏的篱笆边有条小路通向远处，树上的新叶还没长成树阴。孩子追着黄蝴蝶跑，蝴蝶飞进菜花丛里就找不到了。"},
+{t:"晓出净慈寺送林子方",a:"杨万里",d:"宋",l:["毕竟西湖六月中","风光不与四时同","接天莲叶无穷碧","映日荷花别样红"],m:"六月的西湖，景色和别的季节就是不一样。莲叶一直绿到天边，荷花映着太阳，红得格外好看。"},
+{t:"村居",a:"高鼎",d:"清",l:["草长莺飞二月天","拂堤杨柳醉春烟","儿童散学归来早","忙趁东风放纸鸢"],m:"二月里草长莺飞，杨柳拂着河堤像醉在春烟里。孩子放学回来得早，赶紧趁着东风去放风筝。"},
+{t:"咏柳",a:"贺知章",d:"唐",l:["碧玉妆成一树高","万条垂下绿丝绦","不知细叶谁裁出","二月春风似剪刀"],m:"柳树像碧玉打扮成的，垂下万条绿丝带。不知这细叶是谁裁出来的？原来二月春风就像剪刀。"},
+{t:"回乡偶书",a:"贺知章",d:"唐",l:["少小离家老大回","乡音无改鬓毛衰","儿童相见不相识","笑问客从何处来"],m:"小时候离家，老了才回来。口音没变，两鬓却白了。小孩见了都不认识我，笑着问：客人您从哪来？"},
+{t:"九月九日忆山东兄弟",a:"王维",d:"唐",l:["独在异乡为异客","每逢佳节倍思亲","遥知兄弟登高处","遍插茱萸少一人"],m:"一个人在他乡做客，每到过节就更想念亲人。远远想到兄弟们登高，插茱萸时会发现少了我一个。"},
+{t:"送元二使安西",a:"王维",d:"唐",l:["渭城朝雨浥轻尘","客舍青青柳色新","劝君更尽一杯酒","西出阳关无故人"],m:"渭城早晨的雨打湿了尘土，客店旁的柳色格外新绿。劝你再喝完这一杯酒吧，出了阳关往西，就没有老朋友了。"},
+{t:"春日",a:"朱熹",d:"宋",l:["胜日寻芳泗水滨","无边光景一时新","等闲识得东风面","万紫千红总是春"],m:"好天气里到泗水边赏春，眼前景色一下子全新了。轻易就认出了春风的模样——万紫千红，处处是春。"},
+{t:"芙蓉楼送辛渐",a:"王昌龄",d:"唐",l:["寒雨连江夜入吴","平明送客楚山孤","洛阳亲友如相问","一片冰心在玉壶"],m:"寒雨连夜洒满江面。天亮送走朋友，只剩楚山孤零零的。洛阳的亲友如果问起我，就说我的心像玉壶里的冰一样干净。"},
+{t:"出塞",a:"王昌龄",d:"唐",l:["秦时明月汉时关","万里长征人未还","但使龙城飞将在","不教胡马度阴山"],m:"还是秦汉时的明月和关塞，远征万里的人却没能回来。只要飞将军还在，就不会让敌人的马越过阴山。"},
+{t:"凉州词",a:"王之涣",d:"唐",l:["黄河远上白云间","一片孤城万仞山","羌笛何须怨杨柳","春风不度玉门关"],m:"黄河远远地流向白云深处，万仞高山间只有一座孤城。羌笛何必吹那首埋怨杨柳的曲子——春风本来就吹不到玉门关。"},
+{t:"望洞庭",a:"刘禹锡",d:"唐",l:["湖光秋月两相和","潭面无风镜未磨","遥望洞庭山水翠","白银盘里一青螺"],m:"湖水和秋月互相映衬，湖面没有风，像一面没磨过的镜子。远望洞庭山水翠绿，就像白银盘里放着一只青螺。"},
+{t:"浪淘沙",a:"刘禹锡",d:"唐",l:["九曲黄河万里沙","浪淘风簸自天涯","如今直上银河去","同到牵牛织女家"],m:"黄河弯弯曲曲带着万里泥沙，被浪淘被风颠，像从天边来。今天就顺着它直上银河，一起去牵牛织女家做客。"},
+{t:"乞巧",a:"林杰",d:"唐",l:["七夕今宵看碧霄","牵牛织女渡河桥","家家乞巧望秋月","穿尽红丝几万条"],m:"七夕这晚仰望天空，牵牛织女正过鹊桥相会。家家户户望着秋月乞巧，穿过的红丝线有几万条。"},
+{t:"枫桥夜泊",a:"张继",d:"唐",l:["月落乌啼霜满天","江枫渔火对愁眠","姑苏城外寒山寺","夜半钟声到客船"],m:"月亮落下，乌鸦啼叫，满天都是寒霜。江边的枫树和渔船的灯火陪着我发愁难眠。姑苏城外寒山寺的钟声，半夜传到了客船上。"},
+{t:"滁州西涧",a:"韦应物",d:"唐",l:["独怜幽草涧边生","上有黄鹂深树鸣","春潮带雨晚来急","野渡无人舟自横"],m:"最喜欢涧边静静长着的野草，树深处有黄鹂在叫。春潮带着雨，傍晚来得又急又猛，野渡口没有人，小船自己横在水上。"},
+{t:"大林寺桃花",a:"白居易",d:"唐",l:["人间四月芳菲尽","山寺桃花始盛开","长恨春归无觅处","不知转入此中来"],m:"四月里山下的花都谢了，山寺的桃花才刚刚盛开。总遗憾春天走了找不回来，没想到它转到这里来了。"},
+{t:"暮江吟",a:"白居易",d:"唐",l:["一道残阳铺水中","半江瑟瑟半江红","可怜九月初三夜","露似真珠月似弓"],m:"夕阳的光铺在江面上，半边江碧绿，半边江通红。九月初三这个夜晚多可爱——露珠像珍珠，月亮像弯弓。"},
+{t:"早春呈水部张十八员外",a:"韩愈",d:"唐",l:["天街小雨润如酥","草色遥看近却无","最是一年春好处","绝胜烟柳满皇都"],m:"京城街上的小雨润得像酥油，草色远看有一片，走近却看不见。这才是一年里春天最好的时候，胜过满城烟柳的暮春。"},
+{t:"饮湖上初晴后雨",a:"苏轼",d:"宋",l:["水光潋滟晴方好","山色空蒙雨亦奇","欲把西湖比西子","淡妆浓抹总相宜"],m:"晴天时水波闪闪正好看，雨天时山色朦胧也很奇妙。要把西湖比作美女西施，不管淡妆还是浓妆都合适。"},
+{t:"题西林壁",a:"苏轼",d:"宋",l:["横看成岭侧成峰","远近高低各不同","不识庐山真面目","只缘身在此山中"],m:"横着看是山岭，侧着看是山峰，远近高低看到的都不一样。看不清庐山真正的样子，只因为自己就站在山里。"},
+{t:"惠崇春江晚景",a:"苏轼",d:"宋",l:["竹外桃花三两枝","春江水暖鸭先知","蒌蒿满地芦芽短","正是河豚欲上时"],m:"竹林外开着三两枝桃花，春江水暖了，鸭子最先知道。蒌蒿长满地，芦芽还很短，正是河豚要逆流而上的时候。"},
+{t:"六月二十七日望湖楼醉书",a:"苏轼",d:"宋",l:["黑云翻墨未遮山","白雨跳珠乱入船","卷地风来忽吹散","望湖楼下水如天"],m:"乌云像打翻的墨，还没遮住山；白亮的雨点像跳动的珠子，乱蹦进船里。忽然一阵风卷地而来把雨吹散，望湖楼下的水面平静得像天空。"},
+{t:"四时田园杂兴",a:"范成大",d:"宋",l:["昼出耘田夜绩麻","村庄儿女各当家","童孙未解供耕织","也傍桑阴学种瓜"],m:"白天下地除草，晚上搓麻线，村里的男女各有各的活。小孩子还不会耕田织布，也在桑树阴下学着种瓜。"},
+{t:"游园不值",a:"叶绍翁",d:"宋",l:["应怜屐齿印苍苔","小扣柴扉久不开","春色满园关不住","一枝红杏出墙来"],m:"大概是怕鞋底把青苔踩坏了吧，轻轻敲柴门半天没人开。可满园的春色是关不住的——一枝红杏已经伸出墙来了。"},
+{t:"夏日绝句",a:"李清照",d:"宋",l:["生当作人杰","死亦为鬼雄","至今思项羽","不肯过江东"],m:"活着就要做人中豪杰，死了也要做鬼中英雄。到今天人们还思念项羽，因为他宁死也不肯逃回江东。"},
+{t:"示儿",a:"陆游",d:"宋",l:["死去元知万事空","但悲不见九州同","王师北定中原日","家祭无忘告乃翁"],m:"本来就知道人死了什么都没了，只可惜没能看到国家统一。等朝廷的军队收复中原那天，家祭时别忘了告诉你们的父亲。"},
+{t:"墨梅",a:"王冕",d:"元",l:["我家洗砚池头树","朵朵花开淡墨痕","不要人夸好颜色","只留清气满乾坤"],m:"我家洗砚池边的那株梅树，开出的花都带着淡淡的墨色。它不要别人夸颜色好看，只想把清香留满天地间。"},
+{t:"石灰吟",a:"于谦",d:"明",l:["千锤万凿出深山","烈火焚烧若等闲","粉骨碎身浑不怕","要留清白在人间"],m:"经过千锤万凿才从深山里开采出来，烈火焚烧也当作平常事。就算粉身碎骨也不怕，只要把清白留在人间。"},
+{t:"竹石",a:"郑燮",d:"清",l:["咬定青山不放松","立根原在破岩中","千磨万击还坚劲","任尔东西南北风"],m:"竹子紧紧咬住青山不放松，根本来就扎在破裂的岩石里。经过千磨万击依然坚韧，任凭你东南西北哪面来风。"},
+{t:"己亥杂诗",a:"龚自珍",d:"清",l:["九州生气恃风雷","万马齐喑究可哀","我劝天公重抖擞","不拘一格降人才"],m:"这个国家要有生气得靠风雷般的变革，眼下万马沉默实在可悲。我劝老天爷重新振作起来，不要只按一种标准降下人才。"}
+];
+POEMS.forEach((p,i)=>p.id=i);
+const CHAR_POOL=[...new Set(POEMS.flatMap(p=>p.l.join("").split("")))];
+/* 同句长、同位置出现过的字 —— 干扰项从这里取，避免「床前明月粟」这种一眼假 */
+const POS_POOL=(()=>{const m={};
+  POEMS.forEach(p=>p.l.forEach(l=>l.split("").forEach((c,i)=>{
+    const k=l.length+":"+i;(m[k]=m[k]||new Set()).add(c);})));
+  const o={};for(const k in m)o[k]=[...m[k]];return o;})();
+function distractors(line,ci,ans,n,ri){
+  const cand=(POS_POOL[line.length+":"+ci]||[]).filter(c=>c!==ans&&!line.includes(c));
+  const src=cand.length>=n?cand:CHAR_POOL.filter(c=>c!==ans&&!line.includes(c));
+  const out=[],pool=src.slice();let g=0;
+  while(out.length<n&&pool.length&&g++<400){
+    const i=ri?ri(pool.length):Math.floor(Math.random()*pool.length);
+    out.push(pool.splice(i,1)[0]);}
+  return out;}
+
+const MODES={
+  fill:{glyph:"填",name:"补诗句",desc:"缺一个字，你来补",total:8},
+  order:{glyph:"拼",name:"拼诗阵",desc:"打乱的字排回去",total:6},
+  match:{glyph:"对",name:"诗句对",desc:"上句下句配成双",total:4},
+  listen:{glyph:"听",name:"听诗音",desc:"听上句，接下句",total:6}
+};
+
+/* 星座：按意象分，不按诗人 —— 意象才是古诗真正的组织方式 */
+const CONST_COST=30;
+const CONSTS=[
+ {k:"moon",g:"月",name:"月之座",re:/月/,pos:[13,16],
+  pts:[[0,.55],[.28,0],[.72,.12],[1,.55],[.6,1],[.2,.86]],
+  why:"古人看不见彼此，却看得见同一个月亮。所以想家、想朋友的时候，诗里就出现月。"},
+ {k:"flower",g:"花",name:"花之座",re:/花/,pos:[87,14],
+  pts:[[.5,0],[1,.35],[.8,.9],[.2,.9],[0,.35],[.5,.5]],
+  why:"花开得快，谢得也快。诗人用花写时间——春天来了，春天又走了。"},
+ {k:"mount",g:"山",name:"山之座",re:/山/,pos:[6,42],
+  pts:[[0,1],[.3,.15],[.5,.55],[.75,0],[1,1]],
+  why:"山挡住去路，也挡住视线。诗里的山，常常是「远方」和「看不透」。"},
+ {k:"water",g:"水",name:"水之座",re:/[水江河湖潭泉溪海]/,pos:[94,44],
+  pts:[[0,.3],[.25,.7],[.5,.25],[.75,.7],[1,.25]],
+  why:"水一直往前流，不回头。送别、思乡、感叹时间过得快，诗人都爱写水。"},
+ {k:"bird",g:"鸟",name:"飞鸟座",re:/[鸟莺鹭鹂雁鸦]/,pos:[15,70],
+  pts:[[0,.6],[.3,0],[.5,.45],[.7,0],[1,.6]],
+  why:"鸟能飞到人去不了的地方。诗里的鸟叫声，常常是用来衬托安静的。"},
+ {k:"wind",g:"风",name:"风之座",re:/风/,pos:[85,72],
+  pts:[[0,.2],[.55,.05],[.75,.4],[.25,.55],[.5,.95],[1,.8]],
+  why:"风看不见，只能靠别的东西显形——柳枝斜了，浪起来了，花落了。"},
+ {k:"snow",g:"雪",name:"雪之座",re:/[雪霜]/,pos:[30,90],
+  pts:[[.5,0],[.5,1],[0,.5],[1,.5],[.15,.15],[.85,.85]],
+  why:"雪把颜色和声音都盖住了。写雪的诗，多半很静，也多半很冷。"},
+ {k:"kid",g:"童",name:"童子座",re:/[童娃孙]/,pos:[70,90],
+  pts:[[.5,0],[.2,.4],[.8,.4],[.35,1],[.65,1]],
+  why:"孩子在诗里几乎从不发愁。诗人写孩子，其实是在写自己回不去的那一部分。"}
+];
+function constPoems(c){return POEMS.filter(p=>c.re.test(p.l.join("")));}
+
+/* ── 工具 ── */
+const $=s=>document.querySelector(s);
+const rnd=n=>Math.floor(Math.random()*n);
+const pickAny=a=>a[rnd(a.length)];
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+function sample(a,n){return shuffle(a).slice(0,n);}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
+
+const Save=(()=>{
+  const KEY="shiyue:v3";
+  let mem={stars:0,unlocked:[],name:"",who:"",pk:{w:0,l:0,d:0},mastery:{},lit:[],done:[],lastBattle:null,share:{code:0,long:0}};
+  const has=typeof window!=="undefined"&&window.storage&&typeof window.storage.get==="function";
+  return{get data(){return mem;},
+    async load(){if(!has)return mem;
+      try{const r=await window.storage.get(KEY);if(r&&r.value)mem=Object.assign(mem,JSON.parse(r.value));}catch(e){}
+      mem.pk=mem.pk||{w:0,l:0,d:0};mem.mastery=mem.mastery||{};mem.lit=mem.lit||[];
+      mem.unlocked=mem.unlocked||[];mem.done=mem.done||[];mem.share=mem.share||{code:0,long:0};
+      return mem;},
+    async flush(){if(!has)return;try{await window.storage.set(KEY,JSON.stringify(mem));}catch(e){}}};
+})();
+
+const Sfx=(()=>{let ctx=null;
+  const ac=()=>{if(!ctx){try{ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}return ctx;};
+  function tone(f,t,dur,type,vol){const c=ac();if(!c)return;
+    const o=c.createOscillator(),g=c.createGain();o.type=type||"sine";
+    o.frequency.setValueAtTime(f,c.currentTime+t);g.gain.setValueAtTime(0,c.currentTime+t);
+    g.gain.linearRampToValueAtTime(vol||.16,c.currentTime+t+.02);
+    g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+dur);
+    o.connect(g);g.connect(c.destination);o.start(c.currentTime+t);o.stop(c.currentTime+t+dur+.05);}
+  return{good(){tone(660,0,.16);tone(880,.08,.22);},
+    great(){tone(660,0,.14);tone(880,.08,.14);tone(1180,.16,.3);},
+    soft(){tone(392,0,.2,"sine",.11);tone(523,.1,.26,"sine",.1);},   // 答错：温和的下行，不刺耳
+    tap(){tone(520,0,.07,"sine",.08);},
+    tick(){tone(900,0,.05,"square",.05);},
+    unlockSfx(){[523,659,784,1046,1318].forEach((f,i)=>tone(f,i*.09,.4,"sine",.13));},
+    win(){[523,659,784,1046].forEach((f,i)=>tone(f,i*.11,.35));},
+    lose(){[440,392,330,262].forEach((f,i)=>tone(f,i*.13,.4,"triangle",.13));}};
+})();
+
+const Voice=(()=>{const ok=typeof speechSynthesis!=="undefined";let zh=null,checked=false;
+  function find(){if(!ok)return null;const vs=speechSynthesis.getVoices()||[];
+    zh=vs.find(v=>/zh[-_]?CN/i.test(v.lang))||vs.find(v=>/^zh/i.test(v.lang))||null;checked=vs.length>0;return zh;}
+  if(ok){find();speechSynthesis.onvoiceschanged=find;}
+  return{available(){return ok&&(!checked||!!zh||!!find());},
+    say(t,r){if(!ok)return false;try{speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(t);u.lang="zh-CN";u.rate=r||.7;u.pitch=1.05;
+      if(zh||find())u.voice=zh;speechSynthesis.speak(u);return true;}catch(e){return false;}},
+    stop(){if(ok)try{speechSynthesis.cancel();}catch(e){}}};
+})();
+
+let MID=0;
+function moonSVG(p,size){
+  p=Math.max(0,Math.min(1,p));
+  const id="m"+(MID++),r=44,cx=50,cy=50,rx=(r*Math.abs(1-2*p)).toFixed(2);
+  const fill=p>0.5?`url(#lit${id})`:"#1B2C4C";
+  return `<svg viewBox="0 0 100 100" width="${size||'100%'}" height="${size||'100%'}" aria-hidden="true">
+    <defs><linearGradient id="lit${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF0BE"/><stop offset="100%" stop-color="#F0B429"/></linearGradient>
+      <radialGradient id="halo${id}"><stop offset="55%" stop-color="rgba(247,201,72,.35)"/><stop offset="100%" stop-color="rgba(247,201,72,0)"/></radialGradient></defs>
+    ${p>=1?`<circle cx="${cx}" cy="${cy}" r="${r+6}" fill="url(#halo${id})"/>`:""}
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="#1B2C4C" stroke="rgba(247,201,72,.35)" stroke-width="1.5"/>
+    <path d="M${cx},${cy-r} A${r},${r} 0 0,1 ${cx},${cy+r} Z" fill="url(#lit${id})"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${r}" fill="${fill}"/>
+    ${p>0.75?`<circle cx="38" cy="40" r="6" fill="rgba(180,130,20,.22)"/><circle cx="58" cy="62" r="4.5" fill="rgba(180,130,20,.18)"/>`:""}
+  </svg>`;
+}
+function constSVG(c,scale,lit){
+  const s=scale||1,pts=c.pts.map(([x,y])=>[x*100*s,y*100*s]);
+  const col=lit?"#F7C948":"rgba(143,165,198,.45)";
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  return `<g><path d="${line}" fill="none" stroke="${col}" stroke-width="${1.4*s}" opacity="${lit?.55:.3}" stroke-linejoin="round"/>
+    ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${2.6*s}" fill="${col}" opacity="${lit?1:.5}"/>`).join("")}</g>`;
+}
+
+/* ── 掌握度加权出题 ── */
+function mastery(pid){return Save.data.mastery[pid]||(Save.data.mastery[pid]={c:0,w:0});}
+function markMastery(pid,ok){const m=mastery(pid);
+  if(ok===null){m.c=0;return;}                        // 中性：摸索出来的，不算会也不算错
+  if(ok){m.c++;if(m.w>0)m.w=Math.max(0,m.w-0.5);}else{m.c=0;m.w=Math.min(3,m.w+1);}}
+function weightOf(p){const m=Save.data.mastery[p.id];
+  if(!m||(m.c===0&&m.w===0))return 1.6;                 // 没见过：略高
+  return Math.max(0.55, 1 + m.w*0.36 - Math.min(m.c,5)*0.09);  // 实测：错题约 2.0 倍，熟诗约 0.6 倍
+}
+function pickPoem(exclude){
+  const pool=POEMS.filter(p=>!exclude||!exclude.has(p.id));
+  if(!pool.length)return pickAny(POEMS);
+  const tot=pool.reduce((s,p)=>s+weightOf(p),0);
+  let r=Math.random()*tot;
+  for(const p of pool){r-=weightOf(p);if(r<=0)return p;}
+  return pool[pool.length-1];
+}
+
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));$("#"+id).classList.add("on");window.scrollTo(0,0);}
+
+/* ══════ 单人：无惩罚，月亮由答对数决定 ══════ */
+const G={mode:null,total:8,idx:0,right:0,moon:0,combo:0,best:0,roundStars:0,used:new Set(),seen:[],locked:false};
+
+function renderHome(){
+  $("#heroMoon").innerHTML=moonSVG(1);
+  $("#modeList").innerHTML=Object.entries(MODES).map(([k,m])=>`
+    <button class="mode" data-mode="${k}"><span class="glyph">${m.glyph}</span>
+    <span class="mname">${m.name}</span><span class="mdesc">${m.desc}</span></button>`).join("");
+  $("#modeList").querySelectorAll(".mode").forEach(b=>b.onclick=()=>{Sfx.tap();buzz(10);startRound(b.dataset.mode);});
+  $("#statStar").textContent=Save.data.stars;
+  $("#statSeal").textContent=Save.data.unlocked.length;
+  $("#statConst").textContent=Save.data.lit.length;
+  const r=Save.data.pk;$("#statPk").textContent=`${r.w}胜${r.l}负`;
+  // 首页夜空：已点亮的星座
+  $("#constel").innerHTML=CONSTS.filter(c=>Save.data.lit.includes(c.k)).map(c=>{
+    const [x,y]=c.pos;
+    return `<g transform="translate(${x-7},${y-7}) scale(0.14)">${constSVG(c,1,true)}</g>`;
+  }).join("");
+  show("s-home");
+}
+
+function startRound(mode){
+  G.mode=mode;G.total=MODES[mode].total;G.idx=0;G.right=0;G.moon=0;G.combo=0;G.best=0;
+  G.roundStars=0;G.used=new Set();G.seen=[];G.locked=false;
+  $("#qdots").innerHTML=Array.from({length:G.total},()=>`<div class="qdot"></div>`).join("");
+  show("s-play");paintBar();nextQuestion();
+}
+function paintBar(){
+  $("#playStar").textContent=G.roundStars;
+  $("#playMoon").innerHTML=moonSVG(G.moon/G.total);
+  const d=$("#qdots").children;
+  for(let i=0;i<d.length;i++)d[i].classList.toggle("cur",i===G.idx);
+}
+function note(h){$("#note").innerHTML=h||"";}
+function stamp(){const el=$("#seal");el.textContent=pickAny(["妙","好","佳","绝","棒"]);
+  el.classList.remove("go");void el.offsetWidth;el.classList.add("go");}
+function comboPop(n){const el=$("#combo");el.textContent=`连对 ${n} 题！+1★`;
+  el.classList.remove("go");void el.offsetWidth;el.classList.add("go");}
+function flyStar(from,text){
+  const tgt=$("#playStar");if(!tgt)return;
+  const t=tgt.getBoundingClientRect();
+  const f=from?from.getBoundingClientRect():{left:innerWidth/2,top:innerHeight/2,width:0,height:0};
+  const el=document.createElement("div");el.className="fly";el.textContent=text;
+  el.style.left=(f.left+f.width/2)+"px";el.style.top=(f.top+f.height/2)+"px";
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{
+    el.style.transform=`translate(${t.left+t.width/2-(f.left+f.width/2)}px,${t.top+t.height/2-(f.top+f.height/2)}px) scale(.55)`;
+    el.style.opacity="0";});
+  setTimeout(()=>el.remove(),780);
+}
+function moonPulse(){const m=$("#playMoon");if(!m)return;m.classList.remove("pulse");void m.offsetWidth;m.classList.add("pulse");}
+function unlockPoem(p){[].concat(p).forEach(x=>{if(!Save.data.unlocked.includes(x.id))Save.data.unlocked.push(x.id);});}
+
+/* 答对 */
+function scoreRight(poem,fromEl){
+  G.right++;G.moon++;G.combo++;if(G.combo>G.best)G.best=G.combo;
+  let gain=1;
+  if(G.combo>=3){gain=2;comboPop(G.combo);Sfx.great();buzz([10,50,14]);}
+  else{Sfx.good();buzz(14);}
+  G.roundStars+=gain;
+  flyStar(fromEl,"+"+gain+"★");
+  stamp();moonPulse();
+  [].concat(poem).forEach(p=>markMastery(p.id,true));
+  unlockPoem(poem);
+}
+/* 答错：不扣任何东西，只是把正确的念给你听 */
+function scoreTell(poem){
+  G.combo=0;Sfx.soft();buzz(8);
+  [].concat(poem).forEach(p=>markMastery(p.id,false));
+  unlockPoem(poem);
+}
+
+/* 摸索着完成的：给星星，但月亮只走一半甚至不走，掌握度绝不记成「会了」 */
+function scorePartial(poem,fromEl,hinted){
+  G.roundStars++;G.combo=0;Sfx.good();stamp();flyStar(fromEl,"+1★");
+  G.moon+=hinted?0:0.5;
+  if(!hinted)moonPulse();
+  [].concat(poem).forEach(p=>markMastery(p.id,hinted?false:null));
+  unlockPoem(poem);logSeen(poem,false);
+  paintBar();
+}
+function advance(d){setTimeout(()=>{G.idx++;paintBar();
+  if(G.idx>=G.total)finish();else nextQuestion();},d||1150);}
+function nextQuestion(){G.locked=false;note("");paintBar();
+  if(G.mode==="fill")viewFill();
+  else if(G.mode==="order")viewOrder();
+  else if(G.mode==="match")viewMatch();
+  else viewListen();}
+function takePoem(){const p=pickPoem(G.used);G.used.add(p.id);return p;}
+function logSeen(p,ok){[].concat(p).forEach(x=>{
+  const e=G.seen.find(s=>s.id===x.id);
+  if(e){if(!ok)e.ok=false;}else G.seen.push({id:x.id,ok:ok});});}
+
+function viewFill(){
+  const p=takePoem(),li=rnd(p.l.length),line=p.l[li],ci=rnd(line.length),ans=line[ci];
+  const opts=shuffle([ans,...distractors(line,ci,ans,3)]);
+  const chars=line.split("").map((c,i)=>i===ci?`<span class="blank" id="blank">?</span>`:`<span>${c}</span>`).join("");
+  const hint=li>0?`上句　${p.l[li-1]}`:`《${p.t}》开篇`;
+  $("#stage").innerHTML=`<div class="card paper">
+    <div class="card-head"><em>《${p.t}》</em><span>${p.d}·${p.a}</span></div>
+    <div class="hint-line">${hint}</div><div class="main-line">${chars}</div></div>
+    <div class="opts" id="opts">${opts.map(c=>`<button class="opt" data-c="${c}">${c}</button>`).join("")}</div>`;
+  $("#opts").querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    if(G.locked)return;G.locked=true;
+    const ok=b.dataset.c===ans, bl=$("#blank");
+    bl.textContent=ans;bl.classList.add(ok?"fill":"tell");
+    $("#opts").querySelectorAll(".opt").forEach(x=>{
+      if(x.dataset.c===ans)x.classList.add(ok?"right":"tell");else x.classList.add("faded");});
+    if(ok){scoreRight(p,b);logSeen(p,true);note(`<span class="ok">${line}</span>`);advance(1000);}
+    else{scoreTell(p);logSeen(p,false);
+      note(`<span class="tell">是「${ans}」——${line}</span><small>${p.a}《${p.t}》</small>`);
+      Voice.say(line,.62);advance(2300);}
+  });
+}
+
+function viewOrder(){
+  const p=takePoem(),li=rnd(p.l.length),line=p.l[li],n=line.length;
+  let tiles=shuffle(line.split(""));if(tiles.join("")===line)tiles=shuffle(tiles);
+  $("#stage").innerHTML=`<div class="card paper">
+    <div class="card-head"><em>《${p.t}》</em><span>${p.d}·${p.a}</span></div>
+    <div class="hint-line">${li>0?"上句　"+p.l[li-1]:"这是开篇第一句"}</div>
+    <div style="font-size:14.5px;color:#8A7550;font-family:'Noto Serif SC',serif">把下面的字按顺序排好</div></div>
+    <div class="slots" id="slots">${Array.from({length:n},(_,i)=>`<div class="slot ${i===0?"cur":""}"></div>`).join("")}</div>
+    <div class="tiles" id="tiles">${tiles.map(c=>`<button class="tile" data-c="${c}">${c}</button>`).join("")}</div>`;
+  let step=0,miss=0,hinted=false;const slots=$("#slots").querySelectorAll(".slot");
+  const tileEls=[...$("#tiles").querySelectorAll(".tile")];
+  tileEls.forEach(t=>t.onclick=()=>{
+    if(G.locked)return;
+    if(t.dataset.c===line[step]){
+      Sfx.tap();buzz(8);t.classList.add("used");
+      const s=slots[step];s.textContent=t.dataset.c;s.classList.add("filled");s.classList.remove("cur");
+      tileEls.forEach(x=>x.classList.remove("hintme"));
+      step++;
+      if(step<n)slots[step].classList.add("cur");
+      else{G.locked=true;
+        if(miss===0){scoreRight(p,t);logSeen(p,true);note(`<span class="ok">拼对了！${line}</span>`);}
+        else{scorePartial(p,t,hinted);
+          note(hinted
+            ? `<span class="tell">这次是照着提示拼的</span><small>${line} —— 下次它还会来</small>`
+            : `<span class="ok">拼好啦</span><small>中间摸索了 ${miss} 次，月亮走一半</small>`);
+          if(hinted)Voice.say(line,.62);}
+        advance(hinted?2200:1300);}}
+    else{miss++;t.classList.add("nudge");setTimeout(()=>t.classList.remove("nudge"),400);
+      Sfx.soft();note(`<span class="tell">这个字还没轮到它</span>`);
+      if(miss>=3){hinted=true;
+        const need=tileEls.find(x=>!x.classList.contains("used")&&x.dataset.c===line[step]);
+        if(need)need.classList.add("hintme");
+        note(`<span class="tell">下一个是「${line[step]}」</span>`);}}
+  });
+}
+
+function viewMatch(){
+  // 修复：一局四首必须同句长，否则数字数就能配对
+  const len=Math.random()<0.5?5:7;
+  let bank=POEMS.filter(p=>p.l[0].length===len&&!G.used.has(p.id));
+  if(bank.length<4)bank=POEMS.filter(p=>p.l[0].length===len);
+  const ps=[];
+  while(ps.length<4&&bank.length){
+    const c=pickPoem(new Set([...G.used,...ps.map(x=>x.id)]));
+    const ok=bank.find(x=>x.id===c.id)||bank[rnd(bank.length)];
+    if(!ps.some(x=>x.id===ok.id)){ps.push(ok);G.used.add(ok.id);}
+    bank=bank.filter(x=>!ps.some(y=>y.id===x.id));
+  }
+  const pairs=ps.map(p=>{const i=rnd(Math.floor(p.l.length/2))*2;return{pid:p.id,up:p.l[i],down:p.l[i+1]};});
+  const left=pairs.map(x=>x.up),right=shuffle(pairs.map(x=>x.down));
+  $("#stage").innerHTML=`<p class="match-tip">先点左边的上句，再点右边的下句　·　${len}言</p>
+    <div class="match"><div>${left.map(s=>`<div class="mcell" data-side="L" data-v="${s}" style="margin-bottom:9px">${s}</div>`).join("")}</div>
+    <div>${right.map(s=>`<div class="mcell" data-side="R" data-v="${s}" style="margin-bottom:9px">${s}</div>`).join("")}</div></div>`;
+  let sel=null,done=0,miss=0,hinted=false;const cells=$("#stage").querySelectorAll(".mcell");
+  cells.forEach(c=>c.onclick=()=>{
+    if(G.locked||c.classList.contains("done"))return;
+    if(c.dataset.side==="L"){cells.forEach(x=>{if(x.dataset.side==="L")x.classList.remove("pick");});
+      c.classList.add("pick");sel=c;Sfx.tap();buzz(8);return;}
+    if(!sel){note(`<small>先选左边的上句</small>`);return;}
+    const pair=pairs.find(x=>x.up===sel.dataset.v);
+    if(pair&&pair.down===c.dataset.v){
+      Sfx.tap();buzz(10);sel.classList.remove("pick");sel.classList.add("done");c.classList.add("done");
+      cells.forEach(x=>x.classList.remove("hintme"));
+      const po=POEMS[pair.pid];note(`<span class="ok">${pair.up}，${pair.down}</span><small>${po.a}《${po.t}》</small>`);
+      sel=null;done++;
+      if(done===pairs.length){G.locked=true;
+        if(miss===0){scoreRight(ps,c);logSeen(ps,true);note(`<span class="ok">四对全配好了</span>`);}
+        else{scorePartial(ps,c,hinted);
+          note(hinted?`<span class="tell">有一对是照着提示连的</span>`
+                     :`<span class="ok">配好了</span><small>试错 ${miss} 次，月亮走一半</small>`);}
+        advance(1400);}}
+    else{miss++;c.classList.add("nudge");setTimeout(()=>c.classList.remove("nudge"),400);
+      Sfx.soft();note(`<span class="tell">这两句不是一对，再看看</span>`);
+      if(miss>=3&&sel){hinted=true;const p2=pairs.find(x=>x.up===sel.dataset.v);
+        if(p2){cells.forEach(x=>{if(x.dataset.side==="R"&&x.dataset.v===p2.down&&!x.classList.contains("done"))x.classList.add("hintme");});
+          note(`<span class="tell">「${p2.up}」的下句已经亮起来了</span>`);}}}
+  });
+}
+
+function viewListen(){
+  const p=takePoem(),li=rnd(p.l.length-1),cue=p.l[li],ans=p.l[li+1];
+  const pool=[...new Set(POEMS.filter(x=>x.id!==p.id).flatMap(x=>x.l).filter(l=>l.length===ans.length))];
+  const opts=shuffle([ans,...sample(pool,3)]);
+  const can=Voice.available();
+  $("#stage").innerHTML=`<div class="card paper" style="padding-bottom:18px">
+    <div class="card-head"><span>听上句，选下句</span></div>
+    <button class="speaker" id="spk" aria-label="再听一遍">${can?"🔊":"👁"}</button>
+    <div class="main-line" id="cue" style="font-size:25px;min-height:34px;color:${can?"rgba(107,88,55,.28)":"var(--brush)"}">
+      ${can?"点上面的月亮再听一遍":cue}</div></div>
+    <div class="opts wide" id="opts">${opts.map(s=>`<button class="opt" data-s="${s}">${s}</button>`).join("")}</div>`;
+  const spk=$("#spk");
+  function play(){if(!can){$("#cue").textContent=cue;return;}
+    spk.classList.add("playing");Voice.say(cue);
+    setTimeout(()=>spk.classList.remove("playing"),Math.max(1400,cue.length*420));}
+  spk.onclick=play;setTimeout(play,300);
+  $("#opts").querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    if(G.locked)return;G.locked=true;Voice.stop();spk.classList.remove("playing");
+    $("#cue").style.color="var(--brush)";$("#cue").textContent=cue;
+    const ok=b.dataset.s===ans;
+    $("#opts").querySelectorAll(".opt").forEach(x=>{
+      if(x.dataset.s===ans)x.classList.add(ok?"right":"tell");else x.classList.add("faded");});
+    if(ok){scoreRight(p,b);logSeen(p,true);
+      note(`<span class="ok">${cue}，${ans}</span><small>${p.a}《${p.t}》</small>`);
+      Voice.say(cue+"，"+ans,.68);advance(1700);}
+    else{scoreTell(p);logSeen(p,false);
+      note(`<span class="tell">下句是「${ans}」</span><small>${p.a}《${p.t}》</small>`);
+      Voice.say(cue+"，"+ans,.62);advance(2600);}
+  });
+}
+
+function finish(){
+  Voice.stop();
+  const acc=G.moon/G.total;
+  Save.data.stars+=G.roundStars;Save.flush();
+  $("#resMoon").innerHTML=moonSVG(acc);
+  const full=G.right===G.total;
+  $("#resTitle").textContent=full?"月圆了":acc>=.7?"快圆了":acc>=.4?"半轮月":"月牙儿";
+  $("#resSub").textContent=full?`${MODES[G.mode].name} · 一题没错`
+    :`${MODES[G.mode].name} · 还差 ${G.total-G.right} 题，月亮就满了`;
+  $("#resRight").textContent=`${G.right}/${G.total}`;
+  $("#resStar").textContent=G.roundStars;$("#resCombo").textContent=G.best;
+  const miss=G.seen.filter(s=>!s.ok),got=G.seen.filter(s=>s.ok);
+  const row=(s,tag)=>{const p=POEMS[s.id];
+    return `<div class="lp ${tag?"miss":""}"><b>《${p.t}》</b><i>${p.d}·${p.a}</i>${tag?`<i class="tag">这首还没熟</i>`:""}<p>${p.m}</p></div>`;};
+  $("#learned").innerHTML=(miss.length?`<h4>下次它们还会来找你</h4>${miss.map(s=>row(s,true)).join("")}`:"")
+    +(got.length?`<h4>这局遇到的诗</h4>${got.map(s=>row(s,false)).join("")}`:"");
+  if(full)Sfx.win();else Sfx.good();
+  show("s-result");
+}
+
+/* ══════ 诗集 ══════ */
+function renderColl(){
+  $("#collCount").textContent=`已收 ${Save.data.unlocked.length} 首 / 共 ${POEMS.length} 首`;
+  $("#collGrid").innerHTML=POEMS.map(p=>Save.data.unlocked.includes(p.id)
+    ?`<button class="pc" data-id="${p.id}"><b>${p.t}</b><i>${p.a}</i></button>`
+    :`<div class="pc locked"><span class="lock">🔒</span><i>未解锁</i></div>`).join("");
+  $("#collGrid").querySelectorAll(".pc[data-id]").forEach(b=>b.onclick=()=>openPoem(POEMS[+b.dataset.id]));
+  show("s-coll");
+}
+function openPoem(p){
+  $("#sheetInner").innerHTML=`<h3>${p.t}</h3><div class="meta">${p.d} · ${p.a}</div>
+    <div class="poem">${p.l.map((l,i)=>l+(i%2?"。":"，")).join("<br>")}</div>
+    <div class="mean">${p.m}</div>
+    <div class="sheet-btns"><button class="btn ghost" id="shClose">收起</button>
+    <button class="btn" id="shRead">🔊 读给我听</button></div>`;
+  $("#sheet").classList.add("on");
+  $("#shClose").onclick=closeSheet;
+  $("#shRead").onclick=()=>Voice.say(p.l.join("，")+"。",.66);
+}
+function closeSheet(){Voice.stop();$("#sheet").classList.remove("on");}
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet();});
+
+/* ══════ 星图：星星的去处 ══════ */
+function renderStars(){
+  $("#starBal").textContent=Save.data.stars;
+  $("#starGrid").innerHTML=CONSTS.map(c=>{
+    const lit=Save.data.lit.includes(c.k);
+    const n=constPoems(c).length;
+    const afford=Save.data.stars>=CONST_COST;
+    return `<button class="sc ${lit?"lit":""} ${(!lit&&!afford)?"cant":""}" data-k="${c.k}">
+      <div class="cs"><svg viewBox="0 0 100 100">${constSVG(c,1,lit)}</svg></div>
+      <span class="cn">${lit?c.name:"？之座"}</span>
+      <span class="cinfo">${lit?`收着 ${n} 首`:`点亮后看见 ${n} 首`}</span>
+      ${lit?"":`<span class="cost">★ ${CONST_COST}</span>`}
+    </button>`;}).join("");
+  $("#starGrid").querySelectorAll(".sc").forEach(b=>b.onclick=()=>{
+    const c=CONSTS.find(x=>x.k===b.dataset.k);
+    if(Save.data.lit.includes(c.k)){openConst(c);return;}
+    if(Save.data.stars<CONST_COST){Sfx.soft();
+      $("#starBal").textContent=Save.data.stars;
+      b.querySelector(".cost").textContent=`还差 ★ ${CONST_COST-Save.data.stars}`;
+      setTimeout(()=>{const el=b.querySelector(".cost");if(el)el.textContent=`★ ${CONST_COST}`;},1800);return;}
+    Save.data.stars-=CONST_COST;Save.data.lit.push(c.k);Save.flush();
+    Sfx.unlockSfx();buzz([12,60,12,60,20]);
+    renderStars();setTimeout(()=>openConst(c,true),350);
+  });
+  show("s-stars");
+}
+function openConst(c,fresh){
+  const ps=constPoems(c);
+  $("#sheetInner").innerHTML=`
+    <div style="width:86px;height:86px;margin:0 auto 8px"><svg viewBox="0 0 100 100">${constSVG(c,1,true)}</svg></div>
+    <h3>${c.name}</h3><div class="meta">${fresh?"星座已点亮":"共 "+ps.length+" 首"}</div>
+    <div class="mean">${c.why}</div>
+    <div class="plist">${ps.map(p=>`<span>《${p.t}》<b style="font-weight:400;opacity:.6">${p.a}</b></span>`).join("")}</div>
+    <div class="sheet-btns"><button class="btn ghost" id="shClose">收起</button></div>`;
+  $("#sheet").classList.add("on");
+  $("#shClose").onclick=closeSheet;
+}
+
+/* ══════ 擂台 ══════ */
+const PK_N=8, PK_LIMIT=12000;
+const B32="23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+function b32enc(n,len){let s="";n=Math.max(0,Math.floor(n));for(let i=0;i<len;i++){s=B32[n%32]+s;n=Math.floor(n/32);}return s;}
+function b32dec(s){let n=0;for(const c of s){const i=B32.indexOf(c);if(i<0)return -1;n=n*32+i;}return n;}
+function makeShort(seed,score,secs){
+  const body=b32enc(seed,3)+b32enc(Math.min(1023,Math.round(score/2)),2)+b32enc(Math.min(31,Math.round(secs/4)),1);
+  let s=0;for(const c of body)s+=B32.indexOf(c);return body+B32[s%32];
+}
+function readShort(code){
+  code=code.toUpperCase().replace(/[^0-9A-Z]/g,"").replace(/O/g,"0").replace(/I/g,"1");
+  if(code.length===8&&code[0]==="R"){const r=readShort(code.slice(1));if(r)r.receipt=true;return r;}
+  if(code.length!==7)return null;
+  const body=code.slice(0,6);let s=0;
+  for(const c of body){if(B32.indexOf(c)<0)return null;s+=B32.indexOf(c);}
+  if(B32[s%32]!==code[6])return null;
+  return{seed:b32dec(body.slice(0,3)),score:b32dec(body.slice(3,5))*2,secs:b32dec(body.slice(5,6))*4,name:"神秘对手",detail:false};
+}
+function makeReceiptShort(seed,score,secs){return "R"+makeShort(seed,score,secs);}
+function makeLong(o){try{return "SY1"+btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/=+$/,"");}catch(e){return "";}}
+function readLong(code){code=code.trim();if(!code.startsWith("SY1"))return null;
+  try{let b=code.slice(3);while(b.length%4)b+="=";
+    const o=JSON.parse(decodeURIComponent(escape(atob(b))));
+    if(typeof o.s!=="number"||!Array.isArray(o.q))return null;
+    return{seed:o.s,score:o.sc,secs:o.t,name:o.n||"对手",q:o.q,detail:true,receipt:!!o.r};}catch(e){return null;}}
+
+function pkQuestions(seed){
+  const r=mulberry32((seed+1)*2654435761>>>0),ri=n=>Math.floor(r()*n);
+  const used=new Set(),qs=[];let g=0;
+  while(qs.length<PK_N&&g++<500){
+    const p=POEMS[ri(POEMS.length)];if(used.has(p.id))continue;used.add(p.id);
+    const li=ri(p.l.length),line=p.l[li],ci=ri(line.length),ans=line[ci];
+    const opts=[ans,...distractors(line,ci,ans,3,ri)];
+    for(let i=opts.length-1;i>0;i--){const j=ri(i+1);[opts[i],opts[j]]=[opts[j],opts[i]];}
+    qs.push({p,li,ci,ans,opts});
+  }
+  return qs;
+}
+const PK={role:null,seed:0,qs:[],idx:0,score:0,rec:[],t0:0,raf:null,locked:false,opp:null,startAll:0,mine:null};
+
+function renderPk(){
+  const r=Save.data.pk;$("#pkW").textContent=r.w;$("#pkL").textContent=r.l;$("#pkD").textContent=r.d;
+  $("#pkWho").textContent=Save.data.name?`${Save.data.name} 的擂台`:"诗词擂台";
+  const lb=Save.data.lastBattle;
+  $("#pkActs").innerHTML=`
+    <button class="pk-act" data-a="host"><span class="g">书</span>
+      <span><b>下战书</b><span>先答 8 题，再把战书发给对手</span></span></button>
+    <button class="pk-act" data-a="guest"><span class="g">应</span>
+      <span><b>应战</b><span>收到战书码或邀请码，来这里接招</span></span></button>
+    ${lb?`<button class="pk-act" data-a="receipt"><span class="g">回</span>
+      <span><b>看回执</b><span>你有一封战书在外面（${lb.score} 分），对手答完会给你回执码</span></span></button>`:""}`;
+  $("#pkActs").querySelectorAll(".pk-act").forEach(b=>b.onclick=()=>{
+    Sfx.tap();
+    if(b.dataset.a==="host")pkStart("host");
+    else openAccept(b.dataset.a==="receipt");});
+  show("s-pk");
+}
+function pkStopTimer(){if(PK.raf){cancelAnimationFrame(PK.raf);PK.raf=null;}}
+function pkStart(role,seed){
+  PK.role=role;PK.seed=(typeof seed==="number"&&seed>=0)?seed:rnd(32768);
+  // 应战方：一进场就把这套题记为已用，中途退出＝弃权，不能反复刷分
+  if(role==="guest"&&!Save.data.done.includes(PK.seed)){Save.data.done.push(PK.seed);Save.flush();}
+  PK.qs=pkQuestions(PK.seed);PK.idx=0;PK.score=0;PK.rec=[];PK.locked=false;PK.startAll=performance.now();
+  $("#pkRole").textContent=role==="host"?"下战书":"应战中";
+  $("#pkScore").textContent="0 分";
+  $("#pkDots").innerHTML=Array.from({length:PK_N},()=>`<div class="qdot"></div>`).join("");
+  show("s-pkplay");pkNext();
+}
+function pkNext(){
+  if(PK.idx>=PK_N){pkFinish();return;}
+  PK.locked=false;$("#pkNote").innerHTML="";
+  const q=PK.qs[PK.idx],d=$("#pkDots").children;
+  for(let i=0;i<d.length;i++)d[i].classList.toggle("cur",i===PK.idx);
+  const chars=q.p.l[q.li].split("").map((c,i)=>i===q.ci?`<span class="blank" id="pkBlank">?</span>`:`<span>${c}</span>`).join("");
+  const hint=q.li>0?`上句　${q.p.l[q.li-1]}`:`《${q.p.t}》开篇`;
+  $("#pkStage").innerHTML=`<div class="card paper">
+      <div class="card-head"><em>第 ${PK.idx+1} 题</em><span>${q.p.d}·${q.p.a}《${q.p.t}》</span></div>
+      <div class="hint-line">${hint}</div><div class="main-line">${chars}</div></div>
+    <div class="opts" id="pkOpts">${q.opts.map(c=>`<button class="opt" data-c="${c}">${c}</button>`).join("")}</div>`;
+  $("#pkOpts").querySelectorAll(".opt").forEach(b=>b.onclick=()=>pkAnswer(b,b.dataset.c));
+  PK.t0=performance.now();
+  const bar=$("#tbar");bar.style.width="100%";bar.style.background="var(--moon)";
+  let warned=false;
+  (function tick(){
+    if(PK.locked)return;
+    const left=Math.max(0,PK_LIMIT-(performance.now()-PK.t0));
+    bar.style.width=(left/PK_LIMIT*100)+"%";
+    if(left<3500){bar.style.background="var(--seal)";if(!warned){warned=true;Sfx.tick();buzz(20);}}
+    if(left<=0){pkAnswer(null,null);return;}
+    PK.raf=requestAnimationFrame(tick);})();
+}
+function pkAnswer(btn,ch){
+  if(PK.locked)return;PK.locked=true;pkStopTimer();
+  const q=PK.qs[PK.idx];
+  const used=Math.min(PK_LIMIT,performance.now()-PK.t0),left=(PK_LIMIT-used)/1000;
+  // 答对固定 100，手速最多再加 15 —— 保证「少对一题」永远赢不了「全对但慢」
+  const ok=ch===q.ans,gain=ok?100+Math.round(left/(PK_LIMIT/1000)*12):0;
+  PK.score+=gain;PK.rec.push([ok?1:0,Math.min(999,Math.round(used/100))]);
+  $("#pkScore").textContent=PK.score+" 分";
+  const d=$("#pkDots").children;d[PK.idx].classList.remove("cur");d[PK.idx].classList.add(ok?"ok":"no");
+  const bl=$("#pkBlank");if(bl){bl.textContent=q.ans;bl.classList.add(ok?"fill":"tell");}
+  const o=$("#pkOpts");
+  if(o)o.querySelectorAll(".opt").forEach(b=>{if(b.dataset.c===q.ans)b.classList.add(ok?"right":"tell");else b.classList.add("faded");});
+  markMastery(q.p.id,ok);
+  if(ok){Sfx.good();buzz(14);flyStar(btn,"+"+gain);unlockPoem(q.p);
+    $("#pkNote").innerHTML=`<span class="ok">+${gain} 分</span><small>100 基础分，手速 +${gain-100}</small>`;}
+  else{Sfx.soft();buzz(8);
+    $("#pkNote").innerHTML=`<span class="tell">${ch===null?"时间到":"再想想"}——是「${q.ans}」</span><small>${q.p.l[q.li]}</small>`;}
+  $("#tbar").style.width="0%";
+  setTimeout(()=>{PK.idx++;pkNext();},ok?900:1500);
+}
+function pkFinish(){
+  pkStopTimer();
+  const secs=Math.round((performance.now()-PK.startAll)/1000);
+  PK.mine={score:PK.score,secs,q:PK.rec,name:myName()};
+  Save.flush();
+  if(PK.role==="host")showBattle();else showCompare();
+}
+function showBattle(){
+  const m=PK.mine;
+  const short=makeShort(PK.seed,m.score,m.secs),long=makeLong({s:PK.seed,n:m.name,sc:m.score,t:m.secs,q:m.q});
+  const right=m.q.filter(x=>x[0]).length;
+  const msg=`我在「诗月」摆了个擂台：8 道补诗句，我得了 ${m.score} 分（对了 ${right} 题）。同一套题，你来试试能不能赢我。\n战书码：${long}`;
+  $("#btlStage").innerHTML=`
+    <div class="card paper scroll-card">
+      <button class="card-head" id="editName" style="border:0;background:none;cursor:pointer">
+        <em>${esc(m.name)} 的成绩</em><span style="opacity:.6">✎ 改名</span></button>
+      <div style="font-family:'Noto Serif SC',serif;font-weight:700;font-size:50px;color:var(--seal);line-height:1.05">${m.score}</div>
+      <div style="font-size:12.5px;color:#8A7550;font-family:'Noto Serif SC',serif;margin-top:4px">答对 ${right}/${PK_N} 题 · 共用 ${m.secs} 秒</div>
+      <div style="margin-top:14px;display:flex;justify-content:center;gap:4px">
+        ${m.q.map(x=>`<span style="width:20px;height:6px;border-radius:99px;background:${x[0]?"var(--jade)":"rgba(200,67,60,.5)"}"></span>`).join("")}</div>
+    </div>
+
+    <div class="card paper" style="padding:20px 18px">
+      <div class="card-head" style="margin-bottom:14px"><em>把战书发出去</em></div>
+
+      <div class="code-box"><div class="lab">口头说、写纸条 · 七位邀请码</div>
+        <div class="code-big">${short}</div>
+        <div style="text-align:center;margin-top:10px"><button class="btn red" id="copyShort">复制邀请码</button></div>
+        <div class="copied" id="copiedS" style="text-align:center"></div></div>
+
+      <div style="text-align:center;color:#8A7550;font-size:11.5px;font-family:'Noto Serif SC',serif;margin:4px 0 12px">或者</div>
+
+      <div class="code-box" style="box-shadow:0 0 0 1.5px rgba(120,95,55,.25) inset">
+        <div class="lab">发微信 · 完整战书，能逐题对比谁更快</div>
+        <div style="text-align:center;margin-top:4px"><button class="btn" id="copyLong">复制整段战书</button></div>
+        <div class="copied" id="copiedL" style="text-align:center"></div></div>
+
+      <p style="font-size:11.5px;color:#8A7550;font-family:'Noto Serif SC',serif;margin:14px 0 0;text-align:center;
+        padding-top:12px;border-top:1px dashed rgba(120,95,55,.25)">
+        两种都行，对手答完都会拿到<b>回执码</b><br>让他发回来，你在擂台点「看回执」就知道谁赢了</p>
+    </div>
+    <div class="result-btns"><button class="btn ghost" id="btlHome">回家</button>
+      <button class="btn" id="btlAgain">再摆一局</button></div>`;
+  $("#editName").onclick=()=>askName(()=>{PK.mine.name=myName();showBattle();});
+  $("#copyLong").onclick=()=>{Save.data.share.long++;Save.flush();copyText(msg,"#copiedL");};
+  $("#copyShort").onclick=()=>{Save.data.share.code++;Save.flush();copyText(short,"#copiedS");};
+  $("#btlHome").onclick=()=>renderHome();
+  $("#btlAgain").onclick=()=>pkStart("host");
+  Sfx.win();show("s-battle");
+}
+
+function copyText(t,sel){
+  const done=()=>{const el=$(sel);if(el){el.textContent="已复制，去发给对手吧";setTimeout(()=>{if(el)el.textContent="";},2600);}};
+  const fb=()=>{const ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");done();}catch(e){const el=$(sel);if(el)el.textContent="复制失败，请长按选中";}
+    document.body.removeChild(ta);};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done).catch(fb);else fb();
+  Sfx.tap();
+}
+let ACC_RECEIPT=false;
+function openAccept(isReceipt){
+  ACC_RECEIPT=!!isReceipt;
+  $("#codeIn").value="";$("#codeErr").textContent="";
+  $("#accTitle").textContent=ACC_RECEIPT?"看回执":"应战";
+  $("#accLabel").textContent=ACC_RECEIPT?"把对手发回的回执码贴在这里":"把码贴在这里";
+  $("#codeIn").placeholder=ACC_RECEIPT?"以 R 或 SY1 开头的回执码":"7 位邀请码，或一长串战书码";
+  $("#accTip").innerHTML=ACC_RECEIPT
+    ? "· 回执码是对手答完你那套题之后生成的<br>· 贴进来就能看到这一局到底谁赢"
+    : "· 邀请码 7 位，只比总分<br>· 战书码很长，能逐题对比谁答得快<br>· 同一套题只能应一次，中途退出算弃权";
+  $("#codeGo").textContent=ACC_RECEIPT?"看结果":"接下战书";
+  show("s-accept");setTimeout(()=>$("#codeIn").focus(),200);}
+function showCompare(){ renderCompare(PK.mine, PK.opp, PK.seed, "guest"); }
+
+/* 通用对战结算：应战方看「我 vs 下战书的人」，发起方看回执时看「我 vs 应战的人」 */
+function renderCompare(me,op,seed,side){
+  const win=me.score>op.score,lose=me.score<op.score,rec=Save.data.pk;
+  if(win)rec.w++;else if(lose)rec.l++;else rec.d++;
+  if(side==="host")Save.data.lastBattle=null;      // 这封战书有了着落，收回
+  Save.flush();
+  const myRight=me.q.filter(x=>x[0]).length;
+  const v=win?["胜","w","这一局你赢了"]:lose?["负","l","这一局差一点"]:["平","d","分毫不差，平手"];
+  let cmp="";
+  if(op.detail&&Array.isArray(op.q)&&op.q.length===PK_N){
+    cmp=`<div class="cmp"><div class="cmp-head"><span>题</span><span>${esc(me.name)}</span><span>${esc(op.name)}</span></div>
+      ${me.q.map((x,i)=>{const y=op.q[i]||[0,999];
+        const mw=(x[0]&&!y[0])||(x[0]&&y[0]&&x[1]<y[1]),tw=(y[0]&&!x[0])||(x[0]&&y[0]&&y[1]<x[1]);
+        return `<div class="cmp-row"><span class="no">${i+1}</span>
+          <span class="cmp-cell ${mw?"win":""} ${x[0]?"":"miss"}">${x[0]?"✓ "+(x[1]/10).toFixed(1)+"s":"✗"}</span>
+          <span class="cmp-cell ${tw?"win":""} ${y[0]?"":"miss"}">${y[0]?"✓ "+(y[1]/10).toFixed(1)+"s":"✗"}</span></div>`;}).join("")}</div>`;
+  }else{
+    cmp=`<p style="font-size:12px;color:#8A7550;font-family:'Noto Serif SC',serif;line-height:1.8;margin:0 0 12px">
+      对手是用<b>邀请码</b>来的，码里只装得下总分。<br>想看逐题谁快，让他用战书码再来一次。</p>`;}
+
+  const qs=pkQuestions(seed);
+  const missed=qs.filter((q,i)=>me.q[i]&&!me.q[i][0]).map(q=>q.p);
+
+  let receipt="";
+  if(side==="guest"){   // 应战方生成回执，把循环接回发起人
+    const rl=makeLong({s:seed,n:me.name,sc:me.score,t:me.secs,q:me.q,r:1});
+    const rs=makeReceiptShort(seed,me.score,me.secs);
+    receipt=`<div class="card paper" style="padding:18px">
+      <div class="card-head" style="margin-bottom:10px"><em>把结果发回给他</em></div>
+      <div class="code-box" style="text-align:left"><div class="lab">回执码 · 他贴进「看回执」就能看到胜负</div>
+        <div class="code-long">${esc(rl)}</div></div>
+      <div style="text-align:center"><button class="btn red" id="copyRc">复制回执</button>
+        <div class="copied" id="copiedR"></div></div>
+      <p style="font-size:11.5px;color:#8A7550;font-family:'Noto Serif SC',serif;margin:8px 0 0;text-align:center">
+        只想报个分？短回执：<b style="letter-spacing:2px">${rs}</b></p></div>`;
+  }
+
+  $("#pkrStage").innerHTML=`
+    <div class="card paper scroll-card">
+      <div class="verdict ${v[1]}">${v[0]}</div>
+      <div style="font-size:12.5px;color:#8A7550;font-family:'Noto Serif SC',serif;margin-bottom:6px">${v[2]}</div>
+      <div class="vs-row">
+        <div class="vs-side ${win?"win":""}"><span class="nm">${esc(me.name)}</span>
+          <div class="sc2">${me.score}</div><span class="tm">对 ${myRight} 题 · ${me.secs}s</span></div>
+        <div class="vs-mid">对</div>
+        <div class="vs-side ${lose?"win":""}"><span class="nm">${esc(op.name)}</span>
+          <div class="sc2">${op.score}</div><span class="tm">${op.detail?`对 ${op.q.filter(x=>x[0]).length} 题 · ${op.secs}s`:`用时约 ${op.secs}s`}</span></div>
+      </div>${cmp}
+    </div>
+    ${receipt}
+    ${missed.length?`<div class="learned"><h4>没答上来的这几首，练一练再回敬</h4>
+      ${missed.map(p=>`<div class="lp miss"><b>《${p.t}》</b><i>${p.d}·${p.a}</i><p>${p.m}</p></div>`).join("")}</div>`:""}
+    <div class="result-btns">
+      <button class="btn ghost" id="pkrHome">回家</button>
+      ${missed.length?`<button class="btn" id="pkrTrain">先练这几首</button>`:""}
+      <button class="btn red" id="pkrBack2">${side==="host"?"再摆一局":"回敬战书"}</button></div>`;
+  $("#pkrHome").onclick=()=>renderHome();
+  $("#pkrBack2").onclick=()=>pkStart("host");
+  if($("#copyRc")){const rl=makeLong({s:seed,n:me.name,sc:me.score,t:me.secs,q:me.q,r:1});
+    $("#copyRc").onclick=()=>{Save.data.share.long++;Save.flush();copyText(`我应了你的战书，得了 ${me.score} 分。回执码：${rl}`,"#copiedR");};}
+  if($("#pkrTrain"))$("#pkrTrain").onclick=()=>{
+    missed.forEach(p=>{const m=mastery(p.id);m.w=Math.min(3,m.w+1.5);});
+    Save.flush();startRound("fill");};
+  win?Sfx.win():lose?Sfx.lose():Sfx.good();
+  show("s-pkresult");
+}
+
+/* ══════ 首次设置 ══════ */
+/* 名字不再是进门的条件：默认「无名氏」，需要署名时随手改 */
+function askName(after){
+  $("#sheetInner").innerHTML=`<h3>取个名号</h3><div class="meta">署在战书上的名字</div>
+    <input class="nick" id="nickIn" maxlength="8" placeholder="比如：小诗仙" value="${esc(Save.data.name||"")}">
+    <div class="sheet-btns"><button class="btn ghost" id="nkCancel">算了</button>
+      <button class="btn" id="nkOk">就用这个</button></div>`;
+  $("#sheet").classList.add("on");
+  const inp=$("#nickIn");setTimeout(()=>inp&&inp.focus(),200);
+  $("#nkCancel").onclick=closeSheet;
+  $("#nkOk").onclick=()=>{
+    Save.data.name=inp.value.trim();Save.flush();closeSheet();Sfx.tap();
+    if(typeof after==="function")after();};
+}
+function myName(){return Save.data.name||"无名氏";}
+
+/* ══════ 事件 ══════ */
+/* 元素找不到时不再抛异常整页白屏，只在控制台留一条线索 */
+function on(sel,handler,evt){
+  const el=$(sel);
+  if(!el){console.warn("[诗月] 绑定失败，元素不存在:",sel);return;}
+  el.addEventListener(evt||"click",handler);
+}
+on("#quitBtn",()=>{Voice.stop();renderHome();});
+on("#collBack",()=>renderHome());
+on("#starBack",()=>renderHome());
+on("#toColl",()=>{Sfx.tap();renderColl();});
+on("#toStars",()=>{Sfx.tap();renderStars();});
+on("#toSetting",()=>{Sfx.tap();askName();});
+on("#resHome",()=>renderHome());
+on("#resAgain",()=>startRound(G.mode));
+on("#toPk",()=>{Sfx.tap();renderPk();});
+on("#pkBack",()=>renderHome());
+on("#pkQuit",()=>{pkStopTimer();PK.locked=true;renderPk();});
+on("#btlBack",()=>renderPk());
+on("#accBack",()=>renderPk());
+on("#pkrBack",()=>renderPk());
+on("#codeGo",()=>{
+  const raw=$("#codeIn").value.trim(), err=$("#codeErr");
+  if(!raw){err.textContent="先把码贴进来";return;}
+  const d=readLong(raw)||readShort(raw);
+  if(!d){err.textContent="这个码看不懂——邀请码 7 位，战书码以 SY1 开头，回执码以 R 或 SY1 开头";Sfx.soft();return;}
+
+  if(d.receipt){                                   // ── 回执：发起方看结果 ──
+    const lb=Save.data.lastBattle;
+    if(!lb){err.textContent="你手上没有在外的战书，这张回执对不上";Sfx.soft();return;}
+    if(lb.seed!==d.seed){err.textContent="这张回执是别的战书的，对不上你手上这封";Sfx.soft();return;}
+    Sfx.tap();
+    renderCompare({score:lb.score,secs:lb.secs,q:lb.q,name:lb.name||myName()},d,lb.seed,"host");
+    return;}
+
+  if(ACC_RECEIPT){err.textContent="这是一封战书，不是回执。要应战请回擂台点「应战」";Sfx.soft();return;}
+  if(Save.data.done.includes(d.seed)){             // ── 防重刷 ──
+    err.textContent="这套题你已经答过一次了，让他重新下一封战书吧";Sfx.soft();return;}
+  PK.opp=d;Sfx.tap();pkStart("guest",d.seed);});
+on("#codeIn",e=>{if(e.key==="Enter")$("#codeGo").click();},"keydown");
+
+Save.load().then(()=>renderHome());
+</script>
+</body>
+</html>
