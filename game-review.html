@@ -260,17 +260,25 @@ let showAllBatches = false;
 document.getElementById("game-count-welcome").textContent = ACTIVE_GAMES.length;
 
 async function dbInsert(data) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Prefer": "return=minimal"
-    },
-    body: JSON.stringify(data)
-  });
-  return res.ok;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
 }
 
 async function dbSelect(filter) {
@@ -285,7 +293,8 @@ async function dbSelect(filter) {
     });
     clearTimeout(timer);
     if (!res.ok) return [];
-    return await res.json();
+    // 连通性测试数据不计入任何统计（数据库策略不允许删除，只能前端过滤）
+    return (await res.json()).filter(r => r.reviewer_name !== "连通性测试");
   } catch (e) {
     return [];
   }
@@ -433,7 +442,7 @@ async function submitReview() {
     localReviews.push({ game_id: currentGameId, score: selectedScore, comment });
     showScreen("screen-done");
   } else {
-    showError("submit-error", "提交失败，请检查网络后重试");
+    showError("submit-error", "提交失败：可能是网络问题，或数据库休眠中，请联系发布者恢复后再试");
     document.getElementById("submit-btn").disabled = false;
     document.getElementById("submit-btn").textContent = "提交评价";
   }
