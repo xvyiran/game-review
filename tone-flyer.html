@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>声调飞行器 · ToneFlyer v0.5</title>
+<style>
+:root{
+  --sky-1:#B8E4F0; --sky-2:#E9F7FC;
+  --ink:#2E4A5C;
+  --char:#FF9F45; --char-dk:#E07B22;
+  --terrain:#85D9A8;
+  --cloud:#FFFFFF;
+  --accent:#FFD45E;
+  --wrong:#E8776B;
+  --right:#4CAF7D;
+  --paper:#FFFDF7;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#1d2b35}
+body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",sans-serif;
+     display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:100%;max-width:420px;height:100%;max-height:860px;
+  background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 62%,#F6F0DE 100%);
+  overflow:hidden;display:flex;flex-direction:column;
+  border-left:3px solid var(--ink);border-right:3px solid var(--ink)}
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+.btn{border:3px solid var(--ink);border-radius:16px;background:var(--paper);color:var(--ink);
+  font-size:17px;font-weight:700;padding:14px 18px;cursor:pointer;box-shadow:0 4px 0 var(--ink);
+  transition:transform .06s,box-shadow .06s;font-family:inherit}
+.btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
+.btn.primary{background:var(--accent)}
+.btn[disabled]{opacity:.42;box-shadow:0 4px 0 rgba(46,74,92,.4);cursor:not-allowed}
+.btn:focus-visible{outline:3px solid var(--char);outline-offset:3px}
+
+#start{padding:24px 22px;justify-content:center;gap:16px;overflow-y:auto}
+.title{font-size:33px;font-weight:800;color:var(--ink);letter-spacing:2px;line-height:1.1}
+.title small{display:block;font-size:12px;letter-spacing:3px;font-weight:600;opacity:.6;margin-top:6px}
+.sub{font-size:13px;color:var(--ink);opacity:.75;line-height:1.7}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lg{display:flex;align-items:center;gap:9px;border:2px solid var(--ink);border-radius:12px;
+    padding:8px 9px;background:rgba(255,255,255,.6)}
+.lg b{font-size:14px;color:var(--ink)} .lg span{font-size:11px;opacity:.7;color:var(--ink)}
+.diffs{display:flex;flex-direction:column;gap:9px}
+.diffs .btn{display:flex;justify-content:space-between;align-items:center;text-align:left}
+.diffs .btn i{font-style:normal;font-size:11px;font-weight:600;opacity:.65}
+.best{font-size:12px;color:var(--ink);opacity:.7;text-align:center}
+.btn.ghost{background:transparent;box-shadow:none;border-style:dashed;font-size:14px;padding:10px 14px}
+.btn.ghost:active{transform:none}
+.btn.big{font-size:19px;padding:17px 22px}
+
+/* ── 新手引导 ── */
+#tut{padding:22px;justify-content:center;gap:16px;text-align:center}
+#tutBody{display:flex;flex-direction:column;align-items:center;gap:15px}
+#tutBody .legend,#tutBody .pad{align-self:stretch;width:100%}
+.tdots{display:flex;gap:7px;justify-content:center}
+.tdots i{width:9px;height:9px;border-radius:50%;border:2.5px solid var(--ink);background:transparent}
+.tdots i.on{background:var(--char)}
+.tlead{font-size:20px;font-weight:800;color:var(--ink);line-height:1.5}
+.tlead small{display:block;font-size:13px;font-weight:600;opacity:.65;margin-top:5px}
+.tcard{background:var(--paper);border:3px solid var(--ink);border-radius:18px;
+  box-shadow:0 4px 0 var(--ink);padding:14px 26px;display:inline-block;margin:0 auto}
+.tcard .tpy{font-size:30px;font-weight:800;color:var(--char-dk)}
+.tcard .tch{font-size:52px;font-weight:800;color:var(--ink);line-height:1.1}
+.thint{font-size:13px;color:var(--ink);opacity:.7;min-height:20px;line-height:1.6}
+.tans{display:flex;gap:9px;justify-content:center}
+.tans .btn{font-size:14px;padding:11px 15px}
+.pad{border:3px dashed var(--ink);border-radius:18px;background:rgba(255,255,255,.5);
+  height:180px;position:relative;touch-action:none;overflow:hidden}
+.pad canvas{position:absolute;inset:0;width:100%;height:100%}
+.pad .padtip{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--ink);opacity:.5;pointer-events:none}
+.tutfoot{display:flex;gap:10px;justify-content:center}
+.tgood{color:var(--right);font-weight:800}
+.tbad{color:var(--wrong);font-weight:800}
+
+.hud{display:flex;align-items:center;gap:10px;padding:12px 14px 6px;color:var(--ink)}
+.lives{display:flex;gap:5px}
+.life{width:16px;height:16px;border:2.5px solid var(--ink);border-radius:5px;background:var(--char)}
+.life.gone{background:transparent;opacity:.3}
+.hud .prog{font-size:13px;font-weight:700;opacity:.75}
+.hud .score{margin-left:auto;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+.combo{font-size:12px;font-weight:700;color:var(--char-dk);min-width:44px;text-align:right}
+
+.qwrap{padding:0 14px 4px;height:96px;display:flex;align-items:center;justify-content:center}
+.qcard{display:flex;align-items:center;gap:12px;background:var(--paper);
+  border:3px solid var(--ink);border-radius:18px;padding:9px 18px;box-shadow:0 4px 0 var(--ink);
+  transition:border-color .15s,background .15s,transform .12s;min-width:170px;justify-content:center}
+.qcard.urgent{border-color:var(--char-dk);background:#FFF4E2}
+.qcard.err{border-color:var(--wrong);background:#FFECE9;transform:scale(1.04)}
+.qtext{color:var(--ink);text-align:center;line-height:1}
+.qtext .word{font-size:36px;font-weight:800;letter-spacing:4px}
+.qtext .word em{font-style:normal;color:var(--char-dk);border-bottom:4px solid var(--accent);padding-bottom:2px}
+.qtext .py{font-size:33px;font-weight:800;letter-spacing:1px}
+.qtext .py.bad{color:var(--wrong)}
+.qtext .tip{font-size:12px;opacity:.6;margin-top:6px;letter-spacing:1px}
+.picked{font-size:12px;font-weight:800;color:var(--right);letter-spacing:1px;min-width:30px}
+.spk{border:2.5px solid var(--ink);background:var(--accent);border-radius:50%;width:38px;height:38px;
+  min-width:38px;cursor:pointer;font-size:17px;line-height:1;padding:0;box-shadow:0 3px 0 var(--ink);
+  transition:transform .06s,box-shadow .06s}
+.spk:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.spk[hidden]{display:none}
+/* 成语：每字一格，已划的打勾 */
+.qtext .idiom{display:flex;gap:5px;justify-content:center}
+.qtext .idiom .cel{border:2.5px solid var(--ink);border-radius:9px;padding:3px 6px 4px;min-width:38px;
+  background:rgba(255,255,255,.55);transition:background .12s,border-color .12s}
+.qtext .idiom .cel .c{font-size:25px;font-weight:800;line-height:1.1}
+.qtext .idiom .cel .p{font-size:11px;opacity:.72;line-height:1.3}
+.qtext .idiom .cel.cur{border-color:var(--char-dk);background:#FFF4E2}
+.qtext .idiom .cel.ok{border-color:var(--right);background:#E9F7EE}
+.qtext .idiom .cel.ok .p::after{content:" ✓";color:var(--right);font-weight:800}
+.micdot{font-size:11px;font-weight:700;color:var(--char-dk);letter-spacing:1px}
+
+.stage{flex:1;position:relative;touch-action:none;user-select:none;min-height:0}
+#scene,#overlay{position:absolute;inset:0;width:100%;height:100%;display:block}
+#overlay{pointer-events:none}
+.stage.shake{animation:sh .18s}
+@keyframes sh{0%,100%{transform:none}25%{transform:translate(-6px,3px)}75%{transform:translate(6px,-3px)}}
+.footnote{padding:7px 14px 13px;font-size:11px;color:var(--ink);opacity:.55;text-align:center}
+
+#end{padding:26px 24px;justify-content:center;gap:15px;text-align:center}
+.rank{font-size:72px;font-weight:800;color:var(--ink);line-height:1}
+.rank small{display:block;font-size:14px;letter-spacing:2px;opacity:.6;font-weight:700;margin-top:2px}
+.finalscore{font-size:38px;font-weight:800;color:var(--char-dk);font-variant-numeric:tabular-nums}
+.stats{font-size:13px;color:var(--ink);opacity:.8;line-height:1.9}
+.pausebar{position:absolute;inset:0;background:rgba(46,74,92,.86);color:#fff;display:none;
+  align-items:center;justify-content:center;font-size:44px;font-weight:800;z-index:5}
+.pausebar.on{display:flex}
+@media (prefers-reduced-motion:reduce){.stage.shake{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="start" class="screen on">
+    <div class="title">声调飞行器<small>TONEFLYER</small></div>
+    <div class="sub">听发音 · 划声调 · 穿云雾</div>
+    <div class="diffs">
+      <button class="btn primary" data-diff="beginner">初级 · 单字<i>大字拼音 · 飞得慢</i></button>
+      <button class="btn" data-diff="intermediate">中级 · 词语<i>词语高亮目标字</i></button>
+      <button class="btn" data-diff="advanced">高级 · 多音字<i>末段三组成语连绵地形</i></button>
+      <button class="btn" data-diff="expert">专家 · 开口<i>用嘴发音代替手势 · ×2.0</i></button>
+    </div>
+    <button class="btn ghost" id="howto">👋 第一次玩？先看引导</button>
+    <div class="best" id="bestLine">还没有记录</div>
+  </section>
+
+  <section id="tut" class="screen">
+    <div class="tdots" id="tutDots"></div>
+    <div id="tutBody"></div>
+    <div class="tutfoot">
+      <button class="btn ghost" id="tutSkip">跳过</button>
+      <button class="btn primary" id="tutNext">下一步</button>
+    </div>
+  </section>
+
+  <section id="game" class="screen">
+    <div class="hud">
+      <div class="lives" id="lives"></div>
+      <div class="prog" id="prog">0 / 15</div>
+      <div class="combo" id="combo"></div>
+      <div class="score" id="score">0</div>
+    </div>
+    <div class="qwrap"><div class="qcard" id="qcard">
+      <button class="spk" id="spk" aria-label="重听">🔊</button>
+      <div class="qtext" id="qtext"></div><div class="picked" id="picked"></div>
+    </div></div>
+    <div class="stage" id="stage">
+      <svg id="scene" viewBox="0 0 375 400" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="overlay" viewBox="0 0 375 400" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="footnote" id="footnote">在下方区域滑动画出调型 · 进洞前可重划</div>
+    <div class="pausebar" id="pausebar"></div>
+  </section>
+
+  <section id="end" class="screen">
+    <div class="rank" id="rank">B<small id="rankTip">通关</small></div>
+    <div class="finalscore" id="finalScore">0</div>
+    <div class="stats" id="stats"></div>
+    <button class="btn primary" id="again">再来一局</button>
+    <button class="btn" id="back">换难度</button>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   声调飞行器 ToneFlyer · v0.3
+   v0.1 → v0.2：取消悬停判定，改为世界匀速滚动 + 几何碰撞。
+   v0.3 → v0.4：修复 SVG 视口裁切导致的坐标错位（手指位置≠轨迹位置≠判定坐标）；
+                视口宽度改为随屏幕比例计算，手势判定改用真实 CSS 像素。
+   v0.2 → v0.3：进洞之前可反复重划改答案（最后一次算数）；
+                障碍变窄 150→105、间距 400→520、速度整体下调，
+                目的是把"净思考时间"（窗口 - 穿越动画）拉长。
+   本版仅实现手势通道。语音通道需 HTTPS 环境，另行开发。
+   ========================================================================= */
+
+/* ---------------- 题库（内嵌，零依赖，与 toneflyer-bank.json v1.0 一致） ---------------- */
+const BANK = {
+beginner:[
+["妈","mā",1],["花","huā",1],["天","tiān",1],["山","shān",1],["星","xīng",1],["书","shū",1],
+["鸡","jī",1],["飞","fēi",1],["高","gāo",1],["冬","dōng",1],["风","fēng",1],["开","kāi",1],
+["牛","niú",2],["鱼","yú",2],["羊","yáng",2],["门","mén",2],["云","yún",2],["白","bái",2],
+["学","xué",2],["桥","qiáo",2],["红","hóng",2],["蓝","lán",2],["田","tián",2],["球","qiú",2],
+["马","mǎ",3],["水","shuǐ",3],["手","shǒu",3],["鸟","niǎo",3],["火","huǒ",3],["草","cǎo",3],
+["五","wǔ",3],["雨","yǔ",3],["米","mǐ",3],["狗","gǒu",3],["海","hǎi",3],["雪","xuě",3],
+["树","shù",4],["月","yuè",4],["兔","tù",4],["电","diàn",4],["画","huà",4],["大","dà",4],
+["唱","chàng",4],["面","miàn",4],["笑","xiào",4],["梦","mèng",4],["叫","jiào",4],["亮","liàng",4]
+].map(([c,p,t],i)=>({id:"B"+i,mode:"pinyin",char:c,py:p,tone:t})),
+
+intermediate:[
+["飞机",0,"fēi",1],["春天",0,"chūn",1],["山羊",0,"shān",1],["书包",0,"shū",1],["黑板",0,"hēi",1],
+["今天",0,"jīn",1],["星星",0,"xīng",1],["公园",0,"gōng",1],["家乡",0,"jiā",1],["天空",0,"tiān",1],
+["冬瓜",0,"dōng",1],["花朵",0,"huā",1],
+["牛奶",0,"niú",2],["白云",0,"bái",2],["学校",0,"xué",2],["红旗",0,"hóng",2],["黄河",0,"huáng",2],
+["明天",0,"míng",2],["回家",0,"huí",2],["门口",0,"mén",2],["朋友",0,"péng",2],["游泳",0,"yóu",2],
+["羊毛",0,"yáng",2],["石桥",1,"qiáo",2],
+["雨天",0,"yǔ",3],["老师",0,"lǎo",3],["海洋",0,"hǎi",3],["火车",0,"huǒ",3],["手机",0,"shǒu",3],
+["草地",0,"cǎo",3],["小河",0,"xiǎo",3],["雪花",0,"xuě",3],["马路",0,"mǎ",3],["早上",0,"zǎo",3],
+["苹果",1,"guǒ",3],["五星",0,"wǔ",3],
+["大海",0,"dà",4],["月亮",0,"yuè",4],["树林",0,"shù",4],["电话",0,"diàn",4],["画笔",0,"huà",4],
+["唱歌",0,"chàng",4],["地图",0,"dì",4],["气球",0,"qì",4],["面包",0,"miàn",4],["爱心",0,"ài",4],
+["白兔",1,"tù",4],["夜晚",0,"yè",4]
+].map(([w,i2,p,t],i)=>({id:"M"+i,mode:"hanzi",word:w,idx:i2,py:p,tone:t})),
+
+advanced:[
+["重复",0,"chóng",2],["重量",0,"zhòng",4],["长江",0,"cháng",2],["长大",0,"zhǎng",3],
+["好人",0,"hǎo",3],["爱好",1,"hào",4],["教书",0,"jiāo",1],["教室",0,"jiào",4],
+["多少",1,"shǎo",3],["少年",0,"shào",4],["种子",0,"zhǒng",3],["种树",0,"zhòng",4],
+["空气",0,"kōng",1],["有空",1,"kòng",4],["感觉",1,"jué",2],["睡觉",1,"jiào",4],
+["发现",0,"fā",1],["头发",1,"fà",4],["干净",0,"gān",1],["干活",0,"gàn",4],
+["应该",0,"yīng",1],["答应",1,"yìng",4],["相同",0,"xiāng",1],["照相",1,"xiàng",4],
+["当心",0,"dāng",1],["上当",1,"dàng",4],["假话",0,"jiǎ",3],["放假",1,"jià",4],
+["尽量",0,"jǐn",3],["尽力",0,"jìn",4],["中国",0,"zhōng",1],["中奖",0,"zhòng",4],
+["传说",0,"chuán",2],["传记",0,"zhuàn",4],["便宜",0,"pián",2],["方便",1,"biàn",4],
+["弹琴",0,"tán",2],["子弹",1,"dàn",4],["船只",1,"zhī",1],["只是",0,"zhǐ",3],
+["成为",1,"wéi",2],["因为",1,"wèi",4],["弯曲",1,"qū",1],["歌曲",1,"qǔ",3],
+["强大",0,"qiáng",2],["勉强",1,"qiǎng",3],["相处",1,"chǔ",3],["到处",1,"chù",4],
+["收藏",1,"cáng",2],["西藏",1,"zàng",4],["转身",0,"zhuǎn",3],["转动",0,"zhuàn",4],
+["划船",0,"huá",2],["计划",1,"huà",4],["朝着",0,"cháo",2],["朝阳",0,"zhāo",1],
+["缝衣",0,"féng",2],["门缝",1,"fèng",4],["花卷",1,"juǎn",3],["试卷",1,"juàn",4]
+].map(([w,i2,p,t],i)=>({id:"A"+i,mode:"hanzi",word:w,idx:i2,py:p,tone:t}))
+};
+BANK.expert = BANK.advanced;
+
+/* 成语：连绵地形专用。四个字的调型首尾相接成一条连续通道。
+   小学 1–3 年级常见成语，声调按词典本调标注。 */
+const IDIOMS = [
+["五颜六色","wǔ yán liù sè",[3,2,4,4]],["四面八方","sì miàn bā fāng",[4,4,1,1]],
+["三心二意","sān xīn èr yì",[1,1,4,4]],["九牛一毛","jiǔ niú yī máo",[3,2,1,2]],
+["万紫千红","wàn zǐ qiān hóng",[4,3,1,2]],["春暖花开","chūn nuǎn huā kāi",[1,3,1,1]],
+["鸟语花香","niǎo yǔ huā xiāng",[3,3,1,1]],["东张西望","dōng zhāng xī wàng",[1,1,1,4]],
+["自言自语","zì yán zì yǔ",[4,2,4,3]],["守株待兔","shǒu zhū dài tù",[3,1,4,4]],
+["亡羊补牢","wáng yáng bǔ láo",[2,2,3,2]],["画蛇添足","huà shé tiān zú",[4,2,1,2]],
+["坐井观天","zuò jǐng guān tiān",[4,3,1,1]],["掩耳盗铃","yǎn ěr dào líng",[3,3,4,2]],
+["狐假虎威","hú jiǎ hǔ wēi",[2,3,3,1]],["对牛弹琴","duì niú tán qín",[4,2,2,2]],
+["刻舟求剑","kè zhōu qiú jiàn",[4,1,2,4]],["自相矛盾","zì xiāng máo dùn",[4,1,2,4]],
+["成千上万","chéng qiān shàng wàn",[2,1,4,4]],["五光十色","wǔ guāng shí sè",[3,1,2,4]],
+["大惊小怪","dà jīng xiǎo guài",[4,1,3,4]],["无边无际","wú biān wú jì",[2,1,2,4]],
+["百花齐放","bǎi huā qí fàng",[3,1,2,4]],["井底之蛙","jǐng dǐ zhī wā",[3,3,1,1]],
+["杯弓蛇影","bēi gōng shé yǐng",[1,1,2,3]],["雪中送炭","xuě zhōng sòng tàn",[3,1,4,4]],
+["风和日丽","fēng hé rì lì",[1,2,4,4]],["山清水秀","shān qīng shuǐ xiù",[1,1,3,4]],
+["秋高气爽","qiū gāo qì shuǎng",[1,1,4,3]],["一心一意","yī xīn yī yì",[1,1,1,4]],
+["自由自在","zì yóu zì zài",[4,2,4,4]],["生龙活虎","shēng lóng huó hǔ",[1,2,2,3]],
+["人山人海","rén shān rén hǎi",[2,1,2,3]],["金光闪闪","jīn guāng shǎn shǎn",[1,1,3,3]],
+["张牙舞爪","zhāng yá wǔ zhǎo",[1,2,3,3]],["百发百中","bǎi fā bǎi zhòng",[3,1,3,4]]
+].map(([w,p,ts],i)=>({id:"I"+i,mode:"idiom",word:w,py:p,tones:ts}));
+
+/* 统一取出一道题的「调型序列」和「朗读文本」 */
+const tonesOf = q => q.tones || [q.tone];
+const speechOf = q => q.word || q.char;
+
+/* ---------------- 难度：速度取代倒计时窗口 ---------------- */
+const DIFF = {
+  beginner:    {label:"初级",bank:"beginner",    mult:1.0, gap:50, v0:150, v1:200, idioms:0, voice:false},
+  intermediate:{label:"中级",bank:"intermediate",mult:1.3, gap:44, v0:180, v1:265, idioms:0, voice:false},
+  advanced:    {label:"高级",bank:"advanced",    mult:1.6, gap:39, v0:205, v1:300, idioms:3, voice:false},
+  expert:      {label:"专家",bank:"expert",      mult:2.0, gap:39, v0:195, v1:280, idioms:3, voice:true}
+};
+const TOTAL=15, PROTECT=3, SPACING=520;
+// 成语组是一条 4 段连绵通道，要划 4 次，前后都需要更长的助跑
+const IDIOM_LEAD=300;
+
+/* ---------------- 场景几何 ---------------- */
+const SH=400, OBS_W=105, CRUISE_Y=200, CHAR_R=11;
+let VW=375, CHAR_X=78, PX=1;   // VW=场景宽（随屏幕比例）, PX=1场景单位对应多少 CSS 像素
+function layout(){
+  const r=stage.getBoundingClientRect();
+  if(!r.height) return;
+  VW=Math.max(230,Math.min(620,Math.round(SH*(r.width/r.height))));
+  PX=r.height/SH;
+  scene.setAttribute("viewBox",`0 0 ${VW} ${SH}`);
+  overlay.setAttribute("viewBox",`0 0 ${VW} ${SH}`);
+}
+const CURVE={1:t=>200, 2:t=>300-190*t, 3:t=>170+560*t*(1-t), 4:t=>110+190*t};
+
+/* 把 n 个调型接成一条连续曲线：后一段整体平移，使起点接上前一段终点；
+   再把整条曲线居中并压缩进可视高度。n=1 时就是原来的单调型。
+   返回 t∈[0,1]（覆盖整条通道）→ y。 */
+function buildCurve(tones,ref){
+  const n=tones.length;
+  if(n===1){ const f=CURVE[tones[0]]; const g=t=>f(Math.max(0,Math.min(1,t))); g.meta=null; return g; }
+  const off=[0];
+  for(let k=1;k<n;k++) off[k] = (CURVE[tones[k-1]](1)+off[k-1]) - CURVE[tones[k]](0);
+  let lo=1e9, hi=-1e9;
+  for(let k=0;k<n;k++) for(let s=0;s<=12;s++){
+    const y=CURVE[tones[k]](s/12)+off[k]; if(y<lo)lo=y; if(y>hi)hi=y;
+  }
+  // 玩家画出的曲线必须和正确通道用同一套居中/缩放参数，
+  // 否则两条曲线各自归一化后可能"错着错着又对上了"
+  const sp=hi-lo;
+  const mid = ref? ref.mid : (lo+hi)/2;
+  const scale = ref? ref.scale : (sp>250?250/sp:1);
+  const g=t=>{
+    t=Math.max(0,Math.min(1,t));
+    const seg=Math.min(n-1,Math.floor(t*n)), ft=t*n-seg;
+    return CRUISE_Y + (CURVE[tones[seg]](ft)+off[seg]-mid)*scale;
+  };
+  g.meta={mid,scale};
+  return g;
+}
+// 通道占多宽：成语每字一段
+const spanOf = tones => OBS_W*tones.length;
+
+function channelPath(curve,width,gap,side){
+  const N=24*Math.max(1,Math.round(width/OBS_W)), pts=[];
+  for(let i=0;i<=N;i++){const t=i/N;pts.push([t*width, curve(t)+(side<0?-gap:gap)]);}
+  const edge = side<0 ? -90 : SH+90;
+  let d=`M 0 ${edge} L ${width} ${edge} L ${width} ${pts[N][1].toFixed(1)} `;
+  for(let i=N;i>=0;i--) d+=`L ${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)} `;
+  return d+"Z";
+}
+
+/* ---------------- 配额抽题 ---------------- */
+let drawRotation=0, lastRoundIds=new Set();
+function pickFrom(arr,n){
+  const p=arr.slice(), fresh=p.filter(q=>!lastRoundIds.has(q.id));
+  const src=fresh.length>=n?fresh:p, out=[];
+  for(let k=0;k<n&&src.length;k++) out.push(src.splice(Math.random()*src.length|0,1)[0]);
+  return out;
+}
+function drawRound(cfg){
+  const nWord=TOTAL-cfg.idioms;
+  const pool={1:[],2:[],3:[],4:[]};
+  BANK[cfg.bank].forEach(q=>pool[q.tone].push(q));
+  // 四声均衡配额：余数轮换分配，保证每局四个声调都练到
+  const base=Math.floor(nWord/4); let rem=nWord%4;
+  const quota={1:base,2:base,3:base,4:base};
+  for(let k=0;k<rem;k++) quota[((drawRotation+k)%4)+1]++;
+  drawRotation++;
+  let out=[];
+  for(const t of [1,2,3,4]) out=out.concat(pickFrom(pool[t],quota[t]));
+  for(let i=out.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[out[i],out[j]]=[out[j],out[i]];}
+  // 成语固定压在末段，作为难度收尾
+  if(cfg.idioms) out=out.concat(pickFrom(IDIOMS,cfg.idioms));
+  lastRoundIds=new Set(out.map(q=>q.id));
+  return out;
+}
+
+/* ---------------- DOM ---------------- */
+const $=s=>document.querySelector(s);
+const NS="http://www.w3.org/2000/svg";
+const mk=(t,a={})=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const scene=$("#scene"), overlay=$("#overlay"), stage=$("#stage");
+
+/* ---------------- 安全存储：Safari 在 file:// 下访问 localStorage 会抛 SecurityError ---------------- */
+const LS={
+  get(k,d){ try{const v=localStorage.getItem(k); return v==null?d:v;}catch(e){return d;} },
+  set(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
+};
+
+/* ---------------- 语音播报：认字的看字，不认字的听音，两条通路并行 ---------------- */
+const TTS={
+  available:("speechSynthesis" in window), voice:null, warned:false, unlocked:false,
+  init(){
+    if(!this.available) return;
+    // getVoices() 在刚加载时常返回空表或半截表，绝不能据此就把播报关掉
+    const pick=()=>{
+      const vs=speechSynthesis.getVoices();
+      if(!vs.length) return;
+      this.voice=vs.find(v=>/^zh([-_]|$)/i.test(v.lang))||null;
+    };
+    pick(); speechSynthesis.addEventListener("voiceschanged",pick);
+  },
+  unlock(){ if(!this.available||this.unlocked) return;
+    this.unlocked=true;
+    try{const u=new SpeechSynthesisUtterance("　");u.volume=0;speechSynthesis.speak(u);}catch(e){this.down();} },
+  // 语音合成在部分浏览器（尤其 Safari 首次调用）会同步卡住数秒，一律异步发起。
+  //
+  // 关键：这里**绝不调用 cancel()**。实测 cancel() 紧跟 speak() 会把引擎卡在
+  // speaking=true 却永不触发 start 的死状态，之后整局都不出声——这正是 v0.5
+  // 第一版没声音的原因。题目间隔以秒计、每条又只有 1–4 个字，直接排队即可；
+  // 用 seq 丢弃过期的那条来防止念到上一题，效果和 cancel 一样但不会弄死引擎。
+  speak(text,rate){
+    if(!this.available||!text) return;
+    this.muteMic(text);
+    const my=(this.seq=(this.seq||0)+1);
+    setTimeout(()=>{
+      if(!this.available||this.seq!==my) return;   // 已经换题了，这条作废
+      try{
+        speechSynthesis.resume();                  // Chrome 偶尔会把引擎挂起
+        const u=new SpeechSynthesisUtterance(text);
+        u.lang="zh-CN"; if(this.voice) u.voice=this.voice;
+        u.rate=rate||(S&&S.diffKey==="beginner"?0.8:0.95);
+        u.onerror=e=>{ if(e&&e.error!=="interrupted"&&e.error!=="canceled") this.down(); };
+        speechSynthesis.speak(u);
+      }catch(e){ this.down(); }
+    },0);
+  },
+  // 只在真要离开页面时才用；局内一律靠 seq 作废，不碰 cancel
+  cancel(){ if(this.available) try{speechSynthesis.cancel();}catch(e){} },
+  // 局内换场：让当前那条自然念完，只把后续待发的作废
+  drop(){ this.seq=(this.seq||0)+1; },
+  // 专家档边播报边听会把自己念的话录进去，播报期间掐掉麦克风判定
+  muteMic(text){ if(S&&S.cfg.voice&&Mic.ok) Mic.muteUntil=Date.now()+text.length*380+700; },
+  down(){ if(!this.available) return; this.available=false;
+    if(!this.warned){ this.warned=true; $("#spk").hidden=true; } }
+};
+
+/* ---------------- 麦克风：专家档用嘴发音代替手势 ---------------- */
+const Mic={
+  ok:false, ctx:null, an:null, stream:null, buf:null, noise:0.012,
+  seg:[], quiet:0, timer:null, muteUntil:0,
+  async request(){
+    if(location.protocol==="file:") return false;
+    try{
+      this.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const src=this.ctx.createMediaStreamSource(this.stream);
+      this.an=this.ctx.createAnalyser(); this.an.fftSize=2048;
+      src.connect(this.an); this.buf=new Float32Array(this.an.fftSize);
+      await this.calibrate(); this.ok=true; return true;
+    }catch(e){ this.ok=false; return false; }
+  },
+  calibrate(){ return new Promise(res=>{
+    const s=[],t0=Date.now();
+    const iv=setInterval(()=>{ s.push(this.rms());
+      if(Date.now()-t0>=900){ clearInterval(iv);
+        this.noise=Math.max(0.009,(s.reduce((a,b)=>a+b,0)/(s.length||1))*1.6); res(); } },50);
+  });},
+  rms(){ this.an.getFloatTimeDomainData(this.buf);
+    let s=0; for(let i=0;i<this.buf.length;i++) s+=this.buf[i]*this.buf[i];
+    return Math.sqrt(s/this.buf.length); },
+  pitch(){ const b=this.buf,n=b.length,sr=this.ctx.sampleRate;
+    const lo=Math.floor(sr/500),hi=Math.floor(sr/70);
+    let bl=0,best=0;
+    for(let lag=lo;lag<=hi;lag++){ let s=0;
+      for(let i=0;i<n-lag;i++) s+=b[i]*b[i+lag];
+      if(s>best){best=s;bl=lag;} }
+    let nm=0; for(let i=0;i<n;i++) nm+=b[i]*b[i];
+    if(!bl||best/(nm||1)<0.3) return 0;
+    return sr/bl; },
+  start(){ if(!this.ok) return; this.seg=[];this.quiet=0;
+    if(this.timer) clearInterval(this.timer);
+    this.timer=setInterval(()=>this.tick(),33); },
+  stop(){ if(this.timer){clearInterval(this.timer);this.timer=null;} },
+  tick(){
+    if(!S||S.over||paused) return;
+    if(Date.now()<this.muteUntil){ this.seg=[]; return; }
+    const r=this.rms();
+    if(r>this.noise){ const f=this.pitch(); this.seg.push(f>0?f:null); this.quiet=0; }
+    else if(this.seg.length && ++this.quiet>4){ const s=this.seg; this.seg=[]; this.quiet=0; this.judge(s); }
+  },
+  // 音段前后段斜率 → 平/升/降后升/降
+  judge(seg){
+    const f=seg.filter(v=>v);
+    if(f.length<6) return;                       // 置信度不足，静默忽略，不扣命
+    const k=Math.max(2,Math.floor(f.length/3)), mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+    const head=mean(f.slice(0,k)), tail=mean(f.slice(-k));
+    const min=Math.min(...f), mi=f.indexOf(min), rel=(tail-head)/head;
+    const dip=Math.min(head,tail)/min-1;
+    let tone;
+    if(mi>f.length*0.25 && mi<f.length*0.75 && dip>0.08) tone=3;
+    else if(Math.abs(rel)<0.08) tone=1;
+    else tone=rel>0?2:4;
+    submitTone(tone);
+  },
+  destroy(){ this.stop(); this.ok=false;
+    if(this.stream){this.stream.getTracks().forEach(t=>t.stop());this.stream=null;}
+    if(this.ctx){this.ctx.close().catch(()=>{});this.ctx=null;} this.an=null; }
+};
+
+/* ---------------- 手势识别（与 v0.1 一致，已通过 40000 次压力测试） ---------------- */
+const MIN_MOVE=40, SEG=30, FLAT_V=30;
+function classify(pts){
+  if(pts.length<3) return null;
+  let len=0;
+  for(let i=1;i<pts.length;i++) len+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+  if(len<MIN_MOVE) return null;
+  const ys=pts.map(p=>p.y), y0=ys[0], yN=ys[ys.length-1];
+  let maxY=-1e9,maxI=0,minY=1e9;
+  ys.forEach((y,i)=>{if(y>maxY){maxY=y;maxI=i;} if(y<minY)minY=y;});
+  const dx=Math.abs(pts[pts.length-1].x-pts[0].x), vRange=maxY-minY;
+  if(maxI>0&&maxI<ys.length-1&&maxY-y0>=SEG&&maxY-yN>=SEG) return 3;
+  if(y0-yN>=MIN_MOVE) return 2;
+  if(yN-y0>=MIN_MOVE) return 4;
+  if(dx>=MIN_MOVE&&vRange<FLAT_V) return 1;
+  return null;
+}
+
+/* ---------------- 局状态 ---------------- */
+let S=null, raf=0, paused=false;
+
+function buildWorld(){
+  scene.innerHTML=""; overlay.innerHTML="";
+  const hills=mk("g",{opacity:".4",id:"hills"});
+  const nHill=Math.ceil(VW/160)+3;
+  for(let i=0;i<nHill;i++){
+    const x=i*160;
+    hills.appendChild(mk("path",{d:`M${x-40} ${SH} L${x+40} ${290+(i%2)*22} L${x+120} ${SH} Z`,
+      fill:i%2?"#8ACDB6":"#9FD8C4"}));
+  }
+  scene.appendChild(hills);
+  scene.appendChild(mk("path",{d:`M0 ${SH-14} H${VW}`,stroke:"var(--ink)","stroke-width":"3",opacity:".22"}));
+
+  const layer=mk("g",{id:"obsLayer"}); scene.appendChild(layer);
+  S.obs.forEach((o,i)=>{
+    const g=mk("g",{}), W=o.span;
+    g.appendChild(mk("path",{d:channelPath(o.curve,W,o.gap,-1),fill:"var(--terrain)",stroke:"var(--ink)","stroke-width":"3","stroke-linejoin":"round"}));
+    g.appendChild(mk("path",{d:channelPath(o.curve,W,o.gap,+1),fill:"var(--terrain)",stroke:"var(--ink)","stroke-width":"3","stroke-linejoin":"round"}));
+    const cid="fogclip"+i;
+    const cp=mk("clipPath",{id:cid});
+    cp.appendChild(mk("rect",{x:-13,y:-14,width:W+26,height:SH+28}));
+    g.appendChild(cp);
+    const fog=mk("g",{"clip-path":`url(#${cid})`});
+    fog.appendChild(mk("rect",{x:-13,y:-14,width:W+26,height:SH+28,fill:"var(--cloud)",opacity:".93"}));
+    const puffs=[[.12,120,46],[.42,72,40],[.47,235,50],[.75,160,54],[.87,300,44],[.16,300,36],[.67,40,34],[.27,200,48]];
+    const reps=Math.max(1,Math.round(W/OBS_W));
+    for(let r0=0;r0<reps;r0++) puffs.forEach(([fx,y,r])=>
+      fog.appendChild(mk("circle",{cx:((r0+fx)*OBS_W).toFixed(1),cy:y,r:r,
+        fill:"var(--cloud)",stroke:"var(--ink)","stroke-width":"3"})));
+    g.appendChild(fog);
+    layer.appendChild(g);
+    o.g=g; o.fog=fog;
+  });
+
+  const ch=mk("g",{id:"char"});
+  ch.appendChild(mk("path",{id:"charBody",d:"M-16 -13 L20 0 L-16 13 L-9 0 Z",fill:"var(--char)",
+    stroke:"var(--ink)","stroke-width":"3","stroke-linejoin":"round"}));
+  ch.appendChild(mk("circle",{cx:4,cy:-3,r:2.6,fill:"var(--ink)"}));
+  scene.appendChild(ch);
+  S.charEl=ch; S.bodyEl=ch.querySelector("#charBody");
+}
+
+/* ---------------- 输入 ---------------- */
+let capturing=false, pts=[], ptsPx=[], trail=null, activePointer=null;
+const toSvg=e=>{const r=stage.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*VW, y:(e.clientY-r.top)/r.height*SH};};
+
+function killTrail(){ if(trail){const t=trail;trail=null;setTimeout(()=>t.remove(),240);} }
+
+stage.addEventListener("pointerdown",e=>{
+  if(!S||S.over) return;
+  if(capturing) return;                       // 已有手指在划，忽略第二指（避免残留轨迹）
+  capturing=true; activePointer=e.pointerId;
+  pts=[toSvg(e)]; ptsPx=[{x:e.clientX,y:e.clientY}];
+  killTrail();
+  trail=mk("polyline",{fill:"none",stroke:"var(--char)","stroke-width":"5",
+    "stroke-linecap":"round","stroke-linejoin":"round",opacity:".8"});
+  overlay.appendChild(trail);
+  stage.setPointerCapture(e.pointerId); e.preventDefault();
+},{passive:false});
+
+stage.addEventListener("pointermove",e=>{
+  if(!capturing || e.pointerId!==activePointer) return;
+  pts.push(toSvg(e)); ptsPx.push({x:e.clientX,y:e.clientY});
+  trail.setAttribute("points",pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
+  e.preventDefault();
+},{passive:false});
+
+function endCapture(e){
+  if(!capturing) return;
+  if(e && e.pointerId!==undefined && e.pointerId!==activePointer) return;
+  capturing=false; activePointer=null;
+  killTrail();
+  const r=classify(ptsPx);             // 用真实 CSS 像素判定，阈值在任何屏幕上都是同一段物理距离
+  if(r===null) return;                 // 位移不足 → 无效，不扣命，可继续划
+  submitTone(r);
+}
+
+// 手势与语音共用的落子入口。单字题再划一次＝改答案；
+// 成语要连划 4 次，划满后再划则整组重来。
+function submitTone(r){
+  if(!S||S.over||paused) return;
+  const o=pending(); if(!o) return;
+  if(o.chosen.length>=o.tones.length) o.chosen=[];
+  o.chosen.push(r);
+  o.chosenCurve = o.chosen.length===o.tones.length
+    ? buildCurve(o.chosen, o.curve.meta) : null;
+  // 早答提前量按固定宽度折算，让"提前多远锁定"在单字和成语上是同一把尺子
+  o.lockT=(CHAR_X-o.x)/OBS_W;
+  paintQuestion();
+}
+const ready = o => o && o.chosen.length===o.tones.length;
+stage.addEventListener("pointerup",endCapture);
+stage.addEventListener("pointercancel",endCapture);
+
+// 当前可作答的障碍：你正在飞向的那一个。进洞之前可以反复重划，最后一次算数。
+function pending(){ return S.obs.find(o=>o.state==="alive" && o.x>CHAR_X); }
+// 当前控制角色高度的障碍：第一个还活着且没被甩到身后的（撞碎的不再挡住后一个）
+function active(){ return S.obs.find(o=>o.state==="alive" && o.x+o.span > CHAR_X-6); }
+
+/* ---------------- 题面 ---------------- */
+const TONE_CN={1:"一声",2:"二声",3:"三声",4:"四声"};
+function urgent(o){ return o && (o.x-CHAR_X) < speedNow()*0.55; }
+function paintQuestion(){
+  const o=pending(), box=$("#qtext"), card=$("#qcard"), pk=$("#picked"), spk=$("#spk");
+  if(S.errFlash>0) return;
+  card.classList.remove("err");
+  if(!o){ box.innerHTML=`<div class="tip">保持飞行</div>`; pk.textContent="";
+          card.classList.remove("urgent"); spk.hidden=true; return; }
+  spk.hidden=!TTS.available;
+  const q=o.q, protect=o.i<PROTECT;
+  if(q.mode==="idiom"){
+    const pys=q.py.split(" ");
+    box.innerHTML=`<div class="idiom">`+q.word.split("").map((c,k)=>{
+      const st = k<o.chosen.length ? "ok" : (k===o.chosen.length?"cur":"");
+      return `<div class="cel ${st}"><div class="p">${pys[k]||""}</div><div class="c">${c}</div></div>`;
+    }).join("")+`</div><div class="tip">连划四个调型 · 一口气飞过去</div>`;
+  }else if(q.mode==="pinyin"||protect){
+    box.innerHTML=`<div class="py">${q.py}</div><div class="tip">${q.mode==="pinyin"?q.char:q.word}</div>`;
+  }else{
+    const w=q.word.split("").map((c,k)=>k===q.idx?`<em>${c}</em>`:c).join("");
+    box.innerHTML=`<div class="word">${w}</div><div class="tip">读高亮的字</div>`;
+  }
+  if(q.mode==="idiom"){
+    pk.innerHTML = o.chosen.length ? `${o.chosen.length}/${o.tones.length}` : "";
+  }else{
+    pk.innerHTML = o.chosen.length ? `${TONE_CN[o.chosen[0]]}<br><span style="font-size:10px;opacity:.6">可重划</span>` : "";
+  }
+  if(S.cfg.voice) pk.innerHTML += `<div class="micdot">${Mic.ok?"🎙 请读出来":"手势模式"}</div>`;
+  card.classList.toggle("urgent",urgent(o));
+}
+function flashWrong(q){
+  const card=$("#qcard"), small=q.mode==="idiom"?' style="font-size:20px"':"";
+  $("#qtext").innerHTML=`<div class="py bad"${small}>${q.py}</div><div class="tip">这才是它的调</div>`;
+  $("#picked").textContent="";
+  card.classList.remove("urgent"); card.classList.add("err");
+  S.errFlash=1100;
+  TTS.speak(speechOf(q),0.75);          // 撞了就再念一遍，错误反馈自带跟读
+}
+
+/* ---------------- 保护期手势演示 ---------------- */
+let demoG=null, demoRaf=0;
+function syncDemo(){
+  const o=pending();
+  const want = o && o.i<PROTECT ? o.q.tone : 0;
+  if(demoG && demoG.dataset.tone==String(want)) return;
+  stopDemo();
+  if(!want) return;
+  const cx=VW/2, cy=SH*0.62, w=118, h=58;
+  const P={1:[[cx-w/2,cy],[cx+w/2,cy]],
+           2:[[cx-w/2,cy+h/2],[cx+w/2,cy-h/2]],
+           3:[[cx-w/2,cy-h/2],[cx,cy+h/2],[cx+w/2,cy-h/2]],
+           4:[[cx-w/2,cy-h/2],[cx+w/2,cy+h/2]]}[want];
+  const g=mk("g",{opacity:".8"}); g.dataset.tone=String(want);
+  g.appendChild(mk("path",{d:"M "+P.map(p=>p.join(" ")).join(" L "),fill:"none",stroke:"var(--ink)",
+    "stroke-width":"4","stroke-dasharray":"7 8","stroke-linecap":"round","stroke-linejoin":"round",opacity:".5"}));
+  const dot=mk("circle",{r:9,fill:"var(--accent)",stroke:"var(--ink)","stroke-width":"3"});
+  g.appendChild(dot); overlay.appendChild(g); demoG=g;
+  const t0=performance.now();
+  (function loop(now){
+    const p=((((now-t0)/1400)%1)+1)%1, seg=p*(P.length-1);
+    const i=Math.max(0,Math.min(P.length-2,Math.floor(seg))), f=Math.max(0,Math.min(1,seg-i));
+    dot.setAttribute("cx",P[i][0]+(P[i+1][0]-P[i][0])*f);
+    dot.setAttribute("cy",P[i][1]+(P[i+1][1]-P[i][1])*f);
+    demoRaf=requestAnimationFrame(loop);
+  })(t0);
+}
+function stopDemo(){ cancelAnimationFrame(demoRaf); if(demoG){demoG.remove();demoG=null;} }
+
+/* ---------------- 主循环 ---------------- */
+function speedNow(){
+  const p=S.resolved/TOTAL;
+  return S.cfg.v0 + (S.cfg.v1-S.cfg.v0)*(p*p*0.55+p*0.45);   // 平滑加速，无断崖
+}
+function charYFor(o){
+  if(!ready(o)) return null;                       // 还没划完，不预先对准
+  const t=(CHAR_X-o.x)/o.span;
+  if(t<-1.6) return null;
+  if(t<0){ return {y:o.chosenCurve(0)}; }          // 提前对准：改了选择会当场看到高度变化
+  return {y:o.chosenCurve(Math.min(1,t))};
+}
+
+function frame(now){
+  raf=requestAnimationFrame(frame);
+  if(paused){ S.last=now; return; }
+  const dt=Math.max(0,Math.min(0.05,(now-S.last)/1000)); S.last=now;
+  if(S.errFlash>0){ S.errFlash-=dt*1000; if(S.errFlash<=0) paintQuestion(); }
+  if(S.hitStop>0){ S.hitStop-=dt*1000; render(); return; }
+
+  S.worldX += speedNow()*dt;
+  S.obs.forEach(o=>{ o.x = o.baseX - S.worldX; });
+
+  // ① 先定角色高度：进入障碍口后直接吸附到所选调型曲线上。
+  //    这样最后一刻答对也一定能进洞，不会因为"来不及爬升"被冤枉判死。
+  const a=active();
+  let snapped=false;
+  if(ready(a)){
+    const t=(CHAR_X-a.x)/a.span;
+    if(t>=0){ S.charY=a.chosenCurve(Math.min(1,t)); snapped=true; }
+  }
+  if(!snapped){
+    const h=charYFor(a);
+    const target=h?h.y:CRUISE_Y;
+    const rate=h?1-Math.pow(0.0004,dt):1-Math.pow(0.02,dt);
+    S.charY+=(target-S.charY)*rate;
+  }
+
+  // ② 碰撞：拿角色"真正所在的高度"和通道中心比，不用理想值，眼见即所得
+  if(a){
+    const t=(CHAR_X-a.x)/a.span;
+    if(t>=0 && !ready(a)){
+      crash(a,true);                                     // 超时：飞到洞口还没答（成语没划满也算）
+    }else if(t>=0 && t<=1){
+      if(Math.abs(S.charY-a.curve(t)) > a.gap-CHAR_R) crash(a,false);
+    }else if(t>1){
+      pass(a);
+    }
+  }
+
+  // 云雾：进入障碍口时才散开，保证盲判
+  S.obs.forEach(o=>{
+    const t=(CHAR_X-o.x)/o.span;
+    const op = t<-0.06 ? 1 : Math.max(0,1-(t+0.06)/(0.3/Math.max(1,o.tones.length)));
+    o.fog.setAttribute("opacity",o.state==="alive"?op.toFixed(2):"0");
+  });
+
+  render();
+
+  if(S.resolved>=TOTAL || S.lives<=0){ if(!S.over){ S.over=true; setTimeout(endRound,520); } }
+}
+
+function render(){
+  $("#obsLayer") && S.obs.forEach(o=>o.g.setAttribute("transform",`translate(${o.x.toFixed(1)},0)`));
+  scene.querySelector("#hills").setAttribute("transform",`translate(${(-S.worldX*0.25%160).toFixed(1)},0)`);
+  const rot=Math.max(-34,Math.min(34,(S.charY-S.prevY)*7));
+  S.prevY=S.charY;
+  S.charEl.setAttribute("transform",`translate(${CHAR_X},${S.charY.toFixed(1)}) rotate(${rot.toFixed(1)})`);
+  syncDemo(); syncSpeech();
+  const p=pending();
+  if(p && S.errFlash<=0) $("#qcard").classList.toggle("urgent",urgent(p));
+}
+
+// 换到新题就念一遍：认字的看字，不认字的听音
+let spokenKey=null;
+function syncSpeech(){
+  const o=pending(), key=o?o.i+":"+o.q.id:null;
+  if(key===spokenKey) return;
+  spokenKey=key;
+  if(o) TTS.speak(speechOf(o.q));
+}
+
+function pass(o){
+  o.state="passed"; S.resolved++; S.combo++;
+  const early=Math.max(0,Math.min(1,(-(o.lockT??0)-0.3)/3.6));
+  const add=Math.round((100*o.coef+20*Math.min(S.combo,5)+40*early)*S.cfg.mult);
+  S.score+=add;
+  $("#score").textContent=S.score;
+  $("#combo").textContent=S.combo>1?"连击 "+S.combo:"";
+  $("#prog").textContent=S.resolved+" / "+TOTAL;
+  paintQuestion();
+}
+function crash(o,timeout){
+  o.state="crashed"; o.crashTone=o.chosen; S.resolved++; S.combo=0;
+  const protect=o.i<PROTECT;
+  if(!protect){ S.lives--; setLives(S.lives); }
+  o.g.setAttribute("opacity",".38");
+  S.hitStop=180;
+  stage.classList.remove("shake"); void stage.offsetWidth; stage.classList.add("shake");
+  S.bodyEl.setAttribute("fill","var(--wrong)");
+  setTimeout(()=>S.bodyEl.setAttribute("fill","var(--char)"),420);
+  flashWrong(o.q);
+  if(protect) $("#qtext").insertAdjacentHTML("beforeend",`<div class="tip">保护期 · 不扣命</div>`);
+  $("#combo").textContent="";
+  $("#prog").textContent=S.resolved+" / "+TOTAL;
+}
+
+/* ---------------- 局管理 ---------------- */
+function setLives(n){
+  $("#lives").innerHTML="";
+  for(let i=0;i<3;i++){const d=document.createElement("div");d.className="life"+(i<n?"":" gone");$("#lives").appendChild(d);}
+}
+async function playRound(diffKey){
+  cancelAnimationFrame(raf); stopDemo(); TTS.drop(); Mic.stop();
+  const cfg=DIFF[diffKey], queue=drawRound(cfg);
+  show("game"); layout();
+  CHAR_X=Math.round(Math.min(112,Math.max(52,VW*0.20)));
+  S={cfg,diffKey,lives:3,score:0,combo:0,resolved:0,worldX:0,charY:CRUISE_Y,prevY:CRUISE_Y,
+     hitStop:0,errFlash:0,over:false,last:performance.now(),obs:[]};
+  let base=CHAR_X+VW*0.92;
+  queue.forEach((q,i)=>{
+    const tones=tonesOf(q), span=spanOf(tones), idiom=q.mode==="idiom";
+    S.obs.push({i,q,tones,span,curve:buildCurve(tones),chosenCurve:null,
+      baseX:base,x:base,gap:i<PROTECT?cfg.gap+9:cfg.gap,
+      coef:idiom?2.5:1,chosen:[],lockT:null,state:"alive"});
+    // 成语要连划四次，前后各留出更长的助跑
+    base += (span-OBS_W) + SPACING + (idiom?IDIOM_LEAD:0);
+  });
+  setLives(3); $("#score").textContent="0"; $("#combo").textContent=""; $("#prog").textContent="0 / "+TOTAL;
+  $("#qcard").classList.remove("err","urgent");
+  spokenKey=null;
+  buildWorld(); paintQuestion();
+  S.last=performance.now();
+  raf=requestAnimationFrame(frame);
+  if(cfg.voice){
+    if(!Mic.ok) await Mic.request();
+    if(Mic.ok) Mic.start();
+    else {
+      toastOnce("麦克风不可用，本局用手势玩");
+      // 没开口就拿不到开口的倍数，否则专家榜会被手势局灌水
+      S.cfg=Object.assign({},cfg,{mult:DIFF.advanced.mult});
+    }
+    S.last=performance.now();     // 授权对话框耗掉的时间不算进飞行
+    paintQuestion();
+  }
+}
+let toasted=false;
+function toastOnce(msg){ if(toasted) return; toasted=true;
+  const t=$("#footnote"); if(t) t.textContent=msg; }
+function endRound(){
+  cancelAnimationFrame(raf); stopDemo();
+  const cleared=S.lives>0;
+  let bonus=0;
+  if(cleared){ bonus=Math.round(200*S.lives*S.cfg.mult); S.score+=bonus; }
+  const passed=S.obs.filter(o=>o.state==="passed").length;
+  const rank=!cleared?"—":(S.lives===3?"S":S.lives===2?"A":"B");
+  $("#rank").firstChild.textContent=rank;
+  $("#rankTip").textContent=cleared?(rank==="S"?"完美通关":"通关"):"生命耗尽";
+  $("#finalScore").textContent=S.score;
+  $("#stats").innerHTML=`难度 ${S.cfg.label} · 倍数 ×${S.cfg.mult}<br>`+
+    `通过障碍 ${passed} / ${TOTAL}　剩余生命 ${Math.max(0,S.lives)}<br>`+
+    (cleared?`通关奖励 +${bonus}`:`未通关，无通关奖励`);
+  const key="toneflyer_best_"+S.diffKey, best=+(LS.get(key,0)||0);
+  if(S.score>best) LS.set(key,S.score);
+  refreshBest(); show("end");
+}
+function refreshBest(){
+  const parts=Object.keys(DIFF).map(k=>{
+    const v=+(LS.get("toneflyer_best_"+k,0)||0);
+    return v?DIFF[k].label+" "+v:null;
+  }).filter(Boolean);
+  $("#bestLine").textContent=parts.length?"最高分　"+parts.join("　·　"):"还没有记录";
+}
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));}
+
+/* ---------------- 新手引导 ----------------
+   第一步就是「点我听一听」：既教会玩法，又用真实用户手势解锁语音合成。 */
+const TONE_SVG={
+  1:'<path d="M4 12h22" stroke="#2E4A5C" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="26" cy="12" r="3" fill="#FF9F45" stroke="#2E4A5C" stroke-width="2"/>',
+  2:'<path d="M6 19L24 6" stroke="#2E4A5C" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="24" cy="6" r="3" fill="#FF9F45" stroke="#2E4A5C" stroke-width="2"/>',
+  3:'<path d="M5 6L15 18L25 6" stroke="#2E4A5C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="6" r="3" fill="#FF9F45" stroke="#2E4A5C" stroke-width="2"/>',
+  4:'<path d="M6 6L24 19" stroke="#2E4A5C" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="24" cy="19" r="3" fill="#FF9F45" stroke="#2E4A5C" stroke-width="2"/>'
+};
+const TONE_HOW={1:"横划",2:"往上划",3:"先下后上",4:"往下划"};
+const legendHTML=()=>'<div class="legend">'+[1,2,3,4].map(t=>
+  `<div class="lg"><svg width="30" height="24" viewBox="0 0 30 24">${TONE_SVG[t]}</svg>`+
+  `<div><b>${TONE_CN[t]}</b><br><span>${TONE_HOW[t]}</span></div></div>`).join("")+'</div>';
+
+const TUT={step:0, drills:[2,3], drillAt:0};
+function tutRender(){
+  const body=$("#tutBody"), dots=$("#tutDots");
+  dots.innerHTML=[0,1,2].map(i=>`<i class="${i===TUT.step?"on":""}"></i>`).join("");
+  $("#tutNext").textContent = TUT.step===2 ? "开始玩" : "下一步";
+  $("#tutNext").disabled = false;
+  if(TUT.step===0){
+    body.innerHTML=`<div class="tlead">题目会念出来<small>认字的看字，不认字的听音，都能玩</small></div>
+      <div class="tcard"><div class="tpy">mā</div><div class="tch">妈</div></div>
+      <button class="btn primary big" id="tryHear">🔊 点我听一听</button>
+      <div class="thint" id="hearHint">听到「妈」的读音，就能判断它是第几声</div>`;
+    $("#tryHear").onclick=()=>{
+      TTS.unlock(); TTS.speak("妈",0.75);
+      $("#hearHint").innerHTML=`没听到声音？<div class="tans" style="margin-top:8px">
+        <button class="btn" id="hearNo">没有声音</button>
+        <button class="btn" id="hearYes">听到了 ✓</button></div>`;
+      $("#hearYes").onclick=()=>{ $("#hearHint").innerHTML='<span class="tgood">很好！那就靠耳朵玩</span>'; };
+      $("#hearNo").onclick=()=>{
+        LS.set("toneflyer_mute","1");
+        $("#hearHint").innerHTML='<span class="tbad">没关系</span>　题目上方一直有拼音，看拼音也能玩';
+      };
+    };
+  }else if(TUT.step===1){
+    body.innerHTML=`<div class="tlead">声调有四种形状<small>用手指把这个形状划出来</small></div>
+      ${legendHTML()}
+      <div class="thint">通道的形状就是声调的形状——划对了，路就对上了</div>`;
+  }else{
+    TUT.drillAt=0; renderDrill();
+  }
+}
+function renderDrill(){
+  const want=TUT.drills[TUT.drillAt];
+  $("#tutBody").innerHTML=`<div class="tlead">试着划一个${TONE_CN[want]}
+      <small>${TONE_HOW[want]}　（${TUT.drillAt+1}/${TUT.drills.length}）</small></div>
+    <svg width="60" height="48" viewBox="0 0 30 24">${TONE_SVG[want]}</svg>
+    <div class="pad" id="pad"><canvas id="padCv"></canvas><div class="padtip" id="padTip">在这里划</div></div>
+    <div class="thint" id="drillHint">划完抬手就会判断</div>`;
+  $("#tutNext").disabled=true;
+  bindPad(want);
+}
+function bindPad(want){
+  const pad=$("#pad"), cv=$("#padCv"), ctx=cv.getContext("2d");
+  const r0=()=>pad.getBoundingClientRect();
+  const fit=()=>{const r=r0();cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio;
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);};
+  fit();
+  let on=false, pp=[];
+  const paint=()=>{const r=r0();ctx.clearRect(0,0,r.width,r.height);
+    if(pp.length<2)return;ctx.beginPath();ctx.moveTo(pp[0].x-r.left,pp[0].y-r.top);
+    pp.slice(1).forEach(p=>ctx.lineTo(p.x-r.left,p.y-r.top));
+    ctx.strokeStyle="#FF9F45";ctx.lineWidth=6;ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();};
+  pad.addEventListener("pointerdown",e=>{on=true;pp=[{x:e.clientX,y:e.clientY}];
+    $("#padTip").style.display="none";pad.setPointerCapture(e.pointerId);e.preventDefault();},{passive:false});
+  pad.addEventListener("pointermove",e=>{if(!on)return;pp.push({x:e.clientX,y:e.clientY});paint();e.preventDefault();},{passive:false});
+  const done=()=>{
+    if(!on)return; on=false;
+    const got=classify(pp), hint=$("#drillHint");
+    setTimeout(()=>{pp=[];paint();$("#padTip").style.display="";},420);
+    if(got===null){ hint.innerHTML="划得太短啦，再划长一点"; return; }
+    if(got===want){
+      hint.innerHTML='<span class="tgood">对了！就是这样 ✓</span>';
+      if(TUT.drillAt<TUT.drills.length-1){ setTimeout(()=>{TUT.drillAt++;renderDrill();},700); }
+      else { hint.innerHTML='<span class="tgood">两个都对！可以上天了 ✓</span>'; $("#tutNext").disabled=false; }
+    }else{
+      hint.innerHTML=`你划的是<span class="tbad">${TONE_CN[got]}</span>，再试一次${TONE_CN[want]}（${TONE_HOW[want]}）`;
+    }
+  };
+  pad.addEventListener("pointerup",done); pad.addEventListener("pointercancel",done);
+}
+function openTut(){ TUT.step=0; show("tut"); tutRender(); }
+function closeTut(){ LS.set("toneflyer_tut","1"); show("start"); refreshBest(); }
+$("#howto").onclick=openTut;
+$("#tutSkip").onclick=closeTut;
+$("#tutNext").onclick=()=>{ if(TUT.step>=2){ closeTut(); return; } TUT.step++; tutRender(); };
+
+document.querySelectorAll("[data-diff]").forEach(b=>b.onclick=()=>{TTS.unlock();playRound(b.dataset.diff);});
+$("#again").onclick=()=>{TTS.unlock();playRound(S.diffKey);};
+$("#back").onclick=()=>{cancelAnimationFrame(raf);stopDemo();TTS.drop();Mic.destroy();show("start");refreshBest();};
+// 重听：题卡上的喇叭。按钮在 stage 之外，不会吃掉手势
+$("#spk").onclick=e=>{ e.stopPropagation(); const o=pending(); if(o) TTS.speak(speechOf(o.q)); };
+
+document.addEventListener("visibilitychange",()=>{
+  if(!$("#game").classList.contains("on")) return;
+  const bar=$("#pausebar");
+  if(document.hidden){ paused=true; bar.textContent="暂停"; bar.classList.add("on"); TTS.drop(); }
+  else{
+    let n=3; bar.textContent=n;
+    const tick=setInterval(()=>{
+      n--; if(n>0){bar.textContent=n;}
+      else{ clearInterval(tick); bar.classList.remove("on"); S.last=performance.now(); paused=false;
+            const o=pending(); if(o) TTS.speak(speechOf(o.q)); }   // 回来重念当前题
+    },600);
+  }
+});
+addEventListener("pagehide",()=>{TTS.cancel();Mic.destroy();});
+
+TTS.init();
+refreshBest();
+layout();
+// 第一次打开直接进引导，不指望玩家自己去找
+if(!LS.get("toneflyer_tut",null)) openTut();
+addEventListener("resize",()=>{layout();if(S&&!S.over)render();});
+addEventListener("orientationchange",()=>setTimeout(layout,240));
+</script>
+</body>
+</html>
